@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package local
+package vm
 
 import (
 	"context"
@@ -26,13 +26,13 @@ import (
 )
 
 func TestOptionalLogging(t *testing.T) {
-	for _, logMode := range Logging.Values(LogStdoutAndStderr) {
+	for _, logMode := range common.Logging.Values(common.LogStdoutAndStderr) {
 
 		t.Run(logMode.Name, func(t *testing.T) {
-			cmd := Command{}
+			cmd := Vm{}
 
 			ctx := testutil.TestContext{Context: context.Background()}
-			input := CommandInputs{
+			input := VmInputs{
 				BaseInputs: BaseInputs{
 					Logging: &logMode.Value,
 				},

@@ -12,42 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package local
+package vm
 
 import (
 	_ "embed"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-go-provider/infer"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 )
 
-//go:embed command.md
+//go:embed vm.md
 var resourceDoc string
 
-// This is the type that implements the Command resource methods.
-// The methods are declared in the commandController.go file.
-type Command struct{}
+// This is the type that implements the Vm resource methods.
+// The methods are declared in the vmController.go file.
+type Vm struct{}
 
-// The following statement is not required. It is a type assertion to indicate to Go that Command
+// The following statement is not required. It is a type assertion to indicate to Go that Vm
 // implements the following interfaces. If the function signature doesn't match or isn't implemented,
 // we get nice compile time errors at this location.
 
-var _ = (infer.Annotated)((*Command)(nil))
+var _ = (infer.Annotated)((*Vm)(nil))
 
 // Implementing Annotate lets you provide descriptions and default values for resources and they will
 // be visible in the provider's schema and the generated SDKs.
-func (c *Command) Annotate(a infer.Annotator) {
+func (c *Vm) Annotate(a infer.Annotator) {
 	a.Describe(&c, resourceDoc)
 }
 
-// These are the inputs (or arguments) to a Command resource.
-type CommandInputs struct {
+// These are the inputs (or arguments) to a Vm resource.
+type VmInputs struct {
 	common.ResourceInputs
 	BaseInputs
 }
 
-// These are the outputs (or properties) of a Command resource.
-type CommandOutputs struct {
-	CommandInputs
+// These are the outputs (or properties) of a Vm resource.
+type VmOutputs struct {
+	VmInputs
 	BaseOutputs
 }

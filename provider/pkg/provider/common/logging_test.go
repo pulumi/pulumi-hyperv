@@ -1,9 +1,9 @@
-package local_test
+package common_test
 
 import (
 	"testing"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/local"
+	local "github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/stretchr/testify/assert"
 )
 
