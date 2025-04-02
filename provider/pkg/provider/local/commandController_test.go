@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/util/testutil"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util/testutil"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/require"
 )

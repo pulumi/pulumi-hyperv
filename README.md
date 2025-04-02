@@ -1,10 +1,10 @@
-[![Actions Status](https://github.com/pulumi/pulumi-command/workflows/master/badge.svg)](https://github.com/pulumi/pulumi-command/actions)
+[![Actions Status](https://github.com/pulumi/pulumi-hyperv-provider/workflows/master/badge.svg)](https://github.com/pulumi/pulumi-hyperv-provider/actions)
 [![Slack](http://www.pulumi.com/images/docs/badges/slack.svg)](https://slack.pulumi.com)
 [![NPM version](https://badge.fury.io/js/%40pulumi%2Fcommand.svg)](https://www.npmjs.com/package/@pulumi/command)
-[![Python version](https://badge.fury.io/py/pulumi-command.svg)](https://pypi.org/project/pulumi-command)
+[![Python version](https://badge.fury.io/py/pulumi-hyperv-provider.svg)](https://pypi.org/project/pulumi-hyperv-provider)
 [![NuGet version](https://badge.fury.io/nu/pulumi.command.svg)](https://badge.fury.io/nu/pulumi.command)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-command/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-command/sdk/go)
-[![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-command/blob/master/LICENSE)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-hyperv-provider/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv-provider/sdk/go)
+[![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-hyperv-provider/blob/master/LICENSE)
 
 # Pulumi Command Provider (preview)
 
@@ -24,7 +24,7 @@ You can use the Command package from a Pulumi program written in any Pulumi lang
 You'll need to [install and configure the Pulumi CLI](https://pulumi.com/docs/get-started/install) if you haven't already.
 
 
-> **NOTE**: The Command package is in preview.  The API design may change ahead of general availability based on [user feedback](https://github.com/pulumi/pulumi-command/issues). 
+> **NOTE**: The Command package is in preview.  The API design may change ahead of general availability based on [user feedback](https://github.com/pulumi/pulumi-hyperv-provider/issues). 
 
 ## Examples
 
@@ -46,7 +46,7 @@ export const output = random.stdout;
 package main
 
 import (
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -68,7 +68,7 @@ func main() {
 
 ### Remote provisioning of an EC2 instance
 
-This example creates and EC2 instance, and then uses `remote.Command` and `remote.CopyFile` to run commands and copy files to the remote instance (via SSH). Similar things are possible with Azure, Google Cloud and other cloud provider virtual machines.  Support for Windows-based VMs is being tracked [here](https://github.com/pulumi/pulumi-command/issues/15).
+This example creates and EC2 instance, and then uses `remote.Command` and `remote.CopyFile` to run commands and copy files to the remote instance (via SSH). Similar things are possible with Azure, Google Cloud and other cloud provider virtual machines.  Support for Windows-based VMs is being tracked [here](https://github.com/pulumi/pulumi-hyperv-provider/issues/15).
 
 Note that implicit and explicit (`dependsOn`) dependencies can be used to control the order that these `Command` and `CopyFile` resources are constructed relative to each other and to the cloud resources they depend on.  This ensures that the `create` operations run after all dependencies are created, and the `delete` operations run before all dependencies are deleted.
 
@@ -189,7 +189,7 @@ export const output = rand.stdout;
 
 ### Using `local.Command `with CURL to manage external REST API
 
-This example uses `local.Command` to create a simple resource provider for managing GitHub labels, by invoking `curl` commands on `create` and `delete` commands against the GitHub REST API. A similar approach could be applied to build other simple providers against any REST API directly from within Pulumi programs in any language. This approach is somewhat limited by the fact that `local.Command` does not yet support `diff`/`read`. Support for [Read](https://github.com/pulumi/pulumi-command/issues/432) and [Diff](https://github.com/pulumi/pulumi-command/issues/433) may be added in the future.
+This example uses `local.Command` to create a simple resource provider for managing GitHub labels, by invoking `curl` commands on `create` and `delete` commands against the GitHub REST API. A similar approach could be applied to build other simple providers against any REST API directly from within Pulumi programs in any language. This approach is somewhat limited by the fact that `local.Command` does not yet support `diff`/`read`. Support for [Read](https://github.com/pulumi/pulumi-hyperv-provider/issues/432) and [Diff](https://github.com/pulumi/pulumi-hyperv-provider/issues/433) may be added in the future.
 
 This example also shows how `local.Command` can be used as an implementation detail inside a nicer abstraction, like the `GitHubLabel` component defined below.
 
@@ -232,7 +232,7 @@ const rand = new random.RandomString("s", { length: 10, special: false });
 
 const label = new GitHubLabel("l", {
     owner: "pulumi",
-    repo: "pulumi-command",
+    repo: "pulumi-hyperv-provider",
     name: rand.result,
     githubToken: config.requireSecret("githubToken"),
 });

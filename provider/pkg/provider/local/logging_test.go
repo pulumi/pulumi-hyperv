@@ -3,7 +3,7 @@ package local_test
 import (
 	"testing"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/local"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/local"
 	"github.com/stretchr/testify/assert"
 )
 

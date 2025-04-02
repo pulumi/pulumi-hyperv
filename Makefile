@@ -2,7 +2,7 @@ PROJECT_NAME := Pulumi Command Resource Provider
 
 PACK             := command
 PACKDIR          := sdk
-PROJECT          := github.com/pulumi/pulumi-command
+PROJECT          := github.com/pulumi/pulumi-hyperv-provider
 NODE_MODULE_NAME := @pulumi/command
 NUGET_PKG_NAME   := Pulumi.Command
 
@@ -66,7 +66,7 @@ sdk/dotnet: $(SCHEMA_FILE)
 	rm -rf $@
 	$(PULUMI) package gen-sdk --language dotnet $(SCHEMA_FILE) --version "${VERSION_GENERIC}"
 	# Copy the logo to the dotnet directory before building so it can be included in the nuget package archive.
-	# https://github.com/pulumi/pulumi-command/issues/243
+	# https://github.com/pulumi/pulumi-hyperv-provider/issues/243
 	cd ${PACKDIR}/dotnet/&& \
 		cp $(WORKING_DIR)/assets/logo.png logo.png
 
@@ -160,7 +160,7 @@ test:: tidy_examples test_provider
 	cd examples && go test -v -tags=all -timeout 2h
 
 # Keep the version of the pulumi binary used for code generation in sync with the version
-# of the dependency used by github.com/pulumi/pulumi-command/provider
+# of the dependency used by github.com/pulumi/pulumi-hyperv-provider/provider
 
 $(PULUMI): HOME := $(WORKING_DIR)
 $(PULUMI): provider/go.mod

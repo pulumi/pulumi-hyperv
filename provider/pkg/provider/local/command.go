@@ -17,7 +17,7 @@ package local
 import (
 	_ "embed"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-go-provider/infer"
 )
 

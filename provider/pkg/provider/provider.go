@@ -19,12 +19,11 @@ import (
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/local"
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/remote"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/local"
 )
 
 const (
-	Name = "command"
+	Name = "hyperv"
 )
 
 // This provider uses the `pulumi-go-provider` library to produce a code-first provider definition.
@@ -32,19 +31,19 @@ func NewProvider() p.Provider {
 	return infer.Provider(infer.Options{
 		// This is the metadata for the provider
 		Metadata: schema.Metadata{
-			DisplayName: "Command",
-			Description: "The Pulumi Command Provider enables you to execute commands and scripts either locally or remotely as part of the Pulumi resource model.",
+			DisplayName: "Hyperv",
+			Description: "The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs.",
 			Keywords: []string{
 				"pulumi",
-				"command",
+				"hyperv",
 				"category/utility",
 				"kind/native",
 			},
 			Homepage:   "https://pulumi.com",
 			License:    "Apache-2.0",
-			Repository: "https://github.com/pulumi/pulumi-command",
+			Repository: "https://github.com/pulumi/pulumi-hyperv-provider",
 			Publisher:  "Pulumi",
-			LogoURL:    "https://raw.githubusercontent.com/pulumi/pulumi-command/master/assets/logo.svg",
+			LogoURL:    "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
 			// This contains language specific details for generating the provider's SDKs
 			LanguageMap: map[string]any{
 				"csharp": map[string]any{
@@ -56,7 +55,7 @@ func NewProvider() p.Provider {
 				"go": map[string]any{
 					"respectSchemaVersion":           true,
 					"generateResourceContainerTypes": true,
-					"importBasePath":                 "github.com/pulumi/pulumi-command/sdk/go/command",
+					"importBasePath":                 "github.com/pulumi/pulumi-hyperv-provider/sdk/go/hyperv",
 				},
 				"nodejs": map[string]any{
 					"respectSchemaVersion": true,
@@ -80,20 +79,17 @@ func NewProvider() p.Provider {
 		},
 		// A list of `infer.Resource` that are provided by the provider.
 		Resources: []infer.InferredResource{
-			// The Command resource implementation is commented extensively for new pulumi-go-provider developers.
+			// The hyperv resource implementation is commented extensively for new pulumi-go-provider developers.
 			infer.Resource[
 				// 1. This type is an interface that implements the logic for the Resource
 				//    these methods include `Create`, `Update`, `Delete`, and `WireDependencies`.
 				//    `WireDependencies` should be implemented to preserve the secretness of an input
-				*local.Command,
+				*local.hyperv,
 				// 2. The type of the Inputs/Arguments to supply to the Resource.
-				local.CommandInputs,
+				local.hypervInputs,
 				// 3. The type of the Output/Properties/Fields of a created Resource.
-				local.CommandOutputs,
+				local.hypervOutputs,
 			](),
-			infer.Resource[*remote.Command, remote.CommandInputs, remote.CommandOutputs](),
-			infer.Resource[*remote.CopyToRemote, remote.CopyToRemoteInputs, remote.CopyToRemoteOutputs](),
-			infer.Resource[*remote.CopyFile, remote.CopyFileInputs, remote.CopyFileOutputs](),
 		},
 		// Functions or invokes that are provided by the provider.
 		Functions: []infer.InferredFunction{

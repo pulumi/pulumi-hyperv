@@ -1,8 +1,6 @@
-module github.com/pulumi/pulumi-command/provider
+module github.com/pulumi/pulumi-hyperv-provider/sdk
 
 go 1.24
-
-toolchain go1.24.1
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
@@ -10,8 +8,9 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/pkg/sftp v1.13.6
 	github.com/pulumi/providertest v0.2.0
+	github.com/pulumi/pulumi-hyperv-provider/provider v0.0.0-20250401174257-363e1b8199bc
 	github.com/pulumi/pulumi-go-provider v0.25.0
-	github.com/pulumi/pulumi/sdk/v3 v3.159.0
+	github.com/pulumi/pulumi/sdk/v3 v3.160.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.36.0
 )
