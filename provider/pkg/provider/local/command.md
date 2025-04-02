@@ -56,7 +56,7 @@ pulumi.export("random", random.stdout)
 package main
 
 import (
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -189,7 +189,7 @@ import (
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/lambda"
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -485,7 +485,7 @@ cmd = command.local.Command("cmd",
 package main
 
 import (
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi-random/sdk/v4/go/random"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )

@@ -100,7 +100,7 @@ pulumi.export("random", random.stdout)
 package main
 
 import (
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -286,7 +286,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pulumi/pulumi-command/sdk/go/command/remote"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/remote"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -637,7 +637,7 @@ import (
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/lambda"
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -895,7 +895,7 @@ outputs:
 
 ### Using `local.Command` with CURL to manage external REST API
 
-This example uses `local.Command` to create a simple resource provider for managing GitHub labels, by invoking `curl` commands on `create` and `delete` commands against the GitHub REST API.  A similar approach could be applied to build other simple providers against any REST API directly from within Pulumi programs in any language.  This approach is somewhat limited by the fact that `local.Command` does not yet support `diff`/`update`/`read`.  Support for those may be [added in the future](https://github.com/pulumi/pulumi-command/issues/20).
+This example uses `local.Command` to create a simple resource provider for managing GitHub labels, by invoking `curl` commands on `create` and `delete` commands against the GitHub REST API.  A similar approach could be applied to build other simple providers against any REST API directly from within Pulumi programs in any language.  This approach is somewhat limited by the fact that `local.Command` does not yet support `diff`/`update`/`read`.  Support for those may be [added in the future](https://github.com/pulumi/pulumi-hyperv-provider/issues/20).
 
 This example also shows how `local.Command` can be used as an implementation detail inside a nicer abstraction, like the `GitHubLabel` component defined below.
 
@@ -938,7 +938,7 @@ const rand = new random.RandomString("s", { length: 10, special: false });
 
 const label = new GitHubLabel("l", {
     owner: "pulumi",
-    repo: "pulumi-command",
+    repo: "pulumi-hyperv-provider",
     name: rand.result,
     githubToken: config.requireSecret("githubToken"),
 });
@@ -1043,7 +1043,7 @@ cleanup_kubernetes_namespaces = command.local.Command("cleanupKubernetesNamespac
 package main
 
 import (
-	"github.com/pulumi/pulumi-command/sdk/go/command/local"
+	"github.com/pulumi/pulumi-hyperv-provider/sdk/go/command/local"
 	"github.com/pulumi/pulumi-eks/sdk/v2/go/eks"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )

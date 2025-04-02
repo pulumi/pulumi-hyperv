@@ -20,7 +20,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/util/testutil"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util/testutil"
 
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/diag"

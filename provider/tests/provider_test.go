@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	command "github.com/pulumi/pulumi-command/provider/pkg/provider"
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/util/testutil"
-	"github.com/pulumi/pulumi-command/provider/pkg/version"
+	command "github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util/testutil"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/version"
 )
 
 func provider() integration.Server {
@@ -326,7 +326,7 @@ func TestRemoteCommandStdoutStderrFlag(t *testing.T) {
 
 // Ensure that we correctly apply defaults to `connection.port`.
 //
-// User issue is https://github.com/pulumi/pulumi-command/issues/248.
+// User issue is https://github.com/pulumi/pulumi-hyperv-provider/issues/248.
 func TestRegress248(t *testing.T) {
 	t.Parallel()
 	type pMap = resource.PropertyMap

@@ -47,5 +47,5 @@ jobs:
         commands: run-acceptance-tests
         permission: write
         issue-type: pull-request
-        repository: pulumi/pulumi-command
+        repository: pulumi/pulumi-hyperv-provider
     if: ${{ github.event.issue.pull_request }}

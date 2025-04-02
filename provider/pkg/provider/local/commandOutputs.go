@@ -31,7 +31,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/util/contract"
 
-	"github.com/pulumi/pulumi-command/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
 )
 
 func run(ctx context.Context, command string, in BaseInputs, out *BaseOutputs, logging *Logging) error {
