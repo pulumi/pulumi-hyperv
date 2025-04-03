@@ -21,7 +21,7 @@ import (
 
 	p "github.com/pulumi/pulumi-go-provider"
 
-	command "github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	hyperv "github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/version"
 )
 
@@ -31,10 +31,10 @@ func main() {
 	version := strings.TrimPrefix(version.Version, "v")
 
 	// This method defines the provider implemented in this repository.
-	commandProvider := command.NewProvider()
+	hypervProvider := hyperv.NewProvider()
 
-	// This method starts serving requests using the Command provider.
-	err := p.RunProvider("command", version, commandProvider)
+	// This method starts serving requests using the hyperv provider.
+	err := p.RunProvider("hyperv", version, hypervProvider)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
 		os.Exit(1)

@@ -18,6 +18,7 @@ import (
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vm"
 )
 
@@ -76,6 +77,7 @@ func NewProvider() p.Provider {
 				},
 			},
 		},
+		Config: infer.Config[common.Config](),
 		// A list of `infer.Resource` that are provided by the provider.
 		Resources: []infer.InferredResource{
 			// The hyperv resource implementation is commented extensively for new pulumi-go-provider developers.

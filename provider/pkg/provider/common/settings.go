@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/microsoft/wmi"
+	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
@@ -70,24 +70,24 @@ func SettingsClass(setting Setting) string {
 }
 
 // CreateSettings creates settings of the specified type.
-func CreateSettings(v *vmms.VMMS, setting Setting) (*wmi.Result, error) {
+func CreateSettings(v *vmms.VMMS, setting Setting) (*wmi.WmiClass, error) {
 	className := SettingsClass(setting)
 	if className == "" {
 		return nil, fmt.Errorf("invalid setting type: %d", setting)
 	}
 
-	return v.VirtualizationConn().CreateInstance(className, nil)
+	return v.GetVirtualizationConn().GetClass(className)
 }
 
 // GetRelatedSettings gets settings of the specified type related to an instance.
-func GetRelatedSettings(v *vmms.VMMS, instance *wmi.Result, setting Setting) (*wmi.Result, error) {
+func GetRelatedSettings(v *vmms.VMMS, instance *wmi.WmiInstance, setting Setting) (*wmi.WmiInstance, error) {
 	className := SettingsClass(setting)
 	if className == "" {
 		return nil, fmt.Errorf("invalid setting type: %d", setting)
 	}
 
-	assocQuery := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass=%s", instance.Path(), className)
-	settings, err := v.VirtualizationConn().Query(assocQuery)
+	assocQuery := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass=%s", instance.InstancePath(), className)
+	settings, err := v.GetVirtualizationConn().QueryInstances(assocQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query related settings: %w", err)
 	}

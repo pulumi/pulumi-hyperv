@@ -12,7 +12,7 @@ ci-scripts
 /nuget/
 sdk/dotnet/version.txt
 .DS_Store
-/provider/cmd/pulumi-resource-command/schema-embed.json
+/provider/cmd/pulumi-resource-hyperv/schema-embed.json
 dist/
 .vscode
 

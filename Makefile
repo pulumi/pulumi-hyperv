@@ -1,10 +1,10 @@
-PROJECT_NAME := Pulumi Command Resource Provider
+PROJECT_NAME := Pulumi Hyperv Resource Provider
 
-PACK             := command
+PACK             := hyperv
 PACKDIR          := sdk
 PROJECT          := github.com/pulumi/pulumi-hyperv-provider
-NODE_MODULE_NAME := @pulumi/command
-NUGET_PKG_NAME   := Pulumi.Command
+NODE_MODULE_NAME := @pulumi/hyperv
+NUGET_PKG_NAME   := Pulumi.Hyperv
 
 PROVIDER        := pulumi-resource-${PACK}
 PROVIDER_PATH   := provider
@@ -202,7 +202,7 @@ sign-goreleaser-exe-%: bin/jsign-6.0.jar
 			echo "To rebuild with signing delete the unsigned windows exe file and rebuild with the fixed configuration"; \
 			if [[ "${CI}" == "true" ]]; then exit 1; fi; \
 		else \
-			file=dist/build-provider-sign-windows_windows_${GORELEASER_ARCH}/pulumi-resource-command.exe; \
+			file=dist/build-provider-sign-windows_windows_${GORELEASER_ARCH}/pulumi-resource-hyperv.exe; \
 			mv $${file} $${file}.unsigned; \
 			az login --service-principal \
 				--username "${AZURE_SIGNING_CLIENT_ID}" \
