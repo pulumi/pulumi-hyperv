@@ -52,7 +52,6 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 		return id, state, nil
 	}
 	cmd := *input.Create
-	err = run(ctx, cmd, state.BaseInputs, &state.BaseOutputs, input.Logging)
 	return id, state, err
 }
 
@@ -79,7 +78,6 @@ func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInput
 	if cmd == nil {
 		return state, nil
 	}
-	err := run(ctx, *cmd, state.BaseInputs, &state.BaseOutputs, news.Logging)
 	return state, err
 }
 
@@ -88,5 +86,4 @@ func (c *Vm) Delete(ctx context.Context, id string, props VmOutputs) error {
 	if props.Delete == nil {
 		return nil
 	}
-	return run(ctx, *props.Delete, props.BaseInputs, &props.BaseOutputs, props.Logging)
 }

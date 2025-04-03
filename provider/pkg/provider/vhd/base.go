@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/microsoft/wmi"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
 // CreateVirtualHardDisk creates a virtual hard disk.
-func CreateVirtualHardDisk(v *provider.VMMS, vhdSettings *wmi.Result) error {
+func CreateVirtualHardDisk(v *vmms.VMMS, vhdSettings *wmi.Result) error {
 	// Get the WMI text representation of the VHD settings
 	vhdText, err := vhdSettings.GetText()
 	if err != nil {

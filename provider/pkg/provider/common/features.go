@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/microsoft/wmi"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
 // Feature types
@@ -33,7 +33,7 @@ func featureGUID(feature Feature) string {
 }
 
 // CreateFeatureSettings creates feature settings for a specified feature.
-func CreateFeatureSettings(v *provider.VMMS, feature Feature) (*wmi.Result, error) {
+func CreateFeatureSettings(v *vmms.VMMS, feature Feature) (*wmi.Result, error) {
 	featureGUID := featureGUID(feature)
 
 	// Query for feature capabilities matching the feature GUID
@@ -77,7 +77,7 @@ func CreateFeatureSettings(v *provider.VMMS, feature Feature) (*wmi.Result, erro
 }
 
 // ModifyFeatureSettings modifies feature settings.
-func ModifyFeatureSettings(v *provider.VMMS, featureSettings []*wmi.Result) ([]*wmi.Result, error) {
+func ModifyFeatureSettings(v *vmms.VMMS, featureSettings []*wmi.Result) ([]*wmi.Result, error) {
 	var resultingFeatureSettings []*wmi.Result
 
 	// Convert feature settings to an array of strings
@@ -120,7 +120,7 @@ func ModifyFeatureSettings(v *provider.VMMS, featureSettings []*wmi.Result) ([]*
 }
 
 // AddFeatureSettings adds feature settings to an ethernet port allocation.
-func AddFeatureSettings(v *provider.VMMS, ethernetPortAllocationSettings *wmi.Result, featureSettings []*wmi.Result) ([]*wmi.Result, error) {
+func AddFeatureSettings(v *vmms.VMMS, ethernetPortAllocationSettings *wmi.Result, featureSettings []*wmi.Result) ([]*wmi.Result, error) {
 	var resultingFeatureSettings []*wmi.Result
 
 	// Convert feature settings to an array of strings

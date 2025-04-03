@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/microsoft/wmi"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
 // Resource types
@@ -48,7 +48,7 @@ func ResourceSubType(r Resource) string {
 }
 
 // AddResourceSettings adds resource settings to a system.
-func AddResourceSettings(v *provider.VMMS, systemSettings *wmi.Result, resourceSettings []*wmi.Result) ([]*wmi.Result, error) {
+func AddResourceSettings(v *vmms.VMMS, systemSettings *wmi.Result, resourceSettings []*wmi.Result) ([]*wmi.Result, error) {
 	var resultingResourceSettings []*wmi.Result
 
 	// Convert resource settings to an array of strings
@@ -85,4 +85,64 @@ func AddResourceSettings(v *provider.VMMS, systemSettings *wmi.Result, resourceS
 	}
 
 	return resultingResourceSettings, nil
+}
+
+// CreateResource creates a resource of the specified type.
+func CreateResource(v *vmms.VMMS, resource Resource) (*wmi.Result, error) {
+	resourcePoolClass := "Msvm_ResourcePool"
+	if resource == ResourceProcessor {
+		resourcePoolClass = "Msvm_ProcessorPool"
+	}
+
+	resourceSubType := ResourceSubType(resource)
+
+	// Query for the resource pool
+	query := fmt.Sprintf("SELECT * FROM %s WHERE ResourceSubType = '%s' AND Primordial = TRUE", resourcePoolClass, resourceSubType)
+	resourcePools, err := v.VirtualizationConn().Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query resource pool: %w", err)
+	}
+
+	if len(resourcePools) == 0 {
+		return nil, fmt.Errorf("no resource pool found for resource subtype %s", resourceSubType)
+	}
+
+	// Get allocation capabilities
+	capQuery := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass=Msvm_AllocationCapabilities", resourcePools[0].Path())
+	caps, err := v.VirtualizationConn().Query(capQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query allocation capabilities: %w", err)
+	}
+
+	if len(caps) == 0 {
+		return nil, fmt.Errorf("no allocation capabilities found for resource subtype %s", resourceSubType)
+	}
+
+	// Get default settings
+	settingQuery := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass=Msvm_SettingsDefineCapabilities", caps[0].Path())
+	settings, err := v.VirtualizationConn().Query(settingQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query settings: %w", err)
+	}
+
+	var defaultSettingPath string
+	for _, setting := range settings {
+		valueRole, err := setting.GetUint16("ValueRole")
+		if err != nil {
+			continue
+		}
+		if valueRole == 0 {
+			defaultSettingPath, err = setting.GetString("PartComponent")
+			if err != nil {
+				continue
+			}
+			break
+		}
+	}
+
+	if defaultSettingPath == "" {
+		return nil, fmt.Errorf("unable to find the Default Resource Settings")
+	}
+
+	return v.VirtualizationConn().Get(defaultSettingPath)
 }

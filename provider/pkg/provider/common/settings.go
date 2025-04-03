@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/microsoft/wmi"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
 // Setting types
@@ -70,7 +70,7 @@ func SettingsClass(setting Setting) string {
 }
 
 // CreateSettings creates settings of the specified type.
-func CreateSettings(v *provider.VMMS, setting Setting) (*wmi.Result, error) {
+func CreateSettings(v *vmms.VMMS, setting Setting) (*wmi.Result, error) {
 	className := SettingsClass(setting)
 	if className == "" {
 		return nil, fmt.Errorf("invalid setting type: %d", setting)
@@ -80,7 +80,7 @@ func CreateSettings(v *provider.VMMS, setting Setting) (*wmi.Result, error) {
 }
 
 // GetRelatedSettings gets settings of the specified type related to an instance.
-func GetRelatedSettings(v *provider.VMMS, instance *wmi.Result, setting Setting) (*wmi.Result, error) {
+func GetRelatedSettings(v *vmms.VMMS, instance *wmi.Result, setting Setting) (*wmi.Result, error) {
 	className := SettingsClass(setting)
 	if className == "" {
 		return nil, fmt.Errorf("invalid setting type: %d", setting)
