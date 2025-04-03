@@ -1,3 +1,5 @@
+param([switch]$IsWindows=$true) 
+
 #region Configuration
 # Stop on first error
 $ErrorActionPreference = 'Stop'
@@ -125,7 +127,7 @@ function Target-SchemaFile {
                 $schemaOutput = & "$PULUMI" "package" "get-schema" "$fullPath"
                 $schema = $schemaOutput | ConvertFrom-Json
                 $schema.PSObject.Properties.Remove('version')
-                $schema | ConvertTo-Json -Depth 10 | Set-Content -Path $SCHEMA_FILE
+                $schema | ConvertTo-Json -Depth 10 | Set-Content -Encoding default -Path $SCHEMA_FILE
             } else {
                 Write-Error "Pulumi executable not found at $PULUMI"
                 exit 1
@@ -145,6 +147,7 @@ function Target-SchemaFile {
 }
 
 function Target-codegen {
+    # Target-Pulumi
     Target-SchemaFile
     Target-sdk_dotnet
 	Target-sdk_go
