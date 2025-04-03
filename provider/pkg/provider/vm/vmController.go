@@ -304,28 +304,6 @@ func ExistsVirtualMachine(v *vmms.VMMS, name string) (bool, error) {
 	// return len(vms) > 0, nil
 }
 
-// DestroyVirtualMachine destroys a virtual machine with the given name.
-func DestroyVirtualMachine(v *vmms.VMMS, name string) error {
-	return fmt.Errorf("DestroyVirtualMachine not implemented")
-
-}
-
-// GetVirtualMachine gets a virtual machine by name.
-func GetVirtualMachine(v *vmms.VMMS, name string) (*wmi.WmiInstance, error) {
-	return nil, fmt.Errorf("GetVirtualMachine not implemented")
-	// query := fmt.Sprintf("SELECT * FROM Msvm_ComputerSystem WHERE Caption = 'Virtual Machine' AND ElementName = '%s'", name)
-	// vms, err := v.VirtualizationConn().Query(query)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to query virtual machines: %w", err)
-	// }
-
-	// if len(vms) == 0 {
-	// 	return nil, fmt.Errorf("unable to find the Virtual Machine %s", name)
-	// }
-
-	// return vms[0], nil
-}
-
 // ModifySystemSettings modifies system settings.
 func ModifySystemSettings(v *vmms.VMMS, systemSettings *wmi.WmiInstance) error {
 	return fmt.Errorf("ModifySystemSettings not implemented")
