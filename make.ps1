@@ -147,7 +147,7 @@ function Target-SchemaFile {
 }
 
 function Target-codegen {
-    # Target-Pulumi
+    Target-Pulumi
     Target-SchemaFile
     Target-sdk_dotnet
 	Target-sdk_go
@@ -398,16 +398,17 @@ function Target-test {
 
 function Target-Pulumi {
     Write-Host "Ensuring Pulumi CLI is installed and up-to-date"
-    $HOME = $WORKING_DIR
+    Set-Location -Path $WORKING_DIR
     
     # Define the Pulumi location
     if ($IsWindows) {
+        $PULUMI_INSTALL_DIR = Join-Path -Path $WORKING_DIR -ChildPath ".pulumi"
         $PULUMI_DIR = Join-Path -Path $WORKING_DIR -ChildPath ".pulumi\bin"
         $PULUMI_EXE = Join-Path -Path $PULUMI_DIR -ChildPath "pulumi$EXE"
         $PULUMI_VERSION = Get-Content .pulumi.version
-        
+
         if (Test-Path $PULUMI_EXE) {
-            $CURRENT_VERSION = & "$PULUMI_EXE" version
+            $CURRENT_VERSION = $(& "$PULUMI_EXE" version).TrimStart('v')
             if ($CURRENT_VERSION -ne $PULUMI_VERSION) {
                 Write-Host "Upgrading $PULUMI_EXE from $CURRENT_VERSION to $PULUMI_VERSION"
                 Remove-Item $PULUMI_EXE -Force
@@ -419,8 +420,9 @@ function Target-Pulumi {
             if (!(Test-Path $PULUMI_DIR)) {
                 New-Item -ItemType Directory -Path $PULUMI_DIR -Force | Out-Null
             }
-            Invoke-WebRequest -Uri https://get.pulumi.com -OutFile pulumi-install.ps1
-            & ./pulumi-install.ps1 --version $($PULUMI_VERSION.TrimStart('v'))
+            Invoke-WebRequest -Uri https://get.pulumi.com/install.ps1 -OutFile pulumi-install.ps1
+            & "./pulumi-install.ps1" -Version $($PULUMI_VERSION.TrimStart('v')) -InstallRoot $PULUMI_INSTALL_DIR -NoEditPath
+            Remove-Item pulumi-install.ps1
         }
         
         # Update the global variable to use the correct path
