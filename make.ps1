@@ -14,33 +14,17 @@ $VERSION_PATH = "$PROVIDER_PATH/pkg/version.Version"
 $SCHEMA_FILE = "provider/cmd/pulumi-resource-hyperv/schema.json"
 $TESTPARALLELISM = 4
 
-# Detect OS
-if ($IsWindows) {
-    $SHELL = "powershell.exe"
-    $PATHSEP = ";"
-    $EXE = ".exe"
-} else {
-    $SHELL = "/bin/bash"
-    $PATHSEP = ":"
-    $EXE = ""
-}
+$SHELL = "powershell.exe"
+$PATHSEP = ";"
+$EXE = ".exe"
 
 # Adjust paths and commands for Windows
-if ($IsWindows) {
-    $PULUMI = Join-Path -Path (Get-Location) -ChildPath ".pulumi\bin\pulumi$EXE"
-    $WORKING_DIR = (Get-Location).Path
-    $COPY = "Copy-Item"
-    $RM = "Remove-Item -Recurse -Force"
-    $CP = "Copy-Item -Recurse -Force"
-    $MKDIR = "New-Item -ItemType Directory -Force"
-} else {
-    $PULUMI = "./.pulumi/bin/pulumi"
-    $WORKING_DIR = (Get-Location).Path
-    $COPY = "cp"
-    $RM = "rm -rf"
-    $CP = "cp -r"
-    $MKDIR = "mkdir -p"
-}
+$PULUMI = Join-Path -Path (Get-Location) -ChildPath ".pulumi\bin\pulumi$EXE"
+$WORKING_DIR = (Get-Location).Path
+$COPY = "Copy-Item"
+$RM = "Remove-Item -Recurse -Force"
+$CP = "Copy-Item -Recurse -Force"
+$MKDIR = "New-Item -ItemType Directory -Force"
 
 # Override during CI using `make [TARGET] PROVIDER_VERSION=""` or by setting a PROVIDER_VERSION environment variable
 # Local & branch builds will just used this fixed default version unless specified
