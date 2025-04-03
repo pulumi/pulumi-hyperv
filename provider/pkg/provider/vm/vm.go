@@ -43,12 +43,13 @@ func (c *Vm) Annotate(a infer.Annotator) {
 // These are the inputs (or arguments) to a Vm resource.
 type VmInputs struct {
 	common.ResourceInputs
-	BaseInputs
-	ProcessorCount *int `pulumi:"processorCount,optional"`
-	MemorySize     *int `pulumi:"memorySize,optional"`
+	VmName         *string `pulumi:"vmname"`
+	ProcessorCount *int    `pulumi:"processorCount,optional"`
+	MemorySize     *int    `pulumi:"memorySize,optional"`
 }
 
 func (c *VmInputs) Annotate(a infer.Annotator) {
+	a.Describe(&c.VmName, "Name of the Virtual Machine")
 	a.Describe(&c.ProcessorCount, "Number of processors to allocate to the Virtual Machine. Defaults to 1.")
 	a.Describe(&c.MemorySize, "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.")
 }
@@ -56,5 +57,6 @@ func (c *VmInputs) Annotate(a infer.Annotator) {
 // These are the outputs (or properties) of a Vm resource.
 type VmOutputs struct {
 	VmInputs
-	BaseOutputs
 }
+
+func (c *VmOutputs) Annotate(a infer.Annotator) {}

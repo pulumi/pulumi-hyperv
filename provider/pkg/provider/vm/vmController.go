@@ -21,6 +21,7 @@ import (
 	"github.com/microsoft/wmi/pkg/base/host"
 	"github.com/microsoft/wmi/pkg/virtualization/core/memory"
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
+	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
 	provider "github.com/pulumi/pulumi-go-provider"
@@ -37,6 +38,24 @@ import (
 var _ = (infer.CustomResource[VmInputs, VmOutputs])((*Vm)(nil))
 var _ = (infer.CustomUpdate[VmInputs, VmOutputs])((*Vm)(nil))
 var _ = (infer.CustomDelete[VmOutputs])((*Vm)(nil))
+
+func (c *Vm) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemManagementService, error) {
+	// Create the VMMS client.
+	config := infer.GetConfig[common.Config](ctx)
+	var whost *host.WmiHost
+	if config.Host != "" {
+		whost = host.NewWmiHost(config.Host)
+	} else {
+		whost = host.NewWmiLocalHost()
+	}
+
+	vmmsClient, err := vmms.NewVMMS(whost)
+	if err != nil {
+		return nil, nil, err
+	}
+	vsms := vmmsClient.GetVirtualSystemManagementService()
+	return vmmsClient, vsms, nil
+}
 
 // This is the Get Metadata method.
 func (c *Vm) Read(ctx context.Context, id string, inputs VmInputs, preview bool) (VmOutputs, error) {
@@ -57,69 +76,55 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 	if preview {
 		return id, state, nil
 	}
-	if input.Create == nil {
-		// Create the VMMS client.
-		config := infer.GetConfig[common.Config](ctx)
-		var whost *host.WmiHost
-		if config.Host != "" {
-			whost = host.NewWmiHost(config.Host)
-		} else {
-			whost = host.NewWmiLocalHost()
-		}
-
-		vmmsClient, err := vmms.NewVMMS(whost)
-		if err != nil {
-			return id, state, err
-		}
-		vsms := vmmsClient.GetVirtualSystemManagementService()
-		setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, *input.VmName)
-		if err != nil {
-			return id, state, err
-		}
-		defer setting.Close()
-		logger.Debug("Create VMSettings")
-
-		err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
-		if err != nil {
-			return id, state, fmt.Errorf("Failed [%+v]", err)
-		}
-
-		memorySettings, err := memory.GetDefaultMemorySettingData(vmmsClient.GetVirtualizationConn().WMIHost)
-		if err != nil {
-			return id, state, fmt.Errorf("Failed [%+v]", err)
-		}
-		defer memorySettings.Close()
-		var memorySizeMB uint64 = 1024 // Default value
-		if input.MemorySize != nil {
-			memorySizeMB = uint64(*input.MemorySize)
-		}
-		memorySettings.SetSizeMB(memorySizeMB)
-
-		processorSettings, err := processor.GetDefaultProcessorSettingData(vmmsClient.GetVirtualizationConn().WMIHost)
-		if err != nil {
-			return id, state, fmt.Errorf("Failed [%+v]", err)
-		}
-		var cpuCount uint64 = 1 // Default value
-		if input.ProcessorCount != nil {
-			cpuCount = uint64(*input.ProcessorCount)
-		}
-		processorSettings.SetCPUCount(cpuCount)
-
-		vm, err := vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
-		if err != nil {
-			return id, state, fmt.Errorf("Failed [%+v]", err)
-		}
-		logger.Debug("Created VM")
-		defer func() {
-			if vm != nil {
-				vm.Close()
-			}
-		}()
-
-		return id, state, nil
+	vmmsClient, vsms, err := c.Connect(ctx)
+	if err != nil {
+		return id, state, err
 	}
-	//cmd := *input.Create
-	return id, state, err
+	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, *input.VmName)
+	if err != nil {
+		return id, state, err
+	}
+	defer setting.Close()
+	logger.Debug("Create VMSettings")
+
+	err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed [%+v]", err)
+	}
+
+	memorySettings, err := memory.GetDefaultMemorySettingData(vmmsClient.GetVirtualizationConn().WMIHost)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed [%+v]", err)
+	}
+	defer memorySettings.Close()
+	var memorySizeMB uint64 = 1024 // Default value
+	if input.MemorySize != nil {
+		memorySizeMB = uint64(*input.MemorySize)
+	}
+	memorySettings.SetSizeMB(memorySizeMB)
+
+	processorSettings, err := processor.GetDefaultProcessorSettingData(vmmsClient.GetVirtualizationConn().WMIHost)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed [%+v]", err)
+	}
+	var cpuCount uint64 = 1 // Default value
+	if input.ProcessorCount != nil {
+		cpuCount = uint64(*input.ProcessorCount)
+	}
+	processorSettings.SetCPUCount(cpuCount)
+
+	vm, err := vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed [%+v]", err)
+	}
+	logger.Debug("Created VM")
+	defer func() {
+		if vm != nil {
+			vm.Close()
+		}
+	}()
+
+	return id, state, nil
 }
 
 // WireDependencies controls how secrets and unknowns flow through a resource.
@@ -131,7 +136,7 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 
 // The Update method will be run on every update.
 func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInputs, preview bool) (VmOutputs, error) {
-	state := VmOutputs{VmInputs: news, BaseOutputs: olds.BaseOutputs}
+	state := VmOutputs{VmInputs: news}
 	// If in preview, don't run the command.
 	if preview {
 		return state, nil
@@ -152,6 +157,30 @@ func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInput
 func (c *Vm) Delete(ctx context.Context, id string, props VmOutputs) error {
 	if props.Delete == nil {
 		return nil
+	}
+	_, vsms, err := c.Connect(ctx)
+	if err != nil {
+		return err
+	}
+
+	vm, err := vsms.GetVirtualMachineByName(*props.VmName)
+	if err != nil {
+		return err
+	}
+
+	defer vm.Close()
+	err = vm.Start()
+	if err != nil {
+		return fmt.Errorf("Failed [%+v]", err)
+	}
+
+	err = vm.Stop(true)
+	if err != nil {
+		return fmt.Errorf("Failed [%+v]", err)
+	}
+	err = vsms.DeleteVirtualMachine(vm)
+	if err != nil {
+		return fmt.Errorf("Failed [%+v]", err)
 	}
 	return nil
 }
@@ -278,25 +307,7 @@ func ExistsVirtualMachine(v *vmms.VMMS, name string) (bool, error) {
 // DestroyVirtualMachine destroys a virtual machine with the given name.
 func DestroyVirtualMachine(v *vmms.VMMS, name string) error {
 	return fmt.Errorf("DestroyVirtualMachine not implemented")
-	// if name == "" {
-	// 	return fmt.Errorf("virtual machine name cannot be empty")
-	// }
 
-	// vm, err := GetVirtualMachine(v, name)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// params := map[string]interface{}{
-	// 	"AffectedSystem": vm.Path(),
-	// }
-
-	// result, err := v.VirtualMachineManagementService().InvokeMethod("DestroySystem", params)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to destroy virtual machine: %w", err)
-	// }
-
-	// return v.ValidateOutput(result)
 }
 
 // GetVirtualMachine gets a virtual machine by name.

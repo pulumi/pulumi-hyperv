@@ -20,7 +20,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/common/util/contract"
 )
 
-func run(ctx context.Context, in BaseInputs, out *BaseOutputs) error {
+func run(ctx context.Context, in VmInputs, out *VmOutputs) error {
 	contract.Assertf(out != nil, "run:out cannot be nil")
 
 	return nil
