@@ -1,4 +1,4 @@
-module github.com/pulumi/pulumi-hyperv-provider/sdk
+module github.com/pulumi/pulumi-hyperv-provider/provider
 
 go 1.24
 
@@ -6,13 +6,10 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/gobwas/glob v0.2.3
-	github.com/pkg/sftp v1.13.6
 	github.com/pulumi/providertest v0.2.0
-	github.com/pulumi/pulumi-hyperv-provider/provider v0.0.0-20250401174257-363e1b8199bc
 	github.com/pulumi/pulumi-go-provider v0.25.0
 	github.com/pulumi/pulumi/sdk/v3 v3.160.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.36.0
 )
 
 require (
@@ -56,7 +53,6 @@ require (
 	github.com/iwdgo/sigintwindows v0.2.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/kr/fs v0.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
@@ -97,6 +93,7 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/zclconf/go-cty v1.16.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
