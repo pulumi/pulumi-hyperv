@@ -93,7 +93,7 @@ func NewProvider() p.Provider {
 		// Functions or invokes that are provided by the provider.
 		Functions: []infer.InferredFunction{
 			// The Run function is commented extensively for new pulumi-go-provider developers.
-			infer.Function[*vm.Run, vm.RunInputs, vm.RunOutputs](),
+			//infer.Function[](),
 		},
 	})
 }

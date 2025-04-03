@@ -51,7 +51,7 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 	if input.Create == nil {
 		return id, state, nil
 	}
-	cmd := *input.Create
+	//cmd := *input.Create
 	return id, state, err
 }
 
@@ -78,7 +78,7 @@ func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInput
 	if cmd == nil {
 		return state, nil
 	}
-	return state, err
+	return state, nil
 }
 
 // The Delete method will run when the resource is deleted.

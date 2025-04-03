@@ -76,7 +76,7 @@ func CreateSettings(v *vmms.VMMS, setting Setting) (*wmi.Result, error) {
 		return nil, fmt.Errorf("invalid setting type: %d", setting)
 	}
 
-	return v.virtualizationConn.CreateInstance(className, nil)
+	return v.VirtualizationConn().CreateInstance(className, nil)
 }
 
 // GetRelatedSettings gets settings of the specified type related to an instance.
@@ -87,7 +87,7 @@ func GetRelatedSettings(v *vmms.VMMS, instance *wmi.Result, setting Setting) (*w
 	}
 
 	assocQuery := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass=%s", instance.Path(), className)
-	settings, err := v.virtualizationConn.Query(assocQuery)
+	settings, err := v.VirtualizationConn().Query(assocQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query related settings: %w", err)
 	}
