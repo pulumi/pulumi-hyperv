@@ -1,0 +1,150 @@
+{
+  "name": "hyperv",
+  "displayName": "Hyperv",
+  "description": "The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs.",
+  "keywords": [
+    "pulumi",
+    "hyperv",
+    "category/utility",
+    "kind/native"
+  ],
+  "homepage": "https://pulumi.com",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/pulumi/pulumi-hyperv-provider",
+  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
+  "publisher": "Pulumi",
+  "meta": {
+    "moduleFormat": "(.*)"
+  },
+  "language": {
+    "csharp": {
+      "packageReferences": {
+        "Pulumi": "3.*"
+      },
+      "respectSchemaVersion": true
+    },
+    "go": {
+      "generateResourceContainerTypes": true,
+      "importBasePath": "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
+      "respectSchemaVersion": true
+    },
+    "java": {
+      "buildFiles": "gradle",
+      "dependencies": {
+        "com.google.code.findbugs:jsr305": "3.0.2",
+        "com.google.code.gson:gson": "2.8.9",
+        "com.pulumi:pulumi": "1.0.0"
+      },
+      "gradleNexusPublishPluginVersion": "2.0.0"
+    },
+    "nodejs": {
+      "respectSchemaVersion": true
+    },
+    "python": {
+      "pyproject": {
+        "enabled": true
+      },
+      "respectSchemaVersion": true
+    }
+  },
+  "config": {
+    "variables": {
+      "host": {
+        "type": "string"
+      }
+    }
+  },
+  "provider": {
+    "properties": {
+      "host": {
+        "type": "string"
+      }
+    },
+    "type": "object",
+    "inputProperties": {
+      "host": {
+        "type": "string"
+      }
+    }
+  },
+  "resources": {
+    "hyperv:vm:Vm": {
+      "description": "# Hyper-V Virtual Machine Management Service (VMMS)\n\n## Overview\n\nThe Virtual Machine Management Service (VMMS) is a core component of Hyper-V that manages virtual machine operations on a Windows Server or Windows Client system. This document provides information about the VMMS as implemented in the Pulumi Hyper-V provider.\n\n## Features\n\n- Virtual machine lifecycle management (create, start, stop, pause, resume, delete)\n- Resource allocation and monitoring\n- Snapshot management\n- Virtual device configuration\n\n## Implementation Details in Pulumi\n\n### Virtual Machine Creation\n\nThe `Create` method in the `vmController` is responsible for creating a virtual machine. It performs the following steps:\n\n1. **Generate a Unique ID**: A unique ID is generated for the virtual machine.\n2. **Default Values**:\n   - Memory size defaults to `1024 MB` if not specified.\n   - Processor count defaults to `1` if not specified.\n3. **VMMS Client Initialization**: A VMMS client is created to interact with the Hyper-V host.\n4. **Virtual Machine Settings**:\n   - The virtual machine is configured with `Hyper-V Generation 2`.\n   - Memory and processor settings are applied based on the provided or default values.\n5. **Virtual Machine Creation**: The virtual machine is created using the configured settings.\n\n### Read Method\n\nThe `Read` method is a no-op in the current implementation. It does not perform any operations and always returns an empty state.\n\n### Update Method\n\nThe `Update` method:\n\n- Updates the virtual machine state if an `Update` command is provided.\n- Falls back to the `Create` command if no `Update` command is specified.\n- Does nothing if neither command is provided.\n\n### Delete Method\n\nThe `Delete` method is a no-op unless a `Delete` command is explicitly specified.\n\n## Default Behavior\n\n- Outputs depend on all inputs by default.\n- No explicit dependency wiring is required.\n\n## Usage in Pulumi\n\nWhen using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Vm` resource type. The resource supports the following properties:\n\n- `processorCount`: Number of processors to allocate (default: 1).\n- `memorySize`: Memory size in MB (default: 1024).\n\n## Authentication and Security\n\nThe VMMS requires appropriate permissions to manage Hyper-V objects. When using the Pulumi Hyper-V provider, ensure that:\n\n1. The user running Pulumi commands has administrative privileges on the Hyper-V host.\n2. Required firewall rules are configured if managing a remote Hyper-V host.\n3. Proper credentials are provided when connecting to remote systems.\n\n## Related Documentation\n\n- [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)\n- [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/\n",
+      "properties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "memorySize": {
+          "type": "integer",
+          "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "processorCount": {
+          "type": "integer",
+          "description": "Number of processors to allocate to the Virtual Machine. Defaults to 1."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vmname": {
+          "type": "string",
+          "description": "Name of the Virtual Machine"
+        }
+      },
+      "type": "object",
+      "required": [
+        "vmname"
+      ],
+      "inputProperties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "memorySize": {
+          "type": "integer",
+          "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "processorCount": {
+          "type": "integer",
+          "description": "Number of processors to allocate to the Virtual Machine. Defaults to 1."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vmname": {
+          "type": "string",
+          "description": "Name of the Virtual Machine"
+        }
+      },
+      "requiredInputs": [
+        "vmname"
+      ]
+    }
+  }
+}
