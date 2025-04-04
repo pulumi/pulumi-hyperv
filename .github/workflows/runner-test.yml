@@ -1,0 +1,14 @@
+name: hyperv-runner-test
+on:
+  push:
+    branches:
+      - "rob/runner-test"
+  workflow_dispatch:
+jobs:
+  probe-hyperv:
+    name: "Probe Hyper-V"
+    runs-on: windows-8core-2022
+    steps:
+      - name: Probe
+        shell: pwsh
+        run: Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V
