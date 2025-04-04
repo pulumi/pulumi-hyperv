@@ -1,4 +1,4 @@
-module github.com/pulumi/pulumi-hyperv-provider/sdk
+module github.com/pulumi/pulumi-hyperv-provider/examples
 
 go 1.24
 

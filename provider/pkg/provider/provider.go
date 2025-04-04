@@ -18,8 +18,8 @@ import (
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
-
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/local"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
 )
 
 const (
@@ -55,7 +55,7 @@ func NewProvider() p.Provider {
 				"go": map[string]any{
 					"respectSchemaVersion":           true,
 					"generateResourceContainerTypes": true,
-					"importBasePath":                 "github.com/pulumi/pulumi-hyperv-provider/sdk/go/hyperv",
+					"importBasePath":                 "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
 				},
 				"nodejs": map[string]any{
 					"respectSchemaVersion": true,
@@ -77,6 +77,7 @@ func NewProvider() p.Provider {
 				},
 			},
 		},
+		Config: infer.Config[common.Config](),
 		// A list of `infer.Resource` that are provided by the provider.
 		Resources: []infer.InferredResource{
 			// The hyperv resource implementation is commented extensively for new pulumi-go-provider developers.
@@ -84,17 +85,17 @@ func NewProvider() p.Provider {
 				// 1. This type is an interface that implements the logic for the Resource
 				//    these methods include `Create`, `Update`, `Delete`, and `WireDependencies`.
 				//    `WireDependencies` should be implemented to preserve the secretness of an input
-				*local.hyperv,
+				*machine.Machine,
 				// 2. The type of the Inputs/Arguments to supply to the Resource.
-				local.hypervInputs,
+				machine.MachineInputs,
 				// 3. The type of the Output/Properties/Fields of a created Resource.
-				local.hypervOutputs,
+				machine.MachineOutputs,
 			](),
 		},
 		// Functions or invokes that are provided by the provider.
 		Functions: []infer.InferredFunction{
 			// The Run function is commented extensively for new pulumi-go-provider developers.
-			infer.Function[*local.Run, local.RunInputs, local.RunOutputs](),
+			//infer.Function[](),
 		},
 	})
 }
