@@ -123,6 +123,20 @@ public class Machine extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.delete);
     }
     /**
+     * Generation of the Virtual Machine. Defaults to 2.
+     * 
+     */
+    @Export(name="generation", refs={Integer.class}, tree="[0]")
+    private Output</* @Nullable */ Integer> generation;
+
+    /**
+     * @return Generation of the Virtual Machine. Defaults to 2.
+     * 
+     */
+    public Output<Optional<Integer>> generation() {
+        return Codegen.optional(this.generation);
+    }
+    /**
      * Name of the Virtual Machine
      * 
      */

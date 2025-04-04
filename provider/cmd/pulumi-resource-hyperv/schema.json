@@ -79,6 +79,10 @@
                                                                                        "type":  "string",
                                                                                        "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
                                                                                    },
+                                                                        "generation":  {
+                                                                                           "type":  "integer",
+                                                                                           "description":  "Generation of the Virtual Machine. Defaults to 2."
+                                                                                       },
                                                                         "machineName":  {
                                                                                             "type":  "string",
                                                                                             "description":  "Name of the Virtual Machine"
@@ -117,6 +121,10 @@
                                                                                             "type":  "string",
                                                                                             "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
                                                                                         },
+                                                                             "generation":  {
+                                                                                                "type":  "integer",
+                                                                                                "description":  "Generation of the Virtual Machine. Defaults to 2."
+                                                                                            },
                                                                              "machineName":  {
                                                                                                  "type":  "string",
                                                                                                  "description":  "Name of the Virtual Machine"

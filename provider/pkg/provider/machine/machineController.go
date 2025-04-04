@@ -87,9 +87,28 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	defer setting.Close()
 	logger.Debug("Create VMSettings")
 
-	err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
-	if err != nil {
-		return id, state, fmt.Errorf("Failed [%+v]", err)
+	if input.Generation != nil {
+		switch *input.Generation {
+		case 1:
+			err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V1)
+			secure_boot_err := setting.SetPropertySecureBootEnabled(false)
+			if secure_boot_err != nil {
+				return id, state, fmt.Errorf("Failed [%+v]", secure_boot_err)
+			}
+		case 2:
+			err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
+		default:
+			logger.Errorf("Invalid generation: %d, setting V2", *input.Generation)
+			err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
+		}
+		if err != nil {
+			return id, state, fmt.Errorf("Failed [%+v]", err)
+		}
+	} else {
+		err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V2)
+		if err != nil {
+			return id, state, fmt.Errorf("Failed [%+v]", err)
+		}
 	}
 
 	memorySettings, err := memory.GetDefaultMemorySettingData(vmmsClient.GetVirtualizationConn().WMIHost)
