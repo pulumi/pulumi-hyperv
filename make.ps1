@@ -163,8 +163,7 @@ function Target-sdk {
     
     # Ensure Pulumi exists
     if (-not (Test-Path $PULUMI)) {
-        Write-Error "Pulumi executable not found at $PULUMI"
-        exit 1
+        Target-Pulumi
     }
     
     if ($IsWindows) {
@@ -186,8 +185,7 @@ function Target-sdk {
 function Target-sdk_java {
     # Ensure Pulumi exists
     if (-not (Test-Path $PULUMI)) {
-        Write-Error "Pulumi executable not found at $PULUMI"
-        exit 1
+        Target-Pulumi
     }
     
     $sdkPath = "sdk\java"
@@ -201,8 +199,7 @@ function Target-sdk_java {
 function Target-sdk_python {
     # Ensure Pulumi exists
     if (-not (Test-Path $PULUMI)) {
-        Write-Error "Pulumi executable not found at $PULUMI"
-        exit 1
+        Target-Pulumi
     }
     
     $sdkPath = "sdk\python"
@@ -217,8 +214,7 @@ function Target-sdk_python {
 function Target-sdk_dotnet {
     # Ensure Pulumi exists
     if (-not (Test-Path $PULUMI)) {
-        Write-Error "Pulumi executable not found at $PULUMI"
-        exit 1
+        Target-Pulumi
     }
     
     $sdkPath = "sdk\dotnet"
