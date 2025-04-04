@@ -91,6 +91,10 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 		switch *input.Generation {
 		case 1:
 			err = setting.SetHyperVGeneration(virtualsystem.HyperVGeneration_V1)
+			// Set Secure Boot to false for Generation 1
+			// Hyper-V Generation 1 VMs do not support Secure Boot.
+			// according to this test: https://github.com/microsoft/wmi/blob/master/pkg/virtualization/core/service/virtualmachinemanagementservice_test.go#L100
+			// TODO: Check if this is the correct way to set Secure Boot to false for Generation 1 VMs from Microsft documentation.
 			secure_boot_err := setting.SetPropertySecureBootEnabled(false)
 			if secure_boot_err != nil {
 				return id, state, fmt.Errorf("Failed [%+v]", secure_boot_err)
@@ -161,28 +165,18 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 
 // The Update method will be run on every update.
 func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, news MachineInputs, preview bool) (MachineOutputs, error) {
+	// This is a no-op. We don't need to do anything here.
 	state := MachineOutputs{MachineInputs: news}
 	// If in preview, don't run the command.
 	if preview {
 		return state, nil
 	}
-	// Use Create command if Update is unspecified.
-	cmd := news.Create
-	if news.Update != nil {
-		cmd = news.Update
-	}
-	// If neither are specified, do nothing.
-	if cmd == nil {
-		return state, nil
-	}
+
 	return state, nil
 }
 
 // The Delete method will run when the resource is deleted.
 func (c *Machine) Delete(ctx context.Context, id string, props MachineOutputs) error {
-	if props.Delete == nil {
-		return nil
-	}
 	_, vsms, err := c.Connect(ctx)
 	if err != nil {
 		return err

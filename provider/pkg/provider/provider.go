@@ -20,6 +20,7 @@ import (
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vhdfile"
 )
 
 const (
@@ -90,6 +91,11 @@ func NewProvider() p.Provider {
 				machine.MachineInputs,
 				// 3. The type of the Output/Properties/Fields of a created Resource.
 				machine.MachineOutputs,
+			](),
+			infer.Resource[
+				*vhdfile.VhdFile,
+				vhdfile.VhdFileInputs,
+				vhdfile.VhdFileOutputs,
 			](),
 		},
 		// Functions or invokes that are provided by the provider.
