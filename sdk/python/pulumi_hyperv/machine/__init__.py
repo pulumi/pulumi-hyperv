@@ -6,4 +6,4 @@ import builtins
 from . import _utilities
 import typing
 # Export this package's modules as members:
-from .vm import *
+from .machine import *

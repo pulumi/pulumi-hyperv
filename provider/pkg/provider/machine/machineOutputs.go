@@ -12,16 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vm
+package machine
 
-import (
-	"context"
+// func run(ctx context.Context, in MachineInputs, out *MachineOutputs) error {
+// 	contract.Assertf(out != nil, "run:out cannot be nil")
 
-	"github.com/pulumi/pulumi/sdk/v3/go/common/util/contract"
-)
-
-func run(ctx context.Context, in VmInputs, out *VmOutputs) error {
-	contract.Assertf(out != nil, "run:out cannot be nil")
-
-	return nil
-}
+// 	return nil
+// }

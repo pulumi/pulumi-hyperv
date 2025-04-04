@@ -17,20 +17,20 @@ const (
 	FeatureVlan
 )
 
-func featureGUID(feature Feature) string {
-	var featureGUID string
-	switch feature {
-	case FeatureBandwidth:
-		featureGUID = "24AD3CE1-69BD-4978-B2AC-DAAD389D699C"
-	case FeatureOffload:
-		featureGUID = "C885BFD1-ABB7-418F-8163-9F379C9F7166"
-	case FeatureSecurity:
-		featureGUID = "776E0BA7-94A1-41C8-8F28-951F524251B5"
-	case FeatureVlan:
-		featureGUID = "952C5004-4465-451C-8CB8-FA9AB382B773"
-	}
-	return featureGUID
-}
+// func featureGUID(feature Feature) string {
+// 	var featureGUID string
+// 	switch feature {
+// 	case FeatureBandwidth:
+// 		featureGUID = "24AD3CE1-69BD-4978-B2AC-DAAD389D699C"
+// 	case FeatureOffload:
+// 		featureGUID = "C885BFD1-ABB7-418F-8163-9F379C9F7166"
+// 	case FeatureSecurity:
+// 		featureGUID = "776E0BA7-94A1-41C8-8F28-951F524251B5"
+// 	case FeatureVlan:
+// 		featureGUID = "952C5004-4465-451C-8CB8-FA9AB382B773"
+// 	}
+// 	return featureGUID
+// }
 
 // CreateFeatureSettings creates feature settings for a specified feature.
 func CreateFeatureSettings(v *vmms.VMMS, feature Feature) (*wmi.WmiInstance, error) {

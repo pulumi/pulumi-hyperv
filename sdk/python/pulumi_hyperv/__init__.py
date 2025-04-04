@@ -12,21 +12,21 @@ from .provider import *
 if typing.TYPE_CHECKING:
     import pulumi_hyperv.config as __config
     config = __config
-    import pulumi_hyperv.vm as __vm
-    vm = __vm
+    import pulumi_hyperv.machine as __machine
+    machine = __machine
 else:
     config = _utilities.lazy_import('pulumi_hyperv.config')
-    vm = _utilities.lazy_import('pulumi_hyperv.vm')
+    machine = _utilities.lazy_import('pulumi_hyperv.machine')
 
 _utilities.register(
     resource_modules="""
 [
  {
   "pkg": "hyperv",
-  "mod": "vm",
-  "fqn": "pulumi_hyperv.vm",
+  "mod": "machine",
+  "fqn": "pulumi_hyperv.machine",
   "classes": {
-   "hyperv:vm:Vm": "Vm"
+   "hyperv:machine:Machine": "Machine"
   }
  }
 ]

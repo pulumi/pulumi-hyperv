@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vm
+package machine
 
 import (
 	_ "embed"
@@ -21,42 +21,42 @@ import (
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 )
 
-//go:embed vm.md
+//go:embed machine.md
 var resourceDoc string
 
 // This is the type that implements the Vm resource methods.
 // The methods are declared in the vmController.go file.
-type Vm struct{}
+type Machine struct{}
 
 // The following statement is not required. It is a type assertion to indicate to Go that Vm
 // implements the following interfaces. If the function signature doesn't match or isn't implemented,
 // we get nice compile time errors at this location.
 
-var _ = (infer.Annotated)((*Vm)(nil))
+var _ = (infer.Annotated)((*Machine)(nil))
 
 // Implementing Annotate lets you provide descriptions and default values for resources and they will
 // be visible in the provider's schema and the generated SDKs.
-func (c *Vm) Annotate(a infer.Annotator) {
+func (c *Machine) Annotate(a infer.Annotator) {
 	a.Describe(&c, resourceDoc)
 }
 
 // These are the inputs (or arguments) to a Vm resource.
-type VmInputs struct {
+type MachineInputs struct {
 	common.ResourceInputs
-	VmName         *string `pulumi:"vmname"`
+	MachineName    *string `pulumi:"machineName"`
 	ProcessorCount *int    `pulumi:"processorCount,optional"`
 	MemorySize     *int    `pulumi:"memorySize,optional"`
 }
 
-func (c *VmInputs) Annotate(a infer.Annotator) {
-	a.Describe(&c.VmName, "Name of the Virtual Machine")
+func (c *MachineInputs) Annotate(a infer.Annotator) {
+	a.Describe(&c.MachineName, "Name of the Virtual Machine")
 	a.Describe(&c.ProcessorCount, "Number of processors to allocate to the Virtual Machine. Defaults to 1.")
 	a.Describe(&c.MemorySize, "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.")
 }
 
 // These are the outputs (or properties) of a Vm resource.
-type VmOutputs struct {
-	VmInputs
+type MachineOutputs struct {
+	MachineInputs
 }
 
-func (c *VmOutputs) Annotate(a infer.Annotator) {}
+func (c *MachineOutputs) Annotate(a infer.Annotator) {}

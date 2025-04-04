@@ -15,12 +15,12 @@ else:
     from typing_extensions import NotRequired, TypedDict, TypeAlias
 from . import _utilities
 
-__all__ = ['VmArgs', 'Vm']
+__all__ = ['MachineArgs', 'Machine']
 
 @pulumi.input_type
-class VmArgs:
+class MachineArgs:
     def __init__(__self__, *,
-                 vmname: pulumi.Input[builtins.str],
+                 machine_name: pulumi.Input[builtins.str],
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
@@ -28,8 +28,8 @@ class VmArgs:
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None):
         """
-        The set of arguments for constructing a Vm resource.
-        :param pulumi.Input[builtins.str] vmname: Name of the Virtual Machine
+        The set of arguments for constructing a Machine resource.
+        :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
@@ -45,7 +45,7 @@ class VmArgs:
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
         """
-        pulumi.set(__self__, "vmname", vmname)
+        pulumi.set(__self__, "machine_name", machine_name)
         if create is not None:
             pulumi.set(__self__, "create", create)
         if delete is not None:
@@ -60,16 +60,16 @@ class VmArgs:
             pulumi.set(__self__, "update", update)
 
     @property
-    @pulumi.getter
-    def vmname(self) -> pulumi.Input[builtins.str]:
+    @pulumi.getter(name="machineName")
+    def machine_name(self) -> pulumi.Input[builtins.str]:
         """
         Name of the Virtual Machine
         """
-        return pulumi.get(self, "vmname")
+        return pulumi.get(self, "machine_name")
 
-    @vmname.setter
-    def vmname(self, value: pulumi.Input[builtins.str]):
-        pulumi.set(self, "vmname", value)
+    @machine_name.setter
+    def machine_name(self, value: pulumi.Input[builtins.str]):
+        pulumi.set(self, "machine_name", value)
 
     @property
     @pulumi.getter
@@ -152,18 +152,18 @@ class VmArgs:
         pulumi.set(self, "update", value)
 
 
-class Vm(pulumi.CustomResource):
+class Machine(pulumi.CustomResource):
     @overload
     def __init__(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 machine_name: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
-                 vmname: Optional[pulumi.Input[builtins.str]] = None,
                  __props__=None):
         """
         # Hyper-V Virtual Machine Management Service (VMMS)
@@ -242,6 +242,7 @@ class Vm(pulumi.CustomResource):
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
@@ -252,13 +253,12 @@ class Vm(pulumi.CustomResource):
                run again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR 
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
-        :param pulumi.Input[builtins.str] vmname: Name of the Virtual Machine
         """
         ...
     @overload
     def __init__(__self__,
                  resource_name: str,
-                 args: VmArgs,
+                 args: MachineArgs,
                  opts: Optional[pulumi.ResourceOptions] = None):
         """
         # Hyper-V Virtual Machine Management Service (VMMS)
@@ -332,12 +332,12 @@ class Vm(pulumi.CustomResource):
         - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/
 
         :param str resource_name: The name of the resource.
-        :param VmArgs args: The arguments to use to populate this resource's properties.
+        :param MachineArgs args: The arguments to use to populate this resource's properties.
         :param pulumi.ResourceOptions opts: Options for the resource.
         """
         ...
     def __init__(__self__, resource_name: str, *args, **kwargs):
-        resource_args, opts = _utilities.get_resource_args_opts(VmArgs, pulumi.ResourceOptions, *args, **kwargs)
+        resource_args, opts = _utilities.get_resource_args_opts(MachineArgs, pulumi.ResourceOptions, *args, **kwargs)
         if resource_args is not None:
             __self__._internal_init(resource_name, opts, **resource_args.__dict__)
         else:
@@ -348,11 +348,11 @@ class Vm(pulumi.CustomResource):
                  opts: Optional[pulumi.ResourceOptions] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 machine_name: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
-                 vmname: Optional[pulumi.Input[builtins.str]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
         if not isinstance(opts, pulumi.ResourceOptions):
@@ -360,21 +360,21 @@ class Vm(pulumi.CustomResource):
         if opts.id is None:
             if __props__ is not None:
                 raise TypeError('__props__ is only valid when passed in combination with a valid opts.id to get an existing resource')
-            __props__ = VmArgs.__new__(VmArgs)
+            __props__ = MachineArgs.__new__(MachineArgs)
 
             __props__.__dict__["create"] = create
             __props__.__dict__["delete"] = delete
+            if machine_name is None and not opts.urn:
+                raise TypeError("Missing required property 'machine_name'")
+            __props__.__dict__["machine_name"] = machine_name
             __props__.__dict__["memory_size"] = memory_size
             __props__.__dict__["processor_count"] = processor_count
             __props__.__dict__["triggers"] = triggers
             __props__.__dict__["update"] = update
-            if vmname is None and not opts.urn:
-                raise TypeError("Missing required property 'vmname'")
-            __props__.__dict__["vmname"] = vmname
         replace_on_changes = pulumi.ResourceOptions(replace_on_changes=["triggers[*]"])
         opts = pulumi.ResourceOptions.merge(opts, replace_on_changes)
-        super(Vm, __self__).__init__(
-            'hyperv:vm:Vm',
+        super(Machine, __self__).__init__(
+            'hyperv:machine:Machine',
             resource_name,
             __props__,
             opts)
@@ -382,9 +382,9 @@ class Vm(pulumi.CustomResource):
     @staticmethod
     def get(resource_name: str,
             id: pulumi.Input[str],
-            opts: Optional[pulumi.ResourceOptions] = None) -> 'Vm':
+            opts: Optional[pulumi.ResourceOptions] = None) -> 'Machine':
         """
-        Get an existing Vm resource's state with the given name, id, and optional extra
+        Get an existing Machine resource's state with the given name, id, and optional extra
         properties used to qualify the lookup.
 
         :param str resource_name: The unique name of the resulting resource.
@@ -393,16 +393,16 @@ class Vm(pulumi.CustomResource):
         """
         opts = pulumi.ResourceOptions.merge(opts, pulumi.ResourceOptions(id=id))
 
-        __props__ = VmArgs.__new__(VmArgs)
+        __props__ = MachineArgs.__new__(MachineArgs)
 
         __props__.__dict__["create"] = None
         __props__.__dict__["delete"] = None
+        __props__.__dict__["machine_name"] = None
         __props__.__dict__["memory_size"] = None
         __props__.__dict__["processor_count"] = None
         __props__.__dict__["triggers"] = None
         __props__.__dict__["update"] = None
-        __props__.__dict__["vmname"] = None
-        return Vm(resource_name, opts=opts, __props__=__props__)
+        return Machine(resource_name, opts=opts, __props__=__props__)
 
     @property
     @pulumi.getter
@@ -421,6 +421,14 @@ class Vm(pulumi.CustomResource):
         Command resource from previous create or update steps.
         """
         return pulumi.get(self, "delete")
+
+    @property
+    @pulumi.getter(name="machineName")
+    def machine_name(self) -> pulumi.Output[builtins.str]:
+        """
+        Name of the Virtual Machine
+        """
+        return pulumi.get(self, "machine_name")
 
     @property
     @pulumi.getter(name="memorySize")
@@ -459,12 +467,4 @@ class Vm(pulumi.CustomResource):
         create or update steps.
         """
         return pulumi.get(self, "update")
-
-    @property
-    @pulumi.getter
-    def vmname(self) -> pulumi.Output[builtins.str]:
-        """
-        Name of the Virtual Machine
-        """
-        return pulumi.get(self, "vmname")
 

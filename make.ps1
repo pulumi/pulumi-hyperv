@@ -1,5 +1,5 @@
-param([switch]$IsWindows=$true) 
-
+param([switch]$ForceWindowsMode = $true) # Force Windows mode for testing
+$IsWindowsEnvironment = if ($PSVersionTable.PSVersion.Major -ge 6) { $IsWindows } else { $ForceWindowsMode }
 #region Configuration
 # Stop on first error
 $ErrorActionPreference = 'Stop'
@@ -32,13 +32,15 @@ $MKDIR = "New-Item -ItemType Directory -Force"
 # Local & branch builds will just used this fixed default version unless specified
 $PROVIDER_VERSION = "1.0.0-alpha.0+dev"
 # Use this normalised version everywhere rather than the raw input to ensure consistency.
-if ($IsWindows) {
+if ($IsWindowsEnvironment) {
     $VERSION_GENERIC = $PROVIDER_VERSION
-} else {
+}
+else {
     # Attempt to use pulumictl, but fall back to the raw version if it fails
     $VERSION_GENERIC = try {
         & pulumictl convert-version --language generic --version "$PROVIDER_VERSION" 2>$null
-    } catch {
+    }
+    catch {
         $PROVIDER_VERSION
     }
 }
@@ -60,9 +62,10 @@ function Invoke-CommandWithChangeDirectory {
     # Create directory if it doesn't exist
     if (-not (Test-Path $Path)) {
         Write-Host "Directory does not exist, creating: $Path"
-        if ($IsWindows) {
+        if ($IsWindowsEnvironment) {
             New-Item -ItemType Directory -Force -Path $Path | Out-Null
-        } else {
+        }
+        else {
             mkdir -p $Path
         }
     }
@@ -70,7 +73,8 @@ function Invoke-CommandWithChangeDirectory {
     Push-Location $Path
     try {
         & $ScriptBlock
-    } finally {
+    }
+    finally {
         Pop-Location
         Write-Host "Leaving directory: $Path"
     }
@@ -95,10 +99,11 @@ function Target-ensure {
 function Target-tidy {
     Target-tidy_provider
     Target-tidy_examples
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         Invoke-CommandWithChangeDirectory "sdk" { go mod tidy }
         Invoke-CommandWithChangeDirectory "examples" { go mod tidy }
-    } else {
+    }
+    else {
         Invoke-CommandWithChangeDirectory "sdk" { go mod tidy }
         Invoke-CommandWithChangeDirectory "examples" { go mod tidy }
     }
@@ -109,9 +114,10 @@ function Target-tidy_examples {
 }
 
 function Target-tidy_provider {
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         Invoke-CommandWithChangeDirectory "provider" { go mod tidy }
-    } else {
+    }
+    else {
         Invoke-CommandWithChangeDirectory "provider" { go mod tidy }
     }
 }
@@ -119,7 +125,7 @@ function Target-tidy_provider {
 function Target-SchemaFile {
     Write-Host "Generating $($SCHEMA_FILE)"
     Target-provider
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         $fullPath = "$WORKING_DIR\bin\$PROVIDER$EXE"
         if (Test-Path $fullPath) {
             # Check if Pulumi exists and invoke it with arguments separately
@@ -128,18 +134,22 @@ function Target-SchemaFile {
                 $schema = $schemaOutput | ConvertFrom-Json
                 $schema.PSObject.Properties.Remove('version')
                 $schema | ConvertTo-Json -Depth 10 | Set-Content -Encoding default -Path $SCHEMA_FILE
-            } else {
+            }
+            else {
                 Write-Error "Pulumi executable not found at $PULUMI"
                 exit 1
             }
-        } else {
+        }
+        else {
             Write-Error "Provider binary not found at $fullPath"
             exit 1
         }
-    } else {
+    }
+    else {
         if (Test-Path $PULUMI) {
             & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq 'del(.version)' > $SCHEMA_FILE
-        } else {
+        }
+        else {
             Write-Error "Pulumi executable not found at $PULUMI"
             exit 1
         }
@@ -150,10 +160,10 @@ function Target-codegen {
     Target-Pulumi
     Target-SchemaFile
     Target-sdk_dotnet
-	Target-sdk_go
-	Target-sdk_nodejs
-	Target-sdk_python
-	Target-sdk_java
+    Target-sdk_go
+    Target-sdk_nodejs
+    Target-sdk_python
+    Target-sdk_java
 }
 
 function Target-sdk {
@@ -166,14 +176,15 @@ function Target-sdk {
         Target-Pulumi
     }
     
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         $sdkPath = "sdk\$language"
         if (Test-Path $sdkPath) {
             Remove-Item -Recurse -Force $sdkPath
         }
         # Call Pulumi executable with separate arguments
         & "$PULUMI" "package" "gen-sdk" "--language" "$language" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
-    } else {
+    }
+    else {
         $sdkPath = "sdk/$language"
         if (Test-Path $sdkPath) {
             Remove-Item -Recurse -Force $sdkPath
@@ -240,11 +251,12 @@ function Target-sdk_nodejs {
 }
 
 function Target-provider {
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         Invoke-CommandWithChangeDirectory "provider" {
             go build -o "$WORKING_DIR\bin\$PROVIDER$EXE" -ldflags "-X '$PROJECT/$VERSION_PATH=$VERSION_GENERIC'" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
         }
-    } else {
+    }
+    else {
         Invoke-CommandWithChangeDirectory "provider" {
             go build -o "$WORKING_DIR/bin/$PROVIDER$EXE" -ldflags "-X $PROJECT/$VERSION_PATH=$VERSION_GENERIC" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
         }
@@ -252,13 +264,14 @@ function Target-provider {
 }
 
 function Target-provider_debug {
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         $version = $VERSION_GENERIC
         $outPath = "$WORKING_DIR\bin\$PROVIDER$EXE"
         Invoke-CommandWithChangeDirectory "provider" {
             go build -o $outPath -gcflags "all=-N -l" -ldflags "-X '$PROJECT/$VERSION_PATH=$version'" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
         }
-    } else {
+    }
+    else {
         Invoke-CommandWithChangeDirectory "provider" {
             go build -o "$WORKING_DIR/bin/$PROVIDER$EXE" -gcflags="all=-N -l" -ldflags "-X $PROJECT/$VERSION_PATH=$VERSION_GENERIC" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
         }
@@ -326,10 +339,10 @@ function Target-build {
 
 function Target-build_sdks {
     Target-dotnet_sdk
-	Target-go_sdk
-	Target-nodejs_sdk
-	Target-python_sdk
-	Target-java_sdk
+    Target-go_sdk
+    Target-nodejs_sdk
+    Target-python_sdk
+    Target-java_sdk
 }
 
 function Target-only_build {
@@ -344,7 +357,7 @@ function Target-lint {
 
 function Target-install {
     Target-install_nodejs_sdk
-	Target-install_dotnet_sdk
+    Target-install_dotnet_sdk
     Copy-Item "$WORKING_DIR/bin/$PROVIDER$EXE" "$env:GOPATH/bin"
 }
 
@@ -380,7 +393,8 @@ function Target-install_java_sdk {
 function Target-install_nodejs_sdk {
     try {
         yarn unlink --cwd "$WORKING_DIR/sdk/nodejs/bin"
-    } catch {
+    }
+    catch {
         Write-Warning "Failed to unlink nodejs sdk: $($_.Exception.Message)"
     }
     yarn link --cwd "$WORKING_DIR/sdk/nodejs/bin"
@@ -397,7 +411,7 @@ function Target-Pulumi {
     Set-Location -Path $WORKING_DIR
     
     # Define the Pulumi location
-    if ($IsWindows) {
+    if ($IsWindowsEnvironment) {
         $PULUMI_INSTALL_DIR = Join-Path -Path $WORKING_DIR -ChildPath ".pulumi"
         $PULUMI_DIR = Join-Path -Path $WORKING_DIR -ChildPath ".pulumi\bin"
         $PULUMI_EXE = Join-Path -Path $PULUMI_DIR -ChildPath "pulumi$EXE"
@@ -423,7 +437,8 @@ function Target-Pulumi {
         
         # Update the global variable to use the correct path
         $script:PULUMI = $PULUMI_EXE
-    } else {
+    }
+    else {
         # Similar logic for non-Windows
         $PULUMI_VERSION = Get-Content .pulumi.version
         if (Test-Path $PULUMI) {
@@ -463,7 +478,8 @@ function Target-sign_goreleaser_exe {
             if ($env:CI -eq "true") {
                 exit 1
             }
-        } else {
+        }
+        else {
             $file = "dist/build-provider-sign-windows_windows_$GORELEASER_ARCH/pulumi-resource-hyperv.exe"
             Move-Item $file "$file.unsigned"
             az login --service-principal --username $env:AZURE_SIGNING_CLIENT_ID --password $env:AZURE_SIGNING_CLIENT_SECRET --tenant $env:AZURE_SIGNING_TENANT_ID --output none
@@ -496,39 +512,39 @@ if ($args.Length -gt 0) {
 }
 
 switch ($target) {
-    "ensure"              { Target-ensure }
-    "tidy"                { Target-tidy }
-    "tidy_examples"       { Target-tidy_examples }
-    "tidy_provider"       { Target-tidy_provider }
-    "codegen"             { Target-codegen }
-    "sdk/java"            { Target-sdk_java }
-    "sdk/python"          { Target-sdk_python }
-    "sdk/dotnet"          { Target-sdk_dotnet }
-	"sdk/go"              { Target-sdk_go }
-	"sdk/nodejs"          { Target-sdk_nodejs }
-    "provider"            { Target-provider }
-    "provider_debug"      { Target-provider_debug }
-    "test_provider"       { Target-test_provider }
-    "dotnet_sdk"          { Target-dotnet_sdk }
-	"go_sdk"              { Target-go_sdk }
-	"nodejs_sdk"          { Target-nodejs_sdk }
-	"python_sdk"          { Target-python_sdk }
+    "ensure" { Target-ensure }
+    "tidy" { Target-tidy }
+    "tidy_examples" { Target-tidy_examples }
+    "tidy_provider" { Target-tidy_provider }
+    "codegen" { Target-codegen }
+    "sdk/java" { Target-sdk_java }
+    "sdk/python" { Target-sdk_python }
+    "sdk/dotnet" { Target-sdk_dotnet }
+    "sdk/go" { Target-sdk_go }
+    "sdk/nodejs" { Target-sdk_nodejs }
+    "provider" { Target-provider }
+    "provider_debug" { Target-provider_debug }
+    "test_provider" { Target-test_provider }
+    "dotnet_sdk" { Target-dotnet_sdk }
+    "go_sdk" { Target-go_sdk }
+    "nodejs_sdk" { Target-nodejs_sdk }
+    "python_sdk" { Target-python_sdk }
     "bin/pulumi-java-gen" { Target-bin_pulumi_java_gen }
-    "java_sdk"            { Target-java_sdk }
-    "build"               { Target-build }
-    "build_sdks"          { Target-build_sdks }
-    "only_build"          { Target-only_build }
-    "lint"                { Target-lint }
-    "install"             { Target-install }
-    "test_all"            { Target-test_all }
-    "install_dotnet_sdk"  { Target-install_dotnet_sdk }
-    "install_python_sdk"  { Target-install_python_sdk }
-    "install_go_sdk"      { Target-install_go_sdk }
-    "install_java_sdk"      { Target-install_java_sdk }
-    "install_nodejs_sdk"  { Target-install_nodejs_sdk }
-    "test"                { Target-test }
-    "Pulumi"              { Target-Pulumi }
-    "bin/jsign-6.0.jar"    { Target-bin_jsign_6_0_jar }
+    "java_sdk" { Target-java_sdk }
+    "build" { Target-build }
+    "build_sdks" { Target-build_sdks }
+    "only_build" { Target-only_build }
+    "lint" { Target-lint }
+    "install" { Target-install }
+    "test_all" { Target-test_all }
+    "install_dotnet_sdk" { Target-install_dotnet_sdk }
+    "install_python_sdk" { Target-install_python_sdk }
+    "install_go_sdk" { Target-install_go_sdk }
+    "install_java_sdk" { Target-install_java_sdk }
+    "install_nodejs_sdk" { Target-install_nodejs_sdk }
+    "test" { Target-test }
+    "Pulumi" { Target-Pulumi }
+    "bin/jsign-6.0.jar" { Target-bin_jsign_6_0_jar }
     "sign-goreleaser-exe-amd64" { Target-sign_goreleaser_exe_amd64 }
     "sign-goreleaser-exe-arm64" { Target-sign_goreleaser_exe_arm64 }
     default {

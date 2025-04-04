@@ -75,31 +75,31 @@ import * as utilities from "../utilities";
  * - [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)
  * - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/
  */
-export class Vm extends pulumi.CustomResource {
+export class Machine extends pulumi.CustomResource {
     /**
-     * Get an existing Vm resource's state with the given name, ID, and optional extra
+     * Get an existing Machine resource's state with the given name, ID, and optional extra
      * properties used to qualify the lookup.
      *
      * @param name The _unique_ name of the resulting resource.
      * @param id The _unique_ provider ID of the resource to lookup.
      * @param opts Optional settings to control the behavior of the CustomResource.
      */
-    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): Vm {
-        return new Vm(name, undefined as any, { ...opts, id: id });
+    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): Machine {
+        return new Machine(name, undefined as any, { ...opts, id: id });
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'hyperv:vm:Vm';
+    public static readonly __pulumiType = 'hyperv:machine:Machine';
 
     /**
-     * Returns true if the given object is an instance of Vm.  This is designed to work even
+     * Returns true if the given object is an instance of Machine.  This is designed to work even
      * when multiple copies of the Pulumi SDK have been loaded into the same process.
      */
-    public static isInstance(obj: any): obj is Vm {
+    public static isInstance(obj: any): obj is Machine {
         if (obj === undefined || obj === null) {
             return false;
         }
-        return obj['__pulumiType'] === Vm.__pulumiType;
+        return obj['__pulumiType'] === Machine.__pulumiType;
     }
 
     /**
@@ -112,6 +112,10 @@ export class Vm extends pulumi.CustomResource {
      * Command resource from previous create or update steps.
      */
     public readonly delete!: pulumi.Output<string | undefined>;
+    /**
+     * Name of the Virtual Machine
+     */
+    public readonly machineName!: pulumi.Output<string>;
     /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */
@@ -134,52 +138,48 @@ export class Vm extends pulumi.CustomResource {
      * create or update steps.
      */
     public readonly update!: pulumi.Output<string | undefined>;
-    /**
-     * Name of the Virtual Machine
-     */
-    public readonly vmname!: pulumi.Output<string>;
 
     /**
-     * Create a Vm resource with the given unique name, arguments, and options.
+     * Create a Machine resource with the given unique name, arguments, and options.
      *
      * @param name The _unique_ name of the resource.
      * @param args The arguments to use to populate this resource's properties.
      * @param opts A bag of options that control this resource's behavior.
      */
-    constructor(name: string, args: VmArgs, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args: MachineArgs, opts?: pulumi.CustomResourceOptions) {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
-            if ((!args || args.vmname === undefined) && !opts.urn) {
-                throw new Error("Missing required property 'vmname'");
+            if ((!args || args.machineName === undefined) && !opts.urn) {
+                throw new Error("Missing required property 'machineName'");
             }
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
+            resourceInputs["machineName"] = args ? args.machineName : undefined;
             resourceInputs["memorySize"] = args ? args.memorySize : undefined;
             resourceInputs["processorCount"] = args ? args.processorCount : undefined;
             resourceInputs["triggers"] = args ? args.triggers : undefined;
             resourceInputs["update"] = args ? args.update : undefined;
-            resourceInputs["vmname"] = args ? args.vmname : undefined;
         } else {
             resourceInputs["create"] = undefined /*out*/;
             resourceInputs["delete"] = undefined /*out*/;
+            resourceInputs["machineName"] = undefined /*out*/;
             resourceInputs["memorySize"] = undefined /*out*/;
             resourceInputs["processorCount"] = undefined /*out*/;
             resourceInputs["triggers"] = undefined /*out*/;
             resourceInputs["update"] = undefined /*out*/;
-            resourceInputs["vmname"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
         const replaceOnChanges = { replaceOnChanges: ["triggers[*]"] };
         opts = pulumi.mergeOptions(opts, replaceOnChanges);
-        super(Vm.__pulumiType, name, resourceInputs, opts);
+        super(Machine.__pulumiType, name, resourceInputs, opts);
     }
 }
 
 /**
- * The set of arguments for constructing a Vm resource.
+ * The set of arguments for constructing a Machine resource.
  */
-export interface VmArgs {
+export interface MachineArgs {
     /**
      * The command to run on create.
      */
@@ -190,6 +190,10 @@ export interface VmArgs {
      * Command resource from previous create or update steps.
      */
     delete?: pulumi.Input<string>;
+    /**
+     * Name of the Virtual Machine
+     */
+    machineName: pulumi.Input<string>;
     /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */
@@ -212,8 +216,4 @@ export interface VmArgs {
      * create or update steps.
      */
     update?: pulumi.Input<string>;
-    /**
-     * Name of the Virtual Machine
-     */
-    vmname: pulumi.Input<string>;
 }

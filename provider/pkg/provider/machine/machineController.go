@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vm
+package machine
 
 import (
 	"context"
@@ -31,15 +31,15 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 )
 
-// The following statements are not required. They are type assertions to indicate to Go that Vm implements the following interfaces.
+// The following statements are not required. They are type assertions to indicate to Go that Machine implements the following interfaces.
 // If the function signature doesn't match or isn't implemented, we get nice compile time errors at this location.
 
 // They would normally be included in the vmController.go file, but they're located here for instructive purposes.
-var _ = (infer.CustomResource[VmInputs, VmOutputs])((*Vm)(nil))
-var _ = (infer.CustomUpdate[VmInputs, VmOutputs])((*Vm)(nil))
-var _ = (infer.CustomDelete[VmOutputs])((*Vm)(nil))
+var _ = (infer.CustomResource[MachineInputs, MachineOutputs])((*Machine)(nil))
+var _ = (infer.CustomUpdate[MachineInputs, MachineOutputs])((*Machine)(nil))
+var _ = (infer.CustomDelete[MachineOutputs])((*Machine)(nil))
 
-func (c *Vm) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemManagementService, error) {
+func (c *Machine) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemManagementService, error) {
 	// Create the VMMS client.
 	config := infer.GetConfig[common.Config](ctx)
 	var whost *host.WmiHost
@@ -58,15 +58,15 @@ func (c *Vm) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemMan
 }
 
 // This is the Get Metadata method.
-func (c *Vm) Read(ctx context.Context, id string, inputs VmInputs, preview bool) (VmOutputs, error) {
+func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, preview bool) (MachineOutputs, error) {
 	// This is a no-op. We don't need to do anything here.
-	return VmOutputs{}, nil
+	return MachineOutputs{}, nil
 }
 
-// This is the Create method. This will be run on every Vm resource creation.
-func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bool) (string, VmOutputs, error) {
+// This is the Create method. This will be run on every Machine resource creation.
+func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, preview bool) (string, MachineOutputs, error) {
 	logger := provider.GetLogger(ctx)
-	state := VmOutputs{VmInputs: input}
+	state := MachineOutputs{MachineInputs: input}
 	id, err := resource.NewUniqueHex(name, 8, 0)
 	if err != nil {
 		return id, state, err
@@ -80,7 +80,7 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 	if err != nil {
 		return id, state, err
 	}
-	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, *input.VmName)
+	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, *input.MachineName)
 	if err != nil {
 		return id, state, err
 	}
@@ -101,7 +101,10 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 	if input.MemorySize != nil {
 		memorySizeMB = uint64(*input.MemorySize)
 	}
-	memorySettings.SetSizeMB(memorySizeMB)
+	err = memorySettings.SetSizeMB(memorySizeMB)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed to set memory size: %v", err)
+	}
 
 	processorSettings, err := processor.GetDefaultProcessorSettingData(vmmsClient.GetVirtualizationConn().WMIHost)
 	if err != nil {
@@ -111,7 +114,10 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 	if input.ProcessorCount != nil {
 		cpuCount = uint64(*input.ProcessorCount)
 	}
-	processorSettings.SetCPUCount(cpuCount)
+	err = processorSettings.SetCPUCount(cpuCount)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed to set CPU count: %v", err)
+	}
 
 	vm, err := vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
 	if err != nil {
@@ -129,14 +135,14 @@ func (c *Vm) Create(ctx context.Context, name string, input VmInputs, preview bo
 
 // WireDependencies controls how secrets and unknowns flow through a resource.
 //
-//	var _ = (infer.ExplicitDependencies[VmInputs, VmOutputs])((*Vm)(nil))
-//	func (r *Vm) WireDependencies(f infer.FieldSelector, args *VmInputs, state *VmOutputs) { .. }
+//	var _ = (infer.ExplicitDependencies[MachineInputs, MachineOutputs])((*Machine)(nil))
+//	func (r *Machine) WireDependencies(f infer.FieldSelector, args *MachineInputs, state *MachineOutputs) { .. }
 //
 // Because we want every output to depend on every input, we can leave the default behavior.
 
 // The Update method will be run on every update.
-func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInputs, preview bool) (VmOutputs, error) {
-	state := VmOutputs{VmInputs: news}
+func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, news MachineInputs, preview bool) (MachineOutputs, error) {
+	state := MachineOutputs{MachineInputs: news}
 	// If in preview, don't run the command.
 	if preview {
 		return state, nil
@@ -154,7 +160,7 @@ func (c *Vm) Update(ctx context.Context, id string, olds VmOutputs, news VmInput
 }
 
 // The Delete method will run when the resource is deleted.
-func (c *Vm) Delete(ctx context.Context, id string, props VmOutputs) error {
+func (c *Machine) Delete(ctx context.Context, id string, props MachineOutputs) error {
 	if props.Delete == nil {
 		return nil
 	}
@@ -163,7 +169,7 @@ func (c *Vm) Delete(ctx context.Context, id string, props VmOutputs) error {
 		return err
 	}
 
-	vm, err := vsms.GetVirtualMachineByName(*props.VmName)
+	vm, err := vsms.GetVirtualMachineByName(*props.MachineName)
 	if err != nil {
 		return err
 	}

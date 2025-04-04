@@ -13,11 +13,11 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 
 // Export sub-modules:
 import * as config from "./config";
-import * as vm from "./vm";
+import * as machine from "./machine";
 
 export {
     config,
-    vm,
+    machine,
 };
 pulumi.runtime.registerResourcePackage("hyperv", {
     version: utilities.getVersion(),

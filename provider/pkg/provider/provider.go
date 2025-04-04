@@ -19,7 +19,7 @@ import (
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vm"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
 )
 
 const (
@@ -85,11 +85,11 @@ func NewProvider() p.Provider {
 				// 1. This type is an interface that implements the logic for the Resource
 				//    these methods include `Create`, `Update`, `Delete`, and `WireDependencies`.
 				//    `WireDependencies` should be implemented to preserve the secretness of an input
-				*vm.Vm,
+				*machine.Machine,
 				// 2. The type of the Inputs/Arguments to supply to the Resource.
-				vm.VmInputs,
+				machine.MachineInputs,
 				// 3. The type of the Output/Properties/Fields of a created Resource.
-				vm.VmOutputs,
+				machine.MachineOutputs,
 			](),
 		},
 		// Functions or invokes that are provided by the provider.

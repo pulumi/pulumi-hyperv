@@ -7,7 +7,7 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Pulumi.Serialization;
 
-namespace Pulumi.Hyperv.Vm
+namespace Pulumi.Hyperv.Machine
 {
     /// <summary>
     /// # Hyper-V Virtual Machine Management Service (VMMS)
@@ -80,8 +80,8 @@ namespace Pulumi.Hyperv.Vm
     /// - [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)
     /// - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/
     /// </summary>
-    [HypervResourceType("hyperv:vm:Vm")]
-    public partial class Vm : global::Pulumi.CustomResource
+    [HypervResourceType("hyperv:machine:Machine")]
+    public partial class Machine : global::Pulumi.CustomResource
     {
         /// <summary>
         /// The command to run on create.
@@ -96,6 +96,12 @@ namespace Pulumi.Hyperv.Vm
         /// </summary>
         [Output("delete")]
         public Output<string?> Delete { get; private set; } = null!;
+
+        /// <summary>
+        /// Name of the Virtual Machine
+        /// </summary>
+        [Output("machineName")]
+        public Output<string> MachineName { get; private set; } = null!;
 
         /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -127,27 +133,21 @@ namespace Pulumi.Hyperv.Vm
         [Output("update")]
         public Output<string?> Update { get; private set; } = null!;
 
-        /// <summary>
-        /// Name of the Virtual Machine
-        /// </summary>
-        [Output("vmname")]
-        public Output<string> Vmname { get; private set; } = null!;
-
 
         /// <summary>
-        /// Create a Vm resource with the given unique name, arguments, and options.
+        /// Create a Machine resource with the given unique name, arguments, and options.
         /// </summary>
         ///
         /// <param name="name">The unique name of the resource</param>
         /// <param name="args">The arguments used to populate this resource's properties</param>
         /// <param name="options">A bag of options that control this resource's behavior</param>
-        public Vm(string name, VmArgs args, CustomResourceOptions? options = null)
-            : base("hyperv:vm:Vm", name, args ?? new VmArgs(), MakeResourceOptions(options, ""))
+        public Machine(string name, MachineArgs args, CustomResourceOptions? options = null)
+            : base("hyperv:machine:Machine", name, args ?? new MachineArgs(), MakeResourceOptions(options, ""))
         {
         }
 
-        private Vm(string name, Input<string> id, CustomResourceOptions? options = null)
-            : base("hyperv:vm:Vm", name, null, MakeResourceOptions(options, id))
+        private Machine(string name, Input<string> id, CustomResourceOptions? options = null)
+            : base("hyperv:machine:Machine", name, null, MakeResourceOptions(options, id))
         {
         }
 
@@ -167,20 +167,20 @@ namespace Pulumi.Hyperv.Vm
             return merged;
         }
         /// <summary>
-        /// Get an existing Vm resource's state with the given name, ID, and optional extra
+        /// Get an existing Machine resource's state with the given name, ID, and optional extra
         /// properties used to qualify the lookup.
         /// </summary>
         ///
         /// <param name="name">The unique name of the resulting resource.</param>
         /// <param name="id">The unique provider ID of the resource to lookup.</param>
         /// <param name="options">A bag of options that control this resource's behavior</param>
-        public static Vm Get(string name, Input<string> id, CustomResourceOptions? options = null)
+        public static Machine Get(string name, Input<string> id, CustomResourceOptions? options = null)
         {
-            return new Vm(name, id, options);
+            return new Machine(name, id, options);
         }
     }
 
-    public sealed class VmArgs : global::Pulumi.ResourceArgs
+    public sealed class MachineArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
         /// The command to run on create.
@@ -195,6 +195,12 @@ namespace Pulumi.Hyperv.Vm
         /// </summary>
         [Input("delete")]
         public Input<string>? Delete { get; set; }
+
+        /// <summary>
+        /// Name of the Virtual Machine
+        /// </summary>
+        [Input("machineName", required: true)]
+        public Input<string> MachineName { get; set; } = null!;
 
         /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -232,15 +238,9 @@ namespace Pulumi.Hyperv.Vm
         [Input("update")]
         public Input<string>? Update { get; set; }
 
-        /// <summary>
-        /// Name of the Virtual Machine
-        /// </summary>
-        [Input("vmname", required: true)]
-        public Input<string> Vmname { get; set; } = null!;
-
-        public VmArgs()
+        public MachineArgs()
         {
         }
-        public static new VmArgs Empty => new VmArgs();
+        public static new MachineArgs Empty => new MachineArgs();
     }
 }
