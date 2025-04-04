@@ -14,9 +14,12 @@ if typing.TYPE_CHECKING:
     config = __config
     import pulumi_hyperv.machine as __machine
     machine = __machine
+    import pulumi_hyperv.vhdfile as __vhdfile
+    vhdfile = __vhdfile
 else:
     config = _utilities.lazy_import('pulumi_hyperv.config')
     machine = _utilities.lazy_import('pulumi_hyperv.machine')
+    vhdfile = _utilities.lazy_import('pulumi_hyperv.vhdfile')
 
 _utilities.register(
     resource_modules="""
@@ -27,6 +30,14 @@ _utilities.register(
   "fqn": "pulumi_hyperv.machine",
   "classes": {
    "hyperv:machine:Machine": "Machine"
+  }
+ },
+ {
+  "pkg": "hyperv",
+  "mod": "vhdfile",
+  "fqn": "pulumi_hyperv.vhdfile",
+  "classes": {
+   "hyperv:vhdfile:VhdFile": "VhdFile"
   }
  }
 ]

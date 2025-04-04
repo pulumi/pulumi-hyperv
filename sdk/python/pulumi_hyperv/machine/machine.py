@@ -228,6 +228,24 @@ class Machine(pulumi.CustomResource):
 
         The `Delete` method is a no-op unless a `Delete` command is explicitly specified.
 
+        ### Resource Replacement with Triggers
+
+        The Machine resource supports the `triggers` property which forces resource replacement when values change. When any value in the `triggers` array changes between updates, the resource will be replaced (destroyed and recreated) rather than updated in-place.
+
+        ## Available Properties
+
+        The Machine resource supports the following properties:
+
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `machineName` | string | Name of the Virtual Machine | (required) |
+        | `processorCount` | int | Number of processors to allocate | 1 |
+        | `memorySize` | int | Memory size in MB | 1024 |
+        | `create` | string | Command to run on create | (optional) |
+        | `update` | string | Command to run on update (falls back to create command if not specified) | (optional) |
+        | `delete` | string | Command to run on delete | (optional) |
+        | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
+
         ## Default Behavior
 
         - Outputs depend on all inputs by default.
@@ -235,10 +253,7 @@ class Machine(pulumi.CustomResource):
 
         ## Usage in Pulumi
 
-        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Vm` resource type. The resource supports the following properties:
-
-        - `processorCount`: Number of processors to allocate (default: 1).
-        - `memorySize`: Memory size in MB (default: 1024).
+        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Machine` resource type.
 
         ## Authentication and Security
 
@@ -251,7 +266,7 @@ class Machine(pulumi.CustomResource):
         ## Related Documentation
 
         - [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)
-        - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/
+        - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)
 
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
@@ -324,6 +339,24 @@ class Machine(pulumi.CustomResource):
 
         The `Delete` method is a no-op unless a `Delete` command is explicitly specified.
 
+        ### Resource Replacement with Triggers
+
+        The Machine resource supports the `triggers` property which forces resource replacement when values change. When any value in the `triggers` array changes between updates, the resource will be replaced (destroyed and recreated) rather than updated in-place.
+
+        ## Available Properties
+
+        The Machine resource supports the following properties:
+
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `machineName` | string | Name of the Virtual Machine | (required) |
+        | `processorCount` | int | Number of processors to allocate | 1 |
+        | `memorySize` | int | Memory size in MB | 1024 |
+        | `create` | string | Command to run on create | (optional) |
+        | `update` | string | Command to run on update (falls back to create command if not specified) | (optional) |
+        | `delete` | string | Command to run on delete | (optional) |
+        | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
+
         ## Default Behavior
 
         - Outputs depend on all inputs by default.
@@ -331,10 +364,7 @@ class Machine(pulumi.CustomResource):
 
         ## Usage in Pulumi
 
-        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Vm` resource type. The resource supports the following properties:
-
-        - `processorCount`: Number of processors to allocate (default: 1).
-        - `memorySize`: Memory size in MB (default: 1024).
+        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Machine` resource type.
 
         ## Authentication and Security
 
@@ -347,7 +377,7 @@ class Machine(pulumi.CustomResource):
         ## Related Documentation
 
         - [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)
-        - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/
+        - [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)
 
         :param str resource_name: The name of the resource.
         :param MachineArgs args: The arguments to use to populate this resource's properties.

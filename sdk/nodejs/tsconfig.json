@@ -19,6 +19,8 @@
         "machine/index.ts",
         "machine/machine.ts",
         "provider.ts",
-        "utilities.ts"
+        "utilities.ts",
+        "vhdfile/index.ts",
+        "vhdfile/vhdFile.ts"
     ]
 }

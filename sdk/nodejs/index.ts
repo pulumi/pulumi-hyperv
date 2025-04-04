@@ -14,10 +14,12 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 // Export sub-modules:
 import * as config from "./config";
 import * as machine from "./machine";
+import * as vhdfile from "./vhdfile";
 
 export {
     config,
     machine,
+    vhdfile,
 };
 pulumi.runtime.registerResourcePackage("hyperv", {
     version: utilities.getVersion(),
