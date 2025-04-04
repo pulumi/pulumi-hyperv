@@ -92,6 +92,8 @@ type Machine struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrOutput `pulumi:"delete"`
+	// Generation of the Virtual Machine. Defaults to 2.
+	Generation pulumi.IntPtrOutput `pulumi:"generation"`
 	// Name of the Virtual Machine
 	MachineName pulumi.StringOutput `pulumi:"machineName"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -163,6 +165,8 @@ type machineArgs struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete *string `pulumi:"delete"`
+	// Generation of the Virtual Machine. Defaults to 2.
+	Generation *int `pulumi:"generation"`
 	// Name of the Virtual Machine
 	MachineName string `pulumi:"machineName"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -189,6 +193,8 @@ type MachineArgs struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrInput
+	// Generation of the Virtual Machine. Defaults to 2.
+	Generation pulumi.IntPtrInput
 	// Name of the Virtual Machine
 	MachineName pulumi.StringInput
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -304,6 +310,11 @@ func (o MachineOutput) Create() pulumi.StringPtrOutput {
 // Command resource from previous create or update steps.
 func (o MachineOutput) Delete() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.Delete }).(pulumi.StringPtrOutput)
+}
+
+// Generation of the Virtual Machine. Defaults to 2.
+func (o MachineOutput) Generation() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.IntPtrOutput { return v.Generation }).(pulumi.IntPtrOutput)
 }
 
 // Name of the Virtual Machine

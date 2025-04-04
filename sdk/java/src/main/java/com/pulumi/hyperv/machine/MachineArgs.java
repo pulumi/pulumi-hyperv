@@ -54,6 +54,21 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
+     * Generation of the Virtual Machine. Defaults to 2.
+     * 
+     */
+    @Import(name="generation")
+    private @Nullable Output<Integer> generation;
+
+    /**
+     * @return Generation of the Virtual Machine. Defaults to 2.
+     * 
+     */
+    public Optional<Output<Integer>> generation() {
+        return Optional.ofNullable(this.generation);
+    }
+
+    /**
      * Name of the Virtual Machine
      * 
      */
@@ -145,6 +160,7 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
     private MachineArgs(MachineArgs $) {
         this.create = $.create;
         this.delete = $.delete;
+        this.generation = $.generation;
         this.machineName = $.machineName;
         this.memorySize = $.memorySize;
         this.processorCount = $.processorCount;
@@ -214,6 +230,27 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
          */
         public Builder delete(String delete) {
             return delete(Output.of(delete));
+        }
+
+        /**
+         * @param generation Generation of the Virtual Machine. Defaults to 2.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder generation(@Nullable Output<Integer> generation) {
+            $.generation = generation;
+            return this;
+        }
+
+        /**
+         * @param generation Generation of the Virtual Machine. Defaults to 2.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder generation(Integer generation) {
+            return generation(Output.of(generation));
         }
 
         /**

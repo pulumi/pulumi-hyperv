@@ -98,6 +98,12 @@ namespace Pulumi.Hyperv.Machine
         public Output<string?> Delete { get; private set; } = null!;
 
         /// <summary>
+        /// Generation of the Virtual Machine. Defaults to 2.
+        /// </summary>
+        [Output("generation")]
+        public Output<int?> Generation { get; private set; } = null!;
+
+        /// <summary>
         /// Name of the Virtual Machine
         /// </summary>
         [Output("machineName")]
@@ -195,6 +201,12 @@ namespace Pulumi.Hyperv.Machine
         /// </summary>
         [Input("delete")]
         public Input<string>? Delete { get; set; }
+
+        /// <summary>
+        /// Generation of the Virtual Machine. Defaults to 2.
+        /// </summary>
+        [Input("generation")]
+        public Input<int>? Generation { get; set; }
 
         /// <summary>
         /// Name of the Virtual Machine

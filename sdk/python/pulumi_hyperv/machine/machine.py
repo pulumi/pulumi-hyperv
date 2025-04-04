@@ -23,6 +23,7 @@ class MachineArgs:
                  machine_name: pulumi.Input[builtins.str],
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 generation: Optional[pulumi.Input[builtins.int]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
@@ -34,6 +35,7 @@ class MachineArgs:
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.int] generation: Generation of the Virtual Machine. Defaults to 2.
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
@@ -50,6 +52,8 @@ class MachineArgs:
             pulumi.set(__self__, "create", create)
         if delete is not None:
             pulumi.set(__self__, "delete", delete)
+        if generation is not None:
+            pulumi.set(__self__, "generation", generation)
         if memory_size is not None:
             pulumi.set(__self__, "memory_size", memory_size)
         if processor_count is not None:
@@ -96,6 +100,18 @@ class MachineArgs:
     @delete.setter
     def delete(self, value: Optional[pulumi.Input[builtins.str]]):
         pulumi.set(self, "delete", value)
+
+    @property
+    @pulumi.getter
+    def generation(self) -> Optional[pulumi.Input[builtins.int]]:
+        """
+        Generation of the Virtual Machine. Defaults to 2.
+        """
+        return pulumi.get(self, "generation")
+
+    @generation.setter
+    def generation(self, value: Optional[pulumi.Input[builtins.int]]):
+        pulumi.set(self, "generation", value)
 
     @property
     @pulumi.getter(name="memorySize")
@@ -159,6 +175,7 @@ class Machine(pulumi.CustomResource):
                  opts: Optional[pulumi.ResourceOptions] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 generation: Optional[pulumi.Input[builtins.int]] = None,
                  machine_name: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
@@ -242,6 +259,7 @@ class Machine(pulumi.CustomResource):
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.int] generation: Generation of the Virtual Machine. Defaults to 2.
         :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -348,6 +366,7 @@ class Machine(pulumi.CustomResource):
                  opts: Optional[pulumi.ResourceOptions] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 generation: Optional[pulumi.Input[builtins.int]] = None,
                  machine_name: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
@@ -364,6 +383,7 @@ class Machine(pulumi.CustomResource):
 
             __props__.__dict__["create"] = create
             __props__.__dict__["delete"] = delete
+            __props__.__dict__["generation"] = generation
             if machine_name is None and not opts.urn:
                 raise TypeError("Missing required property 'machine_name'")
             __props__.__dict__["machine_name"] = machine_name
@@ -397,6 +417,7 @@ class Machine(pulumi.CustomResource):
 
         __props__.__dict__["create"] = None
         __props__.__dict__["delete"] = None
+        __props__.__dict__["generation"] = None
         __props__.__dict__["machine_name"] = None
         __props__.__dict__["memory_size"] = None
         __props__.__dict__["processor_count"] = None
@@ -421,6 +442,14 @@ class Machine(pulumi.CustomResource):
         Command resource from previous create or update steps.
         """
         return pulumi.get(self, "delete")
+
+    @property
+    @pulumi.getter
+    def generation(self) -> pulumi.Output[Optional[builtins.int]]:
+        """
+        Generation of the Virtual Machine. Defaults to 2.
+        """
+        return pulumi.get(self, "generation")
 
     @property
     @pulumi.getter(name="machineName")

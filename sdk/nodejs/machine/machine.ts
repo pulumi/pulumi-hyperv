@@ -113,6 +113,10 @@ export class Machine extends pulumi.CustomResource {
      */
     public readonly delete!: pulumi.Output<string | undefined>;
     /**
+     * Generation of the Virtual Machine. Defaults to 2.
+     */
+    public readonly generation!: pulumi.Output<number | undefined>;
+    /**
      * Name of the Virtual Machine
      */
     public readonly machineName!: pulumi.Output<string>;
@@ -155,6 +159,7 @@ export class Machine extends pulumi.CustomResource {
             }
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
+            resourceInputs["generation"] = args ? args.generation : undefined;
             resourceInputs["machineName"] = args ? args.machineName : undefined;
             resourceInputs["memorySize"] = args ? args.memorySize : undefined;
             resourceInputs["processorCount"] = args ? args.processorCount : undefined;
@@ -163,6 +168,7 @@ export class Machine extends pulumi.CustomResource {
         } else {
             resourceInputs["create"] = undefined /*out*/;
             resourceInputs["delete"] = undefined /*out*/;
+            resourceInputs["generation"] = undefined /*out*/;
             resourceInputs["machineName"] = undefined /*out*/;
             resourceInputs["memorySize"] = undefined /*out*/;
             resourceInputs["processorCount"] = undefined /*out*/;
@@ -190,6 +196,10 @@ export interface MachineArgs {
      * Command resource from previous create or update steps.
      */
     delete?: pulumi.Input<string>;
+    /**
+     * Generation of the Virtual Machine. Defaults to 2.
+     */
+    generation?: pulumi.Input<number>;
     /**
      * Name of the Virtual Machine
      */
