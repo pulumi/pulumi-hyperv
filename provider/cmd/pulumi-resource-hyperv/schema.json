@@ -106,11 +106,15 @@
                                                                         "update":  {
                                                                                        "type":  "string",
                                                                                        "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                   }
+                                                                                   },
+                                                                        "vmId":  {
+                                                                                     "type":  "string"
+                                                                                 }
                                                                     },
                                                      "type":  "object",
                                                      "required":  [
-                                                                      "machineName"
+                                                                      "machineName",
+                                                                      "vmId"
                                                                   ],
                                                      "inputProperties":  {
                                                                              "create":  {

@@ -31,5 +31,5 @@ sdk/java/gradlew
 sdk/java/gradlew.bat
 
 sdk/python/venv
-
+*.sln
 coverage.txt

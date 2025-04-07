@@ -154,6 +154,9 @@ namespace Pulumi.Hyperv.Machine
         [Output("update")]
         public Output<string?> Update { get; private set; } = null!;
 
+        [Output("vmId")]
+        public Output<string> VmId { get; private set; } = null!;
+
 
         /// <summary>
         /// Create a Machine resource with the given unique name, arguments, and options.

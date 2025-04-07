@@ -51,7 +51,7 @@ type VhdFileInputs struct {
 	// "fixed" means that the VHD file will be created with a fixed size.
 	// "dynamic" means that the VHD file will be created with a dynamic size.
 	// The default value is "fixed".
-	DiskType  *string `pulumi:"diskType, optional"`
+	DiskType *string `pulumi:"diskType, optional"`
 }
 
 func (c *VhdFileInputs) Annotate(a infer.Annotator) {

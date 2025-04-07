@@ -28,7 +28,6 @@ import (
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
-	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 )
 
 // The following statements are not required. They are type assertions to indicate to Go that VhdFile implements the following interfaces.
@@ -59,18 +58,93 @@ func (c *VhdFile) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSyst
 
 // This is the Get Metadata method.
 func (c *VhdFile) Read(ctx context.Context, id string, inputs VhdFileInputs, preview bool) (VhdFileOutputs, error) {
-	// This is a no-op. We don't need to do anything here.
-	return VhdFileOutputs{}, nil
+	logger := provider.GetLogger(ctx)
+
+	// If we don't have a path, we can't read the file
+	if inputs.Path == nil {
+		return VhdFileOutputs{}, fmt.Errorf("path is required to read VHD file")
+	}
+
+	// Get the path to the VHD file
+	vhdFilePath := *inputs.Path
+
+	// Check if the file exists
+	_, err := os.Stat(vhdFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist
+			logger.Debug(fmt.Sprintf("VHD file %s does not exist", vhdFilePath))
+			return VhdFileOutputs{}, nil
+		}
+		// Some other error occurred
+		return VhdFileOutputs{}, fmt.Errorf("failed to stat VHD file %s: %v", vhdFilePath, err)
+	}
+
+	// If the file exists, we try to read the VHD info
+	vmmsClient, _, err := c.Connect(ctx)
+	if err != nil {
+		return VhdFileOutputs{}, err
+	}
+
+	// Get VHD settings to verify it exists in Hyper-V
+	// For existing VHD files, we pass path but use zeros for the other parameters
+	// since we're not creating a new VHD file
+	setting, err := disk.GetVirtualHardDiskSettingData(
+		vmmsClient.GetVirtualizationConn().WMIHost,
+		vhdFilePath,
+		0,     // Default sector size
+		0,     // Default logical sector size
+		0,     // Block size (not needed for reads)
+		0,     // Size bytes (not needed for reads)
+		false, // Fixed/Dynamic doesn't matter for reads
+		disk.VirtualHardDiskFormat_2,
+	)
+
+	if err != nil {
+		logger.Debug(fmt.Sprintf("Failed to get VHD settings for %s: %v", vhdFilePath, err))
+		// Even if we can't get the settings, we still want to return the outputs
+		// since the file exists on disk
+	} else {
+		defer setting.Close()
+		logger.Debug(fmt.Sprintf("Successfully retrieved VHD settings for %s", vhdFilePath))
+
+		// Extract properties from the VHD
+		// Get block size if available
+		blockSize, err := setting.GetPropertyBlockSize()
+		if err == nil && blockSize > 0 && inputs.BlockSize == nil {
+			blockSizeInt64 := int64(blockSize)
+			inputs.BlockSize = &blockSizeInt64
+			logger.Debug(fmt.Sprintf("Retrieved block size: %d", blockSize))
+		}
+
+		// Get disk type if available
+		isDynamic, err := setting.GetPropertyType()
+		if err == nil && inputs.DiskType == nil {
+			var diskType string
+			if isDynamic == disk.VirtualHardDiskType_SPARSE {
+				diskType = "dynamic"
+			} else {
+				diskType = "fixed"
+			}
+			inputs.DiskType = &diskType
+			logger.Debug(fmt.Sprintf("Retrieved disk type: %s", diskType))
+		}
+	}
+
+	// Create outputs based on inputs
+	outputs := VhdFileOutputs{
+		VhdFileInputs: inputs,
+	}
+
+	logger.Debug(fmt.Sprintf("Successfully read VHD file %s", vhdFilePath))
+	return outputs, nil
 }
 
 // This is the Create method. This will be run on every VhdFile resource creation.
 func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, preview bool) (string, VhdFileOutputs, error) {
 	logger := provider.GetLogger(ctx)
 	state := VhdFileOutputs{VhdFileInputs: input}
-	id, err := resource.NewUniqueHex(name, 8, 0)
-	if err != nil {
-		return id, state, err
-	}
+	id := name
 
 	// If in preview, don't run the command.
 	if preview {

@@ -56,7 +56,7 @@ type HardDriveInput struct {
 // These are the inputs (or arguments) to a Vm resource.
 type MachineInputs struct {
 	common.ResourceInputs
-	MachineName    *string `pulumi:"machineName"`
+	MachineName    *string `pulumi:"machineName,optional"`
 	Generation     *int    `pulumi:"generation,optional"`
 	ProcessorCount *int    `pulumi:"processorCount,optional"`
 	MemorySize     *int    `pulumi:"memorySize,optional"`
@@ -82,6 +82,7 @@ func (c *MachineInputs) Annotate(a infer.Annotator) {
 // These are the outputs (or properties) of a Vm resource.
 type MachineOutputs struct {
 	MachineInputs
+	VmId *string `pulumi:"vmId"`
 }
 
 func (c *MachineOutputs) Annotate(a infer.Annotator) {}

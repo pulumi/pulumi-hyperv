@@ -157,6 +157,7 @@ export class Machine extends pulumi.CustomResource {
      * create or update steps.
      */
     public readonly update!: pulumi.Output<string | undefined>;
+    public /*out*/ readonly vmId!: pulumi.Output<string>;
 
     /**
      * Create a Machine resource with the given unique name, arguments, and options.
@@ -180,6 +181,7 @@ export class Machine extends pulumi.CustomResource {
             resourceInputs["processorCount"] = args ? args.processorCount : undefined;
             resourceInputs["triggers"] = args ? args.triggers : undefined;
             resourceInputs["update"] = args ? args.update : undefined;
+            resourceInputs["vmId"] = undefined /*out*/;
         } else {
             resourceInputs["create"] = undefined /*out*/;
             resourceInputs["delete"] = undefined /*out*/;
@@ -189,6 +191,7 @@ export class Machine extends pulumi.CustomResource {
             resourceInputs["processorCount"] = undefined /*out*/;
             resourceInputs["triggers"] = undefined /*out*/;
             resourceInputs["update"] = undefined /*out*/;
+            resourceInputs["vmId"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
         const replaceOnChanges = { replaceOnChanges: ["triggers[*]"] };

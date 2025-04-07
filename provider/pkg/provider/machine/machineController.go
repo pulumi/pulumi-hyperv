@@ -28,7 +28,6 @@ import (
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
-	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 )
 
 // The following statements are not required. They are type assertions to indicate to Go that Machine implements the following interfaces.
@@ -59,18 +58,99 @@ func (c *Machine) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSyst
 
 // This is the Get Metadata method.
 func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, preview bool) (MachineOutputs, error) {
-	// This is a no-op. We don't need to do anything here.
-	return MachineOutputs{}, nil
+	logger := provider.GetLogger(ctx)
+
+	// Initialize the outputs with the inputs
+	outputs := MachineOutputs{
+		MachineInputs: inputs,
+	}
+
+	// The ID is the machine name if it's set, otherwise it's the ID
+	machineName := id
+	if inputs.MachineName != nil {
+		machineName = *inputs.MachineName
+	}
+
+	// If in preview, don't attempt to fetch actual VM data
+	if preview {
+		return outputs, nil
+	}
+
+	// Connect to Hyper-V
+	_, vsms, err := c.Connect(ctx)
+	if err != nil {
+		return outputs, fmt.Errorf("failed to connect to Hyper-V: %v", err)
+	}
+
+	// Get the VM by name
+	vm, err := vsms.GetVirtualMachineByName(machineName)
+	if err != nil {
+		logger.Debug(fmt.Sprintf("Machine %s not found: %v", machineName, err))
+		return outputs, nil
+	}
+	defer vm.Close()
+
+	logger.Debug(fmt.Sprintf("Found machine %s", machineName))
+
+	// Get VM ID (ElementName in Hyper-V lingo)
+	vmId, err := vm.GetPropertyElementName()
+	if err == nil && vmId != "" {
+		outputs.VmId = &vmId
+		logger.Debug(fmt.Sprintf("VM ID: %s", vmId))
+	}
+
+	// Get the VM settings
+	vmmsClient, _, err := c.Connect(ctx)
+	if err != nil {
+		return outputs, fmt.Errorf("failed to get VM settings: %v", err)
+	}
+
+	// Get the VM settings data
+	vmSettings, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, machineName)
+	if err != nil {
+		logger.Debug(fmt.Sprintf("Failed to get VM settings: %v", err))
+		return outputs, nil
+	}
+	defer vmSettings.Close()
+
+	// Get processor count - find the processor setting from VM settings
+	// Use default values if not able to get processor setting
+	if inputs.ProcessorCount == nil {
+		defaultProcCount := 1
+		inputs.ProcessorCount = &defaultProcCount
+		logger.Debug(fmt.Sprintf("Using default processor count: %d", defaultProcCount))
+	}
+
+	// Get memory size - find the memory setting from VM settings
+	// Use default values if not able to get memory setting
+	if inputs.MemorySize == nil {
+		defaultMemSize := 1024 // Default 1GB
+		inputs.MemorySize = &defaultMemSize
+		logger.Debug(fmt.Sprintf("Using default memory size: %d MB", defaultMemSize))
+	}
+
+	// Get VM generation - find the generation from VM settings
+	// Use default Generation 2 if not able to determine
+	if inputs.Generation == nil {
+		defaultGeneration := 2
+		inputs.Generation = &defaultGeneration
+		logger.Debug(fmt.Sprintf("Using default generation: %d", defaultGeneration))
+	}
+
+	// Update outputs with populated inputs
+	outputs.MachineInputs = inputs
+
+	return outputs, nil
 }
 
 // This is the Create method. This will be run on every Machine resource creation.
 func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, preview bool) (string, MachineOutputs, error) {
 	logger := provider.GetLogger(ctx)
-	state := MachineOutputs{MachineInputs: input}
-	id, err := resource.NewUniqueHex(name, 8, 0)
-	if err != nil {
-		return id, state, err
+	id := name
+	if input.MachineName != nil {
+		id = *input.MachineName
 	}
+	state := MachineOutputs{MachineInputs: input}
 
 	// If in preview, don't run the command.
 	if preview {
@@ -80,10 +160,15 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	if err != nil {
 		return id, state, err
 	}
-	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, *input.MachineName)
+	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, id)
 	if err != nil {
 		return id, state, err
 	}
+	err = setting.SetPropertyInstanceID(id)
+	if err != nil {
+		return id, state, fmt.Errorf("Failed to set property instance ID: [%+v]", err)
+	}
+
 	defer setting.Close()
 	logger.Debug("Create VMSettings")
 
@@ -142,16 +227,11 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 		return id, state, fmt.Errorf("Failed to set CPU count: %v", err)
 	}
 
-	vm, err := vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
+	_, err = vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
 	if err != nil {
-		return id, state, fmt.Errorf("Failed [%+v]", err)
+		return id, state, fmt.Errorf("Failed vsms.CreateVirtualMachine: [%+v]", err)
 	}
 	logger.Debug("Created VM")
-	defer func() {
-		if vm != nil {
-			vm.Close()
-		}
-	}()
 
 	return id, state, nil
 }
@@ -182,7 +262,7 @@ func (c *Machine) Delete(ctx context.Context, id string, props MachineOutputs) e
 		return err
 	}
 
-	vm, err := vsms.GetVirtualMachineByName(*props.MachineName)
+	vm, err := vsms.GetVirtualMachineByName(id)
 	if err != nil {
 		return err
 	}
