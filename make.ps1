@@ -303,19 +303,34 @@ function Target-nodejs_sdk {
         yarn install
         yarn run tsc
     }
-    Copy-Item README.md "sdk/nodejs/package.json" "sdk/nodejs/yarn.lock" "sdk/nodejs/bin/" -Destination "sdk/nodejs/"
+    Copy-Item README.md -Destination "sdk/nodejs/"
+    Copy-Item "sdk/nodejs/package.json" -Destination "sdk/nodejs/bin/"
+    Copy-Item "sdk/nodejs/yarn.lock" -Destination "sdk/nodejs/bin/"
 }
 
 function Target-python_sdk {
     Copy-Item README.md "sdk/python/"
     Invoke-CommandWithChangeDirectory "sdk/python" {
-        Remove-Item ./bin/, ../python.bin/ -Recurse -Force
+        # Check if directories exist before removing them
+        if (Test-Path ./bin/) { Remove-Item ./bin/ -Recurse -Force }
+        if (Test-Path ../python.bin/) { Remove-Item ../python.bin/ -Recurse -Force }
         Copy-Item . ../python.bin -Recurse -Force
         Move-Item ../python.bin ./bin
-        python3 -m venv venv
-        ./venv/bin/python -m pip install build
-        Invoke-CommandWithChangeDirectory "./bin" {
-            ../venv/bin/python -m build .
+        
+        # Use Windows-compatible Python paths
+        if ($IsWindowsEnvironment) {
+            python -m venv venv
+            & ".\venv\Scripts\python" -m pip install build
+            Invoke-CommandWithChangeDirectory "./bin" {
+                & "..\venv\Scripts\python" -m build .
+            }
+        } 
+        else {
+            python3 -m venv venv
+            ./venv/bin/python -m pip install build
+            Invoke-CommandWithChangeDirectory "./bin" {
+                ../venv/bin/python -m build .
+            }
         }
     }
 }
@@ -324,11 +339,124 @@ function Target-bin_pulumi_java_gen {
     Write-Host "pulumi-java-gen is no longer necessary"
 }
 
+function Find-JavaExe {
+    # First check if java is in the PATH
+    $javaPath = Get-Command -Name "java.exe" -ErrorAction SilentlyContinue
+    if ($javaPath) {
+        return $javaPath.Source
+    }
+    
+    # Check common Java installation locations
+    $commonPaths = @(
+        "${env:ProgramFiles}\Java\*\bin\java.exe",
+        "${env:ProgramFiles(x86)}\Java\*\bin\java.exe",
+        "${env:JAVA_HOME}\bin\java.exe",
+        "$env:LOCALAPPDATA\Programs\Eclipse Adoptium\*\bin\java.exe",
+        "$env:LOCALAPPDATA\Programs\Eclipse Foundation\*\bin\java.exe",
+        "$env:LOCALAPPDATA\Programs\Temurin\*\bin\java.exe",
+        "$env:LOCALAPPDATA\Programs\Microsoft\jdk-*\bin\java.exe",
+        "${env:ProgramFiles}\Eclipse Adoptium\*\bin\java.exe",
+        "${env:ProgramFiles}\Eclipse Adoptium\jdk-*\bin\java.exe",
+        "${env:ProgramFiles}\Eclipse Foundation\*\bin\java.exe",
+        "${env:ProgramFiles}\Temurin\*\bin\java.exe",
+        "${env:ProgramFiles}\OpenJDK\*\bin\java.exe",
+        "${env:ProgramFiles(x86)}\Eclipse Adoptium\*\bin\java.exe",
+        "${env:ProgramFiles(x86)}\Eclipse Foundation\*\bin\java.exe",
+        "${env:ProgramFiles(x86)}\Temurin\*\bin\java.exe",
+        "${env:ProgramFiles(x86)}\OpenJDK\*\bin\java.exe"
+    )
+    
+    foreach ($path in $commonPaths) {
+        $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+        if ($found) {
+            Write-Host "Found Java at: $($found.FullName)"
+            return $found.FullName
+        }
+    }
+    
+    # If Java not found, return null
+    Write-Warning "Java executable (java.exe) not found. Please install Java or ensure it's in your PATH."
+    return $null
+}
+
+function Find-GradleExe {
+    # First check if gradle is in the PATH
+    $gradlePath = Get-Command -Name "gradle.bat" -ErrorAction SilentlyContinue
+    if ($gradlePath) {
+        return $gradlePath.Source
+    }
+    
+    # Check common Gradle installation locations
+    $commonPaths = @(
+        "${env:ProgramFiles}\Gradle\*\bin\gradle.bat",
+        "${env:ProgramFiles(x86)}\Gradle\*\bin\gradle.bat",
+        "${env:GRADLE_HOME}\bin\gradle.bat",
+        "$env:USERPROFILE\.gradle\wrapper\dists\*\*\*\bin\gradle.bat"
+    )
+    
+    foreach ($path in $commonPaths) {
+        $found = Get-ChildItem -Path $path -ErrorAction SilentlyContinue | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+        if ($found) {
+            Write-Host "Found Gradle at: $($found.FullName)"
+            return $found.FullName
+        }
+    }
+    
+    # If Gradle not found, return null
+    Write-Warning "Gradle executable (gradle.bat) not found. Will try to use gradlew wrapper if available."
+    return $null
+}
+
 function Target-java_sdk {
     $env:PACKAGE_VERSION = $VERSION_GENERIC
     Target-sdk_java
-    Invoke-CommandWithChangeDirectory "sdk/java" {
-        gradle --console=plain build
+    
+    if ($IsWindowsEnvironment) {
+        # Find java.exe
+        $javaExe = Find-JavaExe
+        if ($javaExe) {
+            $env:PATH = "$(Split-Path -Parent $javaExe);$env:PATH"
+            Write-Host "Using Java from: $javaExe"
+        }
+        
+        # Find gradle.bat
+        $gradleExe = Find-GradleExe
+        if ($gradleExe) {
+            $env:PATH = "$(Split-Path -Parent $gradleExe);$env:PATH"
+            Write-Host "Using Gradle from: $gradleExe"
+        }
+        
+        # Check if gradle wrapper exists, use it if available
+        $gradleWrapperWin = ".\gradlew.bat"
+        $gradleWrapperUnix = "./gradlew"
+        
+        Invoke-CommandWithChangeDirectory "sdk/java" {
+            if (Test-Path $gradleWrapperWin) {
+                Write-Host "Using Gradle wrapper: $gradleWrapperWin"
+                & $gradleWrapperWin --console=plain build
+            } elseif (Test-Path $gradleWrapperUnix) {
+                Write-Host "Using Gradle wrapper: $gradleWrapperUnix"
+                & $gradleWrapperUnix --console=plain build
+            } elseif ($gradleExe) {
+                Write-Host "Using Gradle from PATH"
+                & $gradleExe --console=plain build
+            } else {
+                Write-Host "Attempting to use 'gradle' command from PATH"
+                gradle --console=plain build
+            }
+        }
+    } else {
+        # Non-Windows systems
+        Invoke-CommandWithChangeDirectory "sdk/java" {
+            if (Test-Path "./gradlew") {
+                Write-Host "Using Gradle wrapper: ./gradlew"
+                chmod +x ./gradlew
+                ./gradlew --console=plain build
+            } else {
+                Write-Host "Using gradle from PATH"
+                gradle --console=plain build
+            }
+        }
     }
 }
 

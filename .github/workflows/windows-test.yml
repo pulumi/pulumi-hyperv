@@ -1,0 +1,28 @@
+name: windows-test
+on:
+  workflow_dispatch:
+jobs:
+  verify-windows-runner:
+    name: "Verify Windows Runner"
+    runs-on: windows-8core-2022
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          lfs: true
+      
+      - name: Check Environment
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell Core Version: $($PSVersionTable.PSVersion)"
+          Write-Host "Windows Version: $(Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber | Format-List | Out-String)"
+          Write-Host "Runner Info: $env:RUNNER_NAME on $env:COMPUTERNAME"
+          Write-Host "Available memory: $(Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object -ExpandProperty FreePhysicalMemory) KB"
+          Write-Host "Number of processors: $(Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty NumberOfLogicalProcessors)"
+      
+      - name: Check System Features
+        shell: pwsh
+        run: |
+          Write-Host "Checking Hyper-V feature status..."
+          Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V
+          Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell

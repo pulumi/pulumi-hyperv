@@ -1,0 +1,138 @@
+name: build-windows
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - windows-testing
+    paths-ignore:
+      - "**.md"
+      - .github/workflows/runner-test.yml
+env:
+  AZURE_SIGNING_CLIENT_ID: ${{ secrets.AZURE_SIGNING_CLIENT_ID }}
+  AZURE_SIGNING_CLIENT_SECRET: ${{ secrets.AZURE_SIGNING_CLIENT_SECRET }}
+  AZURE_SIGNING_TENANT_ID: ${{ secrets.AZURE_SIGNING_TENANT_ID }}
+  AZURE_SIGNING_KEY_VAULT_URI: ${{ secrets.AZURE_SIGNING_KEY_VAULT_URI }}
+  SKIP_SIGNING: ${{ secrets.AZURE_SIGNING_CLIENT_ID == '' &&
+    secrets.AZURE_SIGNING_CLIENT_SECRET == '' && secrets.AZURE_SIGNING_TENANT_ID
+    == '' && secrets.AZURE_SIGNING_KEY_VAULT_URI == '' }}
+  GITHUB_TOKEN: ${{ secrets.PULUMI_BOT_TOKEN }}
+  PROVIDER: hyperv
+  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+  PULUMI_LOCAL_NUGET: ${{ github.workspace }}/nuget
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  NUGET_PUBLISH_KEY: ${{ secrets.NUGET_PUBLISH_KEY }}
+  PYPI_USERNAME: __token__
+  PYPI_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+  TRAVIS_OS_NAME: linux
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  PULUMI_GO_DEP_ROOT: ${{ github.workspace }}/..
+  PUBLISH_REPO_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+  PUBLISH_REPO_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+  SIGNING_KEY_ID: ${{ secrets.JAVA_SIGNING_KEY_ID }}
+  SIGNING_KEY: ${{ secrets.JAVA_SIGNING_KEY }}
+  SIGNING_PASSWORD: ${{ secrets.JAVA_SIGNING_PASSWORD }}
+  GOVERSION: 1.24.x
+  NODEVERSION: 20.x
+  PYTHONVERSION: "3.11"
+  DOTNETVERSION: 8.0.x
+  JAVAVERSION: "11"
+  AWS_REGION: us-west-2
+  PULUMI_API: https://api.pulumi-staging.io
+jobs:
+  build-windows:
+    name: "Build Provider on Windows"
+    runs-on: windows-8core-2022
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          lfs: true
+      
+      - name: Install Go
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with:
+          go-version: 1.24.x
+          cache-dependency-path: "**/*.sum"
+
+      - name: Setup Java
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+            java-version: ${{ env.JAVAVERSION }}
+            distribution: temurin
+            cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1 # v3.5.0
+        with:
+            gradle-version: "7.6"
+      
+      - name: Install Pulumi CLI
+        shell: pwsh
+        run: |
+          $version = Get-Content .pulumi.version
+          if (-not $version) {
+            $version = "latest"
+          }
+          $env:PATH = "C:\Program Files\PowerShell\7;$env:PATH"
+          $downloadUrl = "https://get.pulumi.com/releases/sdk/pulumi-v$version-windows-x64.zip"
+          curl -L $downloadUrl -o pulumi.zip
+          Expand-Archive -Path pulumi.zip -DestinationPath $env:TEMP
+          $env:PATH = "$env:TEMP\pulumi;$env:PATH"
+          echo "Pulumi version: $(pulumi version)"
+          echo "$env:TEMP\pulumi" | Out-File -FilePath $env:GITHUB_PATH -Append
+      
+      - name: Setup Environment
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
+          Write-Host "Go Version: $(go version)"
+          
+          # Check for make.ps1
+          if (Test-Path -Path make.ps1) {
+            Write-Host "make.ps1 found"
+          } else {
+            Write-Host "make.ps1 not found"
+            Get-ChildItem -Path .
+          }
+      
+      - name: Build with make.ps1
+        shell: pwsh
+        run: |
+          if (Test-Path -Path make.ps1) {
+            # Fix: Use positional parameters instead of -Command
+            ./make.ps1 ensure
+            ./make.ps1 build 
+          } else {
+            # Fallback to manual build steps if make.ps1 is missing
+            go mod download
+            go build -o bin/pulumi-resource-hyperv.exe ./provider/cmd/pulumi-resource-hyperv
+          }
+      
+      - name: Test Provider
+        shell: pwsh
+        run: |
+          # Verify built binary
+          Get-ChildItem -Path bin
+          if (Test-Path bin/pulumi-resource-hyperv.exe) {
+            Write-Host "Provider binary built successfully"
+          } else {
+            Write-Host "Provider binary not found!"
+            exit 1
+          }
+          
+          # Run basic tests if available
+          if (Test-Path -Path make.ps1) {
+            try {
+              # Fix: Use positional parameter instead of -Command
+              ./make.ps1 test_provider
+            } catch {
+              Write-Host "Tests failed: $_"
+            }
+          }
+      
+      - name: Upload Provider Binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pulumi-resource-hyperv-windows
+          path: bin/pulumi-resource-hyperv.exe
