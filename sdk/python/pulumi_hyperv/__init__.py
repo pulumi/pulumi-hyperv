@@ -16,10 +16,13 @@ if typing.TYPE_CHECKING:
     machine = __machine
     import pulumi_hyperv.vhdfile as __vhdfile
     vhdfile = __vhdfile
+    import pulumi_hyperv.virtualswitch as __virtualswitch
+    virtualswitch = __virtualswitch
 else:
     config = _utilities.lazy_import('pulumi_hyperv.config')
     machine = _utilities.lazy_import('pulumi_hyperv.machine')
     vhdfile = _utilities.lazy_import('pulumi_hyperv.vhdfile')
+    virtualswitch = _utilities.lazy_import('pulumi_hyperv.virtualswitch')
 
 _utilities.register(
     resource_modules="""
@@ -38,6 +41,14 @@ _utilities.register(
   "fqn": "pulumi_hyperv.vhdfile",
   "classes": {
    "hyperv:vhdfile:VhdFile": "VhdFile"
+  }
+ },
+ {
+  "pkg": "hyperv",
+  "mod": "virtualswitch",
+  "fqn": "pulumi_hyperv.virtualswitch",
+  "classes": {
+   "hyperv:virtualswitch:VirtualSwitch": "VirtualSwitch"
   }
  }
 ]
