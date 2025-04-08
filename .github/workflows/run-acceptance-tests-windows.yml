@@ -264,132 +264,132 @@ jobs:
         fields: repo,commit,author,action
         status: ${{ job.status }}
     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
-#   test: TODO: Re-enable this when we can get the esc action to work with Windows
-#     runs-on: windows-latest
-#     needs:
-#     - build_sdks
-#     strategy:
-#       fail-fast: true
-#       matrix:
-#         language:
-#         - nodejs
-#         - python
-#         - dotnet
-#         - go
-#         - java
-#     name: test
-#     permissions:
-#       contents: read
-#       id-token: write
-#     steps:
-#     - name: Checkout Repo
-#       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-#       with:
-#         lfs: true
-#         persist-credentials: false
-#         ref: ${{ env.PR_COMMIT_SHA }}
-#     - id: version
-#       name: Set Provider Version
-#       uses: pulumi/provider-version-action@f96d032a2758fdda7939e5728eff6c0d980ae894 # v1.6.0
-#       with:
-#         set-env: PROVIDER_VERSION
-#     - name: Install Go
-#       uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-#       with:
-#         go-version: ${{ env.GOVERSION }}
-#         cache-dependency-path: "**/*.sum"
-#     - name: Install pulumictl
-#       uses: jaxxstorm/action-install-gh-release@4304621e8c48d66093a8a214af5d5b5bc3b3d943 # v2.0.0
-#       with:
-#         repo: pulumi/pulumictl
-#     - name: Install Pulumi CLI
-#       uses: pulumi/actions@9519177da243fd32cab35cdbf19cce1ab7472fcc # v6.2.0
-#       with:
-#         pulumi-version-file: .pulumi.version
-#     - name: Setup Node
-#       uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
-#       with:
-#         node-version: ${{ env.NODEVERSION }}
-#         registry-url: https://registry.npmjs.org
-#     - name: Setup DotNet
-#       uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-#       with:
-#         dotnet-version: ${{ env.DOTNETVERSION }}
-#     - name: Setup Python
-#       uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
-#       with:
-#         python-version: ${{ env.PYTHONVERSION }}
-#     - name: Setup Java
-#       uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
-#       with:
-#         java-version: ${{ env.JAVAVERSION }}
-#         distribution: temurin
-#         cache: gradle
-#     - name: Setup Gradle
-#       uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1 # v3.5.0
-#       with:
-#         gradle-version: "7.6"
-#     - name: Download provider binaries
-#       uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
-#       with:
-#         name: pulumi-${{ env.PROVIDER }}-provider.zip
-#         path: ${{ github.workspace }}/bin
-#     - name: Extract provider binaries
-#       shell: pwsh
-#       run: Expand-Archive -Path "${{ github.workspace }}/bin/provider.zip" -DestinationPath "${{ github.workspace }}/bin -Force"
-#     - name: Download SDK
-#       uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
-#       with:
-#         name: ${{ matrix.language }}-sdk.zip
-#         path: ${{ github.workspace}}/sdk/
-#     - name: Extract SDK folder
-#       shell: pwsh
-#       run: Expand-Archive -Path "${{ github.workspace}}/sdk/${{ matrix.language}}.zip" -DestinationPath "${{ github.workspace}}/sdk/${{ matrix.language}} -Force"
-#     - name: Update path
-#       shell: pwsh
-#       run: echo "${{ github.workspace }}/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-#     - name: Install Node dependencies
-#       shell: pwsh
-#       run: yarn global add typescript
-#     - name: Add NuGet source
-#       shell: pwsh
-#       run: dotnet nuget add source ${{ github.workspace }}/nuget
-#     - name: Install Python deps
-#       shell: pwsh
-#       run: |
-#         pip3 install virtualenv==20.0.23
-#         pip3 install pipenv
-#     - name: Install dependencies
-#       shell: pwsh
-#       run: ./make.ps1 install_${{ matrix.language}}_sdk
-#     - name: Generate Pulumi Access Token
-#       id: generate_pulumi_token
-#       uses: pulumi/auth-actions@1c89817aab0c66407723cdef72b05266e7376640 # v1.0.1
-#       with:
-#         organization: pulumi
-#         requested-token-type: urn:pulumi:token-type:access_token:organization
-#         export-environment-variables: false
-#     - name: Export AWS Credentials
-#       uses: pulumi/esc-action@41fd832f44f4820124b5350b5f84a00f741f234e # v1.3.0
-#       env:
-#         PULUMI_ACCESS_TOKEN: ${{ steps.generate_pulumi_token.outputs.pulumi-access-token }}
-#       with:
-#         environment: logins/pulumi-ci
-#     - name: Run tests
-#       shell: pwsh
-#       run: |
-#         Set-StrictMode -Version Latest
-#         $ErrorActionPreference = "Stop"
-#         cd examples
-#         go test -count=1 -cover -timeout 2h -tags=${{ matrix.language }} -parallel 4 .
-#     - if: failure() && github.event_name == 'push'
-#       name: Notify Slack
-#       uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
-#       with:
-#         author_name: Failure in SDK tests
-#         fields: repo,commit,author,action
-#         status: ${{ job.status }}
-#     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+  test:
+    runs-on: windows-latest
+    needs:
+    - build_sdks
+    strategy:
+      fail-fast: true
+      matrix:
+        language:
+        - nodejs
+        - python
+        - dotnet
+        - go
+        - java
+    name: test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        lfs: true
+        persist-credentials: false
+        ref: ${{ env.PR_COMMIT_SHA }}
+    - id: version
+      name: Set Provider Version
+      uses: pulumi/provider-version-action@f96d032a2758fdda7939e5728eff6c0d980ae894 # v1.6.0
+      with:
+        set-env: PROVIDER_VERSION
+    - name: Install Go
+      uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+      with:
+        go-version: ${{ env.GOVERSION }}
+        cache-dependency-path: "**/*.sum"
+    - name: Install pulumictl
+      uses: jaxxstorm/action-install-gh-release@4304621e8c48d66093a8a214af5d5b5bc3b3d943 # v2.0.0
+      with:
+        repo: pulumi/pulumictl
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@9519177da243fd32cab35cdbf19cce1ab7472fcc # v6.2.0
+      with:
+        pulumi-version-file: .pulumi.version
+    - name: Setup Node
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+      with:
+        node-version: ${{ env.NODEVERSION }}
+        registry-url: https://registry.npmjs.org
+    - name: Setup DotNet
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+      with:
+        dotnet-version: ${{ env.DOTNETVERSION }}
+    - name: Setup Python
+      uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+      with:
+        python-version: ${{ env.PYTHONVERSION }}
+    - name: Setup Java
+      uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+      with:
+        java-version: ${{ env.JAVAVERSION }}
+        distribution: temurin
+        cache: gradle
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1 # v3.5.0
+      with:
+        gradle-version: "7.6"
+    - name: Download provider binaries
+      uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      with:
+        name: pulumi-${{ env.PROVIDER }}-provider.zip
+        path: ${{ github.workspace }}/bin
+    - name: Extract provider binaries
+      shell: pwsh
+      run: Expand-Archive -Path "${{ github.workspace }}/bin/provider.zip" -DestinationPath "${{ github.workspace }}/bin -Force"
+    - name: Download SDK
+      uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      with:
+        name: ${{ matrix.language }}-sdk.zip
+        path: ${{ github.workspace}}/sdk/
+    - name: Extract SDK folder
+      shell: pwsh
+      run: Expand-Archive -Path "${{ github.workspace}}/sdk/${{ matrix.language}}.zip" -DestinationPath "${{ github.workspace}}/sdk/${{ matrix.language}} -Force"
+    - name: Update path
+      shell: pwsh
+      run: echo "${{ github.workspace }}/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: Install Node dependencies
+      shell: pwsh
+      run: yarn global add typescript
+    - name: Add NuGet source
+      shell: pwsh
+      run: dotnet nuget add source ${{ github.workspace }}/nuget
+    - name: Install Python deps
+      shell: pwsh
+      run: |
+        pip3 install virtualenv==20.0.23
+        pip3 install pipenv
+    - name: Install dependencies
+      shell: pwsh
+      run: ./make.ps1 install_${{ matrix.language}}_sdk
+    - name: Generate Pulumi Access Token
+      id: generate_pulumi_token
+      uses: pulumi/auth-actions@1c89817aab0c66407723cdef72b05266e7376640 # v1.0.1
+      with:
+        organization: pulumi
+        requested-token-type: urn:pulumi:token-type:access_token:organization
+        export-environment-variables: false
+    # - name: Export AWS Credentials
+    #   uses: pulumi/esc-action@41fd832f44f4820124b5350b5f84a00f741f234e # v1.3.0
+    #   env:
+    #     PULUMI_ACCESS_TOKEN: ${{ steps.generate_pulumi_token.outputs.pulumi-access-token }}
+    #   with:
+    #     environment: logins/pulumi-ci
+    - name: Run tests
+      shell: pwsh
+      run: |
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = "Stop"
+        cd examples
+        go test -count=1 -cover -timeout 2h -tags=${{ matrix.language }} -parallel 4 .
+    - if: failure() && github.event_name == 'push'
+      name: Notify Slack
+      uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
+      with:
+        author_name: Failure in SDK tests
+        fields: repo,commit,author,action
+        status: ${{ job.status }}
+    if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
   sentinel:
     runs-on: windows-latest
     name: sentinel
@@ -406,7 +406,7 @@ jobs:
       statuses: write
     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     needs:
-    # - test TODO: Re-enable this when we can get the esc action to work with Windows
+    - test
     - prerequisites
     - lint
   lint:
