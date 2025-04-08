@@ -1,4 +1,4 @@
-name: weekly-pulumi-update
+name: runner-test
 on:
   workflow_dispatch:
 jobs:
@@ -6,6 +6,31 @@ jobs:
     name: "Probe Hyper-V"
     runs-on: windows-8core-2022
     steps:
-      - name: Probe
+      - name: Checkout Repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          lfs: true
+      - name: Setup PowerShell Core
         shell: pwsh
-        run: Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V
+        run: |
+          Write-Host "PowerShell Core Version: $($PSVersionTable.PSVersion)"
+      - name: Probe Hyper-V
+        shell: pwsh
+        run: |
+          Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V
+          Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
+      - name: Setup Environment
+        shell: pwsh
+        run: |
+          $env:Path
+          Get-Command -Name powershell
+          Get-Command -Name pwsh
+      - name: Build with PowerShell
+        shell: pwsh
+        run: |
+          if (Test-Path -Path make.ps1) {
+            ./make.ps1 -Command build
+          } else {
+            Write-Host "make.ps1 file not found"
+            Get-ChildItem -Path .
+          }

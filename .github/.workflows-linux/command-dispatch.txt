@@ -33,7 +33,7 @@ env:
   PULUMI_API: https://api.pulumi-staging.io
 jobs:
   command-dispatch-for-testing:
-    runs-on: ubuntu-latest-8core_7d004c3ce4b3
+    runs-on: ubuntu-latest
     name: command-dispatch-for-testing
     steps:
     - name: Checkout Repo

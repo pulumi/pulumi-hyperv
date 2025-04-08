@@ -30,7 +30,7 @@ env:
   PULUMI_API: https://api.pulumi-staging.io
 jobs:
   comment-on-pr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8core_7d004c3ce4b3
     name: comment-on-pr
     steps:
     - name: Checkout Repo
