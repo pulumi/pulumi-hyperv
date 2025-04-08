@@ -15,6 +15,7 @@ go.sum text eol=lf
 # C# source files use CRLF
 *.cs text eol=crlf
 *.csproj text eol=crlf
+sdk/dotnet/**/*.cs text eol=crlf
 
 # TypeScript/JavaScript files use LF
 *.ts text eol=lf
@@ -23,8 +24,8 @@ go.sum text eol=lf
 package.json text eol=lf
 tsconfig.json text eol=lf
 
-# Override for schema.json to use LF explicitly
-provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf
+# Override for schema.json to use LF explicitly - binary forces git to leave it alone
+provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf -binary
 
 # Python files use LF
 *.py text eol=lf
