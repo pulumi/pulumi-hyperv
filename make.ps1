@@ -189,7 +189,7 @@ function Target-sdk {
         if (Test-Path $sdkPath) {
             Remove-Item -Recurse -Force $sdkPath
         }
-        & "$PULUMI" package gen-sdk --language "$language" "$SCHEMA_FILE" --version "$VERSION_GENERIC"
+        & "$PULUMI" package gen-sdk --language "$language" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
     }
 }
 
@@ -219,7 +219,7 @@ function Target-sdk_python {
     }
     # Call Pulumi executable with separate arguments
     & "$PULUMI" "package" "gen-sdk" "--language" "python" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
-    Copy-Item README.md "sdk\python\"
+    Copy-Item README.md "sdk\python\" -Force
 }
 
 function Target-sdk_dotnet {
@@ -234,16 +234,38 @@ function Target-sdk_dotnet {
     }
     # Call Pulumi executable with separate arguments
     & "$PULUMI" "package" "gen-sdk" "--language" "dotnet" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
-    
     # Copy the logo to the dotnet directory before building so it can be included in the nuget package archive.
     # https://github.com/pulumi/pulumi-hyperv-provider/issues/243
     Invoke-CommandWithChangeDirectory "sdk\dotnet" {
-        Copy-Item "$WORKING_DIR\assets\logo.png" "logo.png"
+        Copy-Item "$WORKING_DIR\assets\logo.png" "logo.png" -Force
     }
 }
 
 function Target-sdk_go {
-    Target-sdk "go"
+    # Ensure Pulumi exists
+    if (-not (Test-Path $PULUMI)) {
+        Target-Pulumi
+    }
+    
+    $sdkPath = "sdk\go"
+    if (Test-Path $sdkPath) {
+        # Instead of deleting entire directory, preserve doc.go file first
+        if (Test-Path "$sdkPath\hyperv\doc.go") {
+            $docGoContent = Get-Content "$sdkPath\hyperv\doc.go" -Raw
+            Remove-Item -Recurse -Force $sdkPath
+            
+            # Recreate hyperv directory structure
+            New-Item -ItemType Directory -Force -Path "$sdkPath\hyperv" | Out-Null
+            
+            # Restore doc.go file
+            Set-Content -Path "$sdkPath\hyperv\doc.go" -Value $docGoContent
+        } else {
+            Remove-Item -Recurse -Force $sdkPath
+        }
+    }
+    
+    # Call Pulumi executable with separate arguments
+    & "$PULUMI" "package" "gen-sdk" "--language" "go" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
 }
 
 function Target-sdk_nodejs {
@@ -303,19 +325,19 @@ function Target-nodejs_sdk {
         yarn install
         yarn run tsc
     }
-    Copy-Item README.md -Destination "sdk/nodejs/"
-    Copy-Item "sdk/nodejs/package.json" -Destination "sdk/nodejs/bin/"
-    Copy-Item "sdk/nodejs/yarn.lock" -Destination "sdk/nodejs/bin/"
+    Copy-Item README.md -Destination "sdk/nodejs/" -Force
+    Copy-Item "sdk/nodejs/package.json" -Destination "sdk/nodejs/bin/" -Force
+    Copy-Item "sdk/nodejs/yarn.lock" -Destination "sdk/nodejs/bin/" -Force
 }
 
 function Target-python_sdk {
-    Copy-Item README.md "sdk/python/"
+    Copy-Item README.md "sdk/python/" -Force
     Invoke-CommandWithChangeDirectory "sdk/python" {
         # Check if directories exist before removing them
         if (Test-Path ./bin/) { Remove-Item ./bin/ -Recurse -Force }
         if (Test-Path ../python.bin/) { Remove-Item ../python.bin/ -Recurse -Force }
         Copy-Item . ../python.bin -Recurse -Force
-        Move-Item ../python.bin ./bin
+        Move-Item ../python.bin ./bin -Force
         
         # Use Windows-compatible Python paths
         if ($IsWindowsEnvironment) {
@@ -486,7 +508,7 @@ function Target-lint {
 function Target-install {
     Target-install_nodejs_sdk
     Target-install_dotnet_sdk
-    Copy-Item "$WORKING_DIR/bin/$PROVIDER$EXE" "$env:GOPATH/bin"
+    Copy-Item "$WORKING_DIR/bin/$PROVIDER$EXE" "$env:GOPATH/bin" -Force
 }
 
 $GO_TEST = "go test -v -count=1 -cover -timeout 2h -parallel $TESTPARALLELISM"
@@ -501,9 +523,19 @@ function Target-test_all {
 }
 
 function Target-install_dotnet_sdk {
-    Remove-Item "$WORKING_DIR/nuget/$NUGET_PKG_NAME.*.nupkg" -ErrorAction SilentlyContinue
+    # Create nuget directory if it doesn't exist
     New-Item -ItemType Directory -Force "$WORKING_DIR/nuget"
-    Get-ChildItem . -Filter "*.nupkg" | ForEach-Object { Copy-Item -Path $_.FullName -Destination "$WORKING_DIR/nuget" }
+    
+    # Remove any existing packages (with error action silently continue)
+    Remove-Item "$WORKING_DIR/nuget/$NUGET_PKG_NAME.*.nupkg" -ErrorAction SilentlyContinue
+    
+    # Find SDK nupkg files and copy them to nuget directory
+    $nupkgFiles = Get-ChildItem -Path "$WORKING_DIR/sdk/dotnet/bin" -Recurse -Filter "*.nupkg" -ErrorAction SilentlyContinue
+    if ($nupkgFiles) {
+        $nupkgFiles | ForEach-Object { Copy-Item -Path $_.FullName -Destination "$WORKING_DIR/nuget" -Force }
+    } else {
+        Write-Warning "No .nupkg files found in $WORKING_DIR/sdk/dotnet/bin"
+    }
 }
 
 function Target-install_python_sdk {
@@ -609,11 +641,11 @@ function Target-sign_goreleaser_exe {
         }
         else {
             $file = "dist/build-provider-sign-windows_windows_$GORELEASER_ARCH/pulumi-resource-hyperv.exe"
-            Move-Item $file "$file.unsigned"
+            Move-Item $file "$file.unsigned" -Force
             az login --service-principal --username $env:AZURE_SIGNING_CLIENT_ID --password $env:AZURE_SIGNING_CLIENT_SECRET --tenant $env:AZURE_SIGNING_TENANT_ID --output none
             $ACCESS_TOKEN = az account get-access-token --resource "https://vault.azure.net" | ConvertFrom-Json | Select-Object -ExpandProperty accessToken
             java -jar bin/jsign-6.0.jar --storetype AZUREKEYVAULT --keystore "PulumiCodeSigning" --url $env:AZURE_SIGNING_KEY_VAULT_URI --storepass $ACCESS_TOKEN "$file.unsigned"
-            Move-Item "$file.unsigned" $file
+            Move-Item "$file.unsigned" $file -Force
             az logout
         }
     }

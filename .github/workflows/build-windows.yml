@@ -77,7 +77,8 @@ jobs:
           $env:PATH = "C:\Program Files\PowerShell\7;$env:PATH"
           $downloadUrl = "https://get.pulumi.com/releases/sdk/pulumi-v$version-windows-x64.zip"
           curl -L $downloadUrl -o pulumi.zip
-          Expand-Archive -Path pulumi.zip -DestinationPath $env:TEMP
+          Expand-Archive -Path pulumi.zip -DestinationPath $env:TEMP -Force
+          Remove-Item -Path pulumi.zip
           $env:PATH = "$env:TEMP\pulumi;$env:PATH"
           echo "Pulumi version: $(pulumi version)"
           echo "$env:TEMP\pulumi" | Out-File -FilePath $env:GITHUB_PATH -Append
