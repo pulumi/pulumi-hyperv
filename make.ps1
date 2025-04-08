@@ -133,7 +133,12 @@ function Target-SchemaFile {
                 $schemaOutput = & "$PULUMI" "package" "get-schema" "$fullPath"
                 $schema = $schemaOutput | ConvertFrom-Json
                 $schema.PSObject.Properties.Remove('version')
-                $schema | ConvertTo-Json -Depth 10 -Compress:$false | Set-Content -Encoding default -Path $SCHEMA_FILE
+                # Use Out-File with UTF8NoCR encoding to ensure LF line endings
+                $schema | ConvertTo-Json -Depth 10 | Out-String | ForEach-Object { $_.Replace("`r`n", "`n") } | Out-File -FilePath $SCHEMA_FILE -Encoding default -NoNewline
+                Write-Host "Schema file generated at $SCHEMA_FILE"
+                # Count and display the number of lines in the schema file
+                $lineCount = (Get-Content $SCHEMA_FILE | Measure-Object -Line).Lines
+                Write-Host "Schema file contains $lineCount lines"
             }
             else {
                 Write-Error "Pulumi executable not found at $PULUMI"
@@ -147,7 +152,7 @@ function Target-SchemaFile {
     }
     else {
         if (Test-Path $PULUMI) {
-            & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq --indent 2 'del(.version)' > $SCHEMA_FILE
+            & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq 'del(.version)' > $SCHEMA_FILE
         }
         else {
             Write-Error "Pulumi executable not found at $PULUMI"
@@ -158,10 +163,11 @@ function Target-SchemaFile {
 
 function Target-codegen {
     Target-Pulumi
+    Target-provider
     Target-SchemaFile
     Target-sdk_dotnet
     Target-sdk_go
-    Target-sdk_nodejs
+    Target-nodejs_sdk 
     Target-sdk_python
     Target-sdk_java
 }
@@ -259,17 +265,14 @@ function Target-sdk_go {
             
             # Restore doc.go file
             Set-Content -Path "$sdkPath\hyperv\doc.go" -Value $docGoContent
-        } else {
+        }
+        else {
             Remove-Item -Recurse -Force $sdkPath
         }
     }
     
     # Call Pulumi executable with separate arguments
     & "$PULUMI" "package" "gen-sdk" "--language" "go" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
-}
-
-function Target-sdk_nodejs {
-    Target-sdk "nodejs"
 }
 
 function Target-provider {
@@ -320,11 +323,12 @@ function Target-go_sdk {
 }
 
 function Target-nodejs_sdk {
-    Target-sdk_nodejs
+    Target-sdk "nodejs"
     Invoke-CommandWithChangeDirectory "sdk/nodejs" {
         yarn install
         yarn run tsc
     }
+    Write-Host "Copying nodejs SDK files to bin directory"
     Copy-Item README.md -Destination "sdk/nodejs/" -Force
     Copy-Item "sdk/nodejs/package.json" -Destination "sdk/nodejs/bin/" -Force
     Copy-Item "sdk/nodejs/yarn.lock" -Destination "sdk/nodejs/bin/" -Force
@@ -456,25 +460,30 @@ function Target-java_sdk {
             if (Test-Path $gradleWrapperWin) {
                 Write-Host "Using Gradle wrapper: $gradleWrapperWin"
                 & $gradleWrapperWin --console=plain build
-            } elseif (Test-Path $gradleWrapperUnix) {
+            }
+            elseif (Test-Path $gradleWrapperUnix) {
                 Write-Host "Using Gradle wrapper: $gradleWrapperUnix"
                 & $gradleWrapperUnix --console=plain build
-            } elseif ($gradleExe) {
+            }
+            elseif ($gradleExe) {
                 Write-Host "Using Gradle from PATH"
                 & $gradleExe --console=plain build
-            } else {
+            }
+            else {
                 Write-Host "Attempting to use 'gradle' command from PATH"
                 gradle --console=plain build
             }
         }
-    } else {
+    }
+    else {
         # Non-Windows systems
         Invoke-CommandWithChangeDirectory "sdk/java" {
             if (Test-Path "./gradlew") {
                 Write-Host "Using Gradle wrapper: ./gradlew"
                 chmod +x ./gradlew
                 ./gradlew --console=plain build
-            } else {
+            }
+            else {
                 Write-Host "Using gradle from PATH"
                 gradle --console=plain build
             }
@@ -533,7 +542,8 @@ function Target-install_dotnet_sdk {
     $nupkgFiles = Get-ChildItem -Path "$WORKING_DIR/sdk/dotnet/bin" -Recurse -Filter "*.nupkg" -ErrorAction SilentlyContinue
     if ($nupkgFiles) {
         $nupkgFiles | ForEach-Object { Copy-Item -Path $_.FullName -Destination "$WORKING_DIR/nuget" -Force }
-    } else {
+    }
+    else {
         Write-Warning "No .nupkg files found in $WORKING_DIR/sdk/dotnet/bin"
     }
 }
@@ -681,7 +691,7 @@ switch ($target) {
     "sdk/python" { Target-sdk_python }
     "sdk/dotnet" { Target-sdk_dotnet }
     "sdk/go" { Target-sdk_go }
-    "sdk/nodejs" { Target-sdk_nodejs }
+    "sdk/nodejs" { Target-nodejs_sdk }
     "provider" { Target-provider }
     "provider_debug" { Target-provider_debug }
     "test_provider" { Target-test_provider }
