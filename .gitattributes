@@ -1,0 +1,54 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Go source files always use LF
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+
+# Shell scripts always use LF
+*.sh text eol=lf
+
+# Powershell scripts always use CRLF
+*.ps1 text eol=crlf
+
+# C# source files use CRLF
+*.cs text eol=crlf
+*.csproj text eol=crlf
+
+# TypeScript/JavaScript files use LF
+*.ts text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+package.json text eol=lf
+tsconfig.json text eol=lf
+
+# Python files use LF
+*.py text eol=lf
+*.pyi text eol=lf
+pyproject.toml text eol=lf
+
+# Java files use LF
+*.java text eol=lf
+*.gradle text eol=lf
+
+# Documentation and configurations use LF
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+Makefile text eol=lf
+
+# Binary files should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+
+# Exclude generated files from GitHub language stats
+**/node_modules/** linguist-vendored
+**/bin/** linguist-vendored
+**/obj/** linguist-vendored
+**/venv/** linguist-vendored
+**/schema.json linguist-generated
