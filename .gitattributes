@@ -28,7 +28,7 @@ package.json text eol=lf
 tsconfig.json text eol=lf
 
 # Override for schema.json to use LF explicitly - binary forces git to leave it alone
-provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf -binary
+provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf binary
 
 # Python files use LF
 *.py text eol=lf
@@ -52,10 +52,3 @@ Makefile text eol=lf
 *.gif binary
 *.ico binary
 *.svg binary
-
-# Exclude generated files from GitHub language stats
-**/node_modules/** linguist-vendored
-**/bin/** linguist-vendored
-**/obj/** linguist-vendored
-**/venv/** linguist-vendored
-**/schema.json linguist-generated
