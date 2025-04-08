@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - windows-testing
+      - master
     paths-ignore:
       - "**.md"
       - .github/workflows/runner-test.yml

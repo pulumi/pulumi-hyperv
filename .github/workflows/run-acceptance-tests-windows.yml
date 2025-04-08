@@ -37,7 +37,7 @@ env:
   PR_COMMIT_SHA: ${{ github.event.client_payload.pull_request.head.sha }}
 jobs:
   comment-notification:
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     name: comment-notification
     steps:
     - name: Create URL to the run output
@@ -53,7 +53,7 @@ jobs:
         body: "Please view the PR build: ${{ steps.vars.outputs.run-url }}"
     if: github.event_name == 'repository_dispatch'
   prerequisites:
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     name: prerequisites
     steps:
     - name: Prepare git
@@ -145,7 +145,7 @@ jobs:
     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
   build_sdks:
     needs: prerequisites
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     strategy:
       fail-fast: ${{ ! contains(github.actor, 'renovate') }}
       matrix:
@@ -270,7 +270,7 @@ jobs:
         status: ${{ job.status }}
     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
   test:
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     needs:
     - build_sdks
     strategy:
@@ -378,12 +378,6 @@ jobs:
         organization: pulumi
         requested-token-type: urn:pulumi:token-type:access_token:organization
         export-environment-variables: false
-    # - name: Export AWS Credentials
-    #   uses: pulumi/esc-action@41fd832f44f4820124b5350b5f84a00f741f234e # v1.3.0
-    #   env:
-    #     PULUMI_ACCESS_TOKEN: ${{ steps.generate_pulumi_token.outputs.pulumi-access-token }}
-    #   with:
-    #     environment: logins/pulumi-ci
     - name: Run tests
       shell: pwsh
       run: |
@@ -400,7 +394,7 @@ jobs:
         status: ${{ job.status }}
     if: github.event_name == 'repository_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
   sentinel:
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     name: sentinel
     steps:
     - name: Mark workflow as successful
@@ -419,7 +413,7 @@ jobs:
     - prerequisites
     - lint
   lint:
-    runs-on: windows-latest
+    runs-on: windows-8core-2022
     steps:
     - name: Prepare git
       run: |-
