@@ -20,22 +20,22 @@ __all__ = ['MachineArgs', 'Machine']
 @pulumi.input_type
 class MachineArgs:
     def __init__(__self__, *,
-                 machine_name: pulumi.Input[builtins.str],
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  generation: Optional[pulumi.Input[builtins.int]] = None,
+                 machine_name: Optional[pulumi.Input[builtins.str]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None):
         """
         The set of arguments for constructing a Machine resource.
-        :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
         :param pulumi.Input[builtins.int] generation: Generation of the Virtual Machine. Defaults to 2.
+        :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
@@ -47,13 +47,14 @@ class MachineArgs:
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
         """
-        pulumi.set(__self__, "machine_name", machine_name)
         if create is not None:
             pulumi.set(__self__, "create", create)
         if delete is not None:
             pulumi.set(__self__, "delete", delete)
         if generation is not None:
             pulumi.set(__self__, "generation", generation)
+        if machine_name is not None:
+            pulumi.set(__self__, "machine_name", machine_name)
         if memory_size is not None:
             pulumi.set(__self__, "memory_size", memory_size)
         if processor_count is not None:
@@ -62,18 +63,6 @@ class MachineArgs:
             pulumi.set(__self__, "triggers", triggers)
         if update is not None:
             pulumi.set(__self__, "update", update)
-
-    @property
-    @pulumi.getter(name="machineName")
-    def machine_name(self) -> pulumi.Input[builtins.str]:
-        """
-        Name of the Virtual Machine
-        """
-        return pulumi.get(self, "machine_name")
-
-    @machine_name.setter
-    def machine_name(self, value: pulumi.Input[builtins.str]):
-        pulumi.set(self, "machine_name", value)
 
     @property
     @pulumi.getter
@@ -112,6 +101,18 @@ class MachineArgs:
     @generation.setter
     def generation(self, value: Optional[pulumi.Input[builtins.int]]):
         pulumi.set(self, "generation", value)
+
+    @property
+    @pulumi.getter(name="machineName")
+    def machine_name(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        Name of the Virtual Machine
+        """
+        return pulumi.get(self, "machine_name")
+
+    @machine_name.setter
+    def machine_name(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "machine_name", value)
 
     @property
     @pulumi.getter(name="memorySize")
@@ -183,85 +184,82 @@ class Machine(pulumi.CustomResource):
                  update: Optional[pulumi.Input[builtins.str]] = None,
                  __props__=None):
         """
-        # Hyper-V Virtual Machine Management Service (VMMS)
+        # Hyper-V Machine Resource
 
         ## Overview
 
-        The Virtual Machine Management Service (VMMS) is a core component of Hyper-V that manages virtual machine operations on a Windows Server or Windows Client system. This document provides information about the VMMS as implemented in the Pulumi Hyper-V provider.
+        The Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.
 
         ## Features
 
-        - Virtual machine lifecycle management (create, start, stop, pause, resume, delete)
-        - Resource allocation and monitoring
-        - Snapshot management
-        - Virtual device configuration
+        - Create and delete Hyper-V virtual machines
+        - Configure VM hardware properties including:
+          - Memory allocation
+          - Processor count
+          - VM generation (Gen 1 or Gen 2)
+        - Unique VM identification with automatic ID generation
 
-        ## Implementation Details in Pulumi
+        ## Implementation Details
+
+        ### Resource Structure
+
+        The Machine resource implementation consists of multiple files:
+        - `machine.go` - Core resource type definition, input/output models, and annotations
+        - `machineController.go` - Implementation of CRUD operations
+        - `machineOutputs.go` - Output-specific methods
 
         ### Virtual Machine Creation
 
-        The `Create` method in the `vmController` is responsible for creating a virtual machine. It performs the following steps:
+        The `Create` method performs the following steps:
 
-        1. **Generate a Unique ID**: A unique ID is generated for the virtual machine.
-        2. **Default Values**:
-           - Memory size defaults to `1024 MB` if not specified.
-           - Processor count defaults to `1` if not specified.
-        3. **VMMS Client Initialization**: A VMMS client is created to interact with the Hyper-V host.
-        4. **Virtual Machine Settings**:
-           - The virtual machine is configured with `Hyper-V Generation 2`.
-           - Memory and processor settings are applied based on the provided or default values.
-        5. **Virtual Machine Creation**: The virtual machine is created using the configured settings.
+        1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI
+        2. **Configure VM Settings**:
+           - Sets the virtual machine generation (defaults to Generation 2)
+           - Configures memory settings (defaults to 1024 MB)
+           - Sets processor count (defaults to 1 vCPU)
+        3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
 
-        ### Read Method
+        ### Virtual Machine Read
 
-        The `Read` method is a no-op in the current implementation. It does not perform any operations and always returns an empty state.
+        The `Read` method retrieves the current state of a virtual machine by:
+        1. Connecting to the Hyper-V host
+        2. Getting the VM by name
+        3. Retrieving VM properties including:
+           - VM ID
+           - Memory settings
+           - Processor configuration
+           - Generation
 
-        ### Update Method
+        ### Virtual Machine Update
 
-        The `Update` method:
+        The `Update` method currently provides a minimal implementation that preserves the VM's state while updating its metadata.
 
-        - Updates the virtual machine state if an `Update` command is provided.
-        - Falls back to the `Create` command if no `Update` command is specified.
-        - Does nothing if neither command is provided.
+        ### Virtual Machine Delete
 
-        ### Delete Method
-
-        The `Delete` method is a no-op unless a `Delete` command is explicitly specified.
-
-        ### Resource Replacement with Triggers
-
-        The Machine resource supports the `triggers` property which forces resource replacement when values change. When any value in the `triggers` array changes between updates, the resource will be replaced (destroyed and recreated) rather than updated in-place.
+        The `Delete` method:
+        1. Connects to the Hyper-V host
+        2. Gets the virtual machine by name
+        3. Starts the VM (to ensure it's in a state that can be properly deleted)
+        4. Gracefully stops the VM
+        5. Deletes the virtual machine
 
         ## Available Properties
-
-        The Machine resource supports the following properties:
 
         | Property | Type | Description | Default |
         |----------|------|-------------|---------|
         | `machineName` | string | Name of the Virtual Machine | (required) |
+        | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
         | `processorCount` | int | Number of processors to allocate | 1 |
         | `memorySize` | int | Memory size in MB | 1024 |
-        | `create` | string | Command to run on create | (optional) |
-        | `update` | string | Command to run on update (falls back to create command if not specified) | (optional) |
-        | `delete` | string | Command to run on delete | (optional) |
         | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 
-        ## Default Behavior
+        ## Future Extensions
 
-        - Outputs depend on all inputs by default.
-        - No explicit dependency wiring is required.
-
-        ## Usage in Pulumi
-
-        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Machine` resource type.
-
-        ## Authentication and Security
-
-        The VMMS requires appropriate permissions to manage Hyper-V objects. When using the Pulumi Hyper-V provider, ensure that:
-
-        1. The user running Pulumi commands has administrative privileges on the Hyper-V host.
-        2. Required firewall rules are configured if managing a remote Hyper-V host.
-        3. Proper credentials are provided when connecting to remote systems.
+        The code includes scaffolding for future enhancements including:
+        - Network adapter configuration
+        - Hard drive attachments
+        - Key protector for secure boot
+        - Additional system settings
 
         ## Related Documentation
 
@@ -291,88 +289,85 @@ class Machine(pulumi.CustomResource):
     @overload
     def __init__(__self__,
                  resource_name: str,
-                 args: MachineArgs,
+                 args: Optional[MachineArgs] = None,
                  opts: Optional[pulumi.ResourceOptions] = None):
         """
-        # Hyper-V Virtual Machine Management Service (VMMS)
+        # Hyper-V Machine Resource
 
         ## Overview
 
-        The Virtual Machine Management Service (VMMS) is a core component of Hyper-V that manages virtual machine operations on a Windows Server or Windows Client system. This document provides information about the VMMS as implemented in the Pulumi Hyper-V provider.
+        The Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.
 
         ## Features
 
-        - Virtual machine lifecycle management (create, start, stop, pause, resume, delete)
-        - Resource allocation and monitoring
-        - Snapshot management
-        - Virtual device configuration
+        - Create and delete Hyper-V virtual machines
+        - Configure VM hardware properties including:
+          - Memory allocation
+          - Processor count
+          - VM generation (Gen 1 or Gen 2)
+        - Unique VM identification with automatic ID generation
 
-        ## Implementation Details in Pulumi
+        ## Implementation Details
+
+        ### Resource Structure
+
+        The Machine resource implementation consists of multiple files:
+        - `machine.go` - Core resource type definition, input/output models, and annotations
+        - `machineController.go` - Implementation of CRUD operations
+        - `machineOutputs.go` - Output-specific methods
 
         ### Virtual Machine Creation
 
-        The `Create` method in the `vmController` is responsible for creating a virtual machine. It performs the following steps:
+        The `Create` method performs the following steps:
 
-        1. **Generate a Unique ID**: A unique ID is generated for the virtual machine.
-        2. **Default Values**:
-           - Memory size defaults to `1024 MB` if not specified.
-           - Processor count defaults to `1` if not specified.
-        3. **VMMS Client Initialization**: A VMMS client is created to interact with the Hyper-V host.
-        4. **Virtual Machine Settings**:
-           - The virtual machine is configured with `Hyper-V Generation 2`.
-           - Memory and processor settings are applied based on the provided or default values.
-        5. **Virtual Machine Creation**: The virtual machine is created using the configured settings.
+        1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI
+        2. **Configure VM Settings**:
+           - Sets the virtual machine generation (defaults to Generation 2)
+           - Configures memory settings (defaults to 1024 MB)
+           - Sets processor count (defaults to 1 vCPU)
+        3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
 
-        ### Read Method
+        ### Virtual Machine Read
 
-        The `Read` method is a no-op in the current implementation. It does not perform any operations and always returns an empty state.
+        The `Read` method retrieves the current state of a virtual machine by:
+        1. Connecting to the Hyper-V host
+        2. Getting the VM by name
+        3. Retrieving VM properties including:
+           - VM ID
+           - Memory settings
+           - Processor configuration
+           - Generation
 
-        ### Update Method
+        ### Virtual Machine Update
 
-        The `Update` method:
+        The `Update` method currently provides a minimal implementation that preserves the VM's state while updating its metadata.
 
-        - Updates the virtual machine state if an `Update` command is provided.
-        - Falls back to the `Create` command if no `Update` command is specified.
-        - Does nothing if neither command is provided.
+        ### Virtual Machine Delete
 
-        ### Delete Method
-
-        The `Delete` method is a no-op unless a `Delete` command is explicitly specified.
-
-        ### Resource Replacement with Triggers
-
-        The Machine resource supports the `triggers` property which forces resource replacement when values change. When any value in the `triggers` array changes between updates, the resource will be replaced (destroyed and recreated) rather than updated in-place.
+        The `Delete` method:
+        1. Connects to the Hyper-V host
+        2. Gets the virtual machine by name
+        3. Starts the VM (to ensure it's in a state that can be properly deleted)
+        4. Gracefully stops the VM
+        5. Deletes the virtual machine
 
         ## Available Properties
-
-        The Machine resource supports the following properties:
 
         | Property | Type | Description | Default |
         |----------|------|-------------|---------|
         | `machineName` | string | Name of the Virtual Machine | (required) |
+        | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
         | `processorCount` | int | Number of processors to allocate | 1 |
         | `memorySize` | int | Memory size in MB | 1024 |
-        | `create` | string | Command to run on create | (optional) |
-        | `update` | string | Command to run on update (falls back to create command if not specified) | (optional) |
-        | `delete` | string | Command to run on delete | (optional) |
         | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 
-        ## Default Behavior
+        ## Future Extensions
 
-        - Outputs depend on all inputs by default.
-        - No explicit dependency wiring is required.
-
-        ## Usage in Pulumi
-
-        When using the Pulumi Hyper-V provider, the VMMS is accessed indirectly through the `Machine` resource type.
-
-        ## Authentication and Security
-
-        The VMMS requires appropriate permissions to manage Hyper-V objects. When using the Pulumi Hyper-V provider, ensure that:
-
-        1. The user running Pulumi commands has administrative privileges on the Hyper-V host.
-        2. Required firewall rules are configured if managing a remote Hyper-V host.
-        3. Proper credentials are provided when connecting to remote systems.
+        The code includes scaffolding for future enhancements including:
+        - Network adapter configuration
+        - Hard drive attachments
+        - Key protector for secure boot
+        - Additional system settings
 
         ## Related Documentation
 
@@ -414,8 +409,6 @@ class Machine(pulumi.CustomResource):
             __props__.__dict__["create"] = create
             __props__.__dict__["delete"] = delete
             __props__.__dict__["generation"] = generation
-            if machine_name is None and not opts.urn:
-                raise TypeError("Missing required property 'machine_name'")
             __props__.__dict__["machine_name"] = machine_name
             __props__.__dict__["memory_size"] = memory_size
             __props__.__dict__["processor_count"] = processor_count
@@ -485,7 +478,7 @@ class Machine(pulumi.CustomResource):
 
     @property
     @pulumi.getter(name="machineName")
-    def machine_name(self) -> pulumi.Output[builtins.str]:
+    def machine_name(self) -> pulumi.Output[Optional[builtins.str]]:
         """
         Name of the Virtual Machine
         """

@@ -21,6 +21,8 @@
         "provider.ts",
         "utilities.ts",
         "vhdfile/index.ts",
-        "vhdfile/vhdFile.ts"
+        "vhdfile/vhdFile.ts",
+        "virtualswitch/index.ts",
+        "virtualswitch/virtualSwitch.ts"
     ]
 }

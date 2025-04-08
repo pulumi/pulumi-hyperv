@@ -133,7 +133,7 @@ function Target-SchemaFile {
                 $schemaOutput = & "$PULUMI" "package" "get-schema" "$fullPath"
                 $schema = $schemaOutput | ConvertFrom-Json
                 $schema.PSObject.Properties.Remove('version')
-                $schema | ConvertTo-Json -Depth 10 | Set-Content -Encoding default -Path $SCHEMA_FILE
+                $schema | ConvertTo-Json -Depth 10 -Compress:$false | Set-Content -Encoding default -Path $SCHEMA_FILE
             }
             else {
                 Write-Error "Pulumi executable not found at $PULUMI"
@@ -147,7 +147,7 @@ function Target-SchemaFile {
     }
     else {
         if (Test-Path $PULUMI) {
-            & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq 'del(.version)' > $SCHEMA_FILE
+            & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq --indent 2 'del(.version)' > $SCHEMA_FILE
         }
         else {
             Write-Error "Pulumi executable not found at $PULUMI"
