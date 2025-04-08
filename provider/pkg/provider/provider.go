@@ -21,6 +21,7 @@ import (
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vhdfile"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/virtualswitch"
 )
 
 const (
@@ -96,6 +97,11 @@ func NewProvider() p.Provider {
 				*vhdfile.VhdFile,
 				vhdfile.VhdFileInputs,
 				vhdfile.VhdFileOutputs,
+			](),
+			infer.Resource[
+				*virtualswitch.VirtualSwitch,
+				virtualswitch.VirtualSwitchInputs,
+				virtualswitch.VirtualSwitchOutputs,
 			](),
 		},
 		// Functions or invokes that are provided by the provider.

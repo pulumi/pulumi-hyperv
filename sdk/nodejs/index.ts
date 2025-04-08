@@ -15,11 +15,13 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 import * as config from "./config";
 import * as machine from "./machine";
 import * as vhdfile from "./vhdfile";
+import * as virtualswitch from "./virtualswitch";
 
 export {
     config,
     machine,
     vhdfile,
+    virtualswitch,
 };
 pulumi.runtime.registerResourcePackage("hyperv", {
     version: utilities.getVersion(),
