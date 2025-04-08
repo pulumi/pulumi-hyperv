@@ -23,6 +23,9 @@ go.sum text eol=lf
 package.json text eol=lf
 tsconfig.json text eol=lf
 
+# Override for schema.json to use LF explicitly
+provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf
+
 # Python files use LF
 *.py text eol=lf
 *.pyi text eol=lf

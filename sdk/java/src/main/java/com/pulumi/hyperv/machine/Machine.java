@@ -156,14 +156,14 @@ public class Machine extends com.pulumi.resources.CustomResource {
      * 
      */
     @Export(name="machineName", refs={String.class}, tree="[0]")
-    private Output<String> machineName;
+    private Output</* @Nullable */ String> machineName;
 
     /**
      * @return Name of the Virtual Machine
      * 
      */
-    public Output<String> machineName() {
-        return this.machineName;
+    public Output<Optional<String>> machineName() {
+        return Codegen.optional(this.machineName);
     }
     /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -252,7 +252,7 @@ public class Machine extends com.pulumi.resources.CustomResource {
      * @param name The _unique_ name of the resulting resource.
      * @param args The arguments to use to populate this resource's properties.
      */
-    public Machine(java.lang.String name, MachineArgs args) {
+    public Machine(java.lang.String name, @Nullable MachineArgs args) {
         this(name, args, null);
     }
     /**
@@ -261,7 +261,7 @@ public class Machine extends com.pulumi.resources.CustomResource {
      * @param args The arguments to use to populate this resource's properties.
      * @param options A bag of options that control this resource's behavior.
      */
-    public Machine(java.lang.String name, MachineArgs args, @Nullable com.pulumi.resources.CustomResourceOptions options) {
+    public Machine(java.lang.String name, @Nullable MachineArgs args, @Nullable com.pulumi.resources.CustomResourceOptions options) {
         super("hyperv:machine:Machine", name, makeArgs(args, options), makeResourceOptions(options, Codegen.empty()), false);
     }
 
@@ -269,7 +269,7 @@ public class Machine extends com.pulumi.resources.CustomResource {
         super("hyperv:machine:Machine", name, null, makeResourceOptions(options, id), false);
     }
 
-    private static MachineArgs makeArgs(MachineArgs args, @Nullable com.pulumi.resources.CustomResourceOptions options) {
+    private static MachineArgs makeArgs(@Nullable MachineArgs args, @Nullable com.pulumi.resources.CustomResourceOptions options) {
         if (options != null && options.getUrn().isPresent()) {
             return null;
         }

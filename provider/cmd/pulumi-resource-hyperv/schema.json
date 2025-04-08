@@ -113,7 +113,6 @@
                                                                     },
                                                      "type":  "object",
                                                      "required":  [
-                                                                      "machineName",
                                                                       "vmId"
                                                                   ],
                                                      "inputProperties":  {
@@ -153,10 +152,7 @@
                                                                                             "type":  "string",
                                                                                             "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
                                                                                         }
-                                                                         },
-                                                     "requiredInputs":  [
-                                                                            "machineName"
-                                                                        ]
+                                                                         }
                                                  },
                       "hyperv:vhdfile:VhdFile":  {
                                                      "description":  "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V\u0027s VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    diskType: \"Dynamic\"\n});\n```\n",

@@ -5,7 +5,6 @@ package com.pulumi.hyperv.machine;
 
 import com.pulumi.core.Output;
 import com.pulumi.core.annotations.Import;
-import com.pulumi.exceptions.MissingRequiredPropertyException;
 import java.lang.Integer;
 import java.lang.Object;
 import java.lang.String;
@@ -72,15 +71,15 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
      * Name of the Virtual Machine
      * 
      */
-    @Import(name="machineName", required=true)
-    private Output<String> machineName;
+    @Import(name="machineName")
+    private @Nullable Output<String> machineName;
 
     /**
      * @return Name of the Virtual Machine
      * 
      */
-    public Output<String> machineName() {
-        return this.machineName;
+    public Optional<Output<String>> machineName() {
+        return Optional.ofNullable(this.machineName);
     }
 
     /**
@@ -259,7 +258,7 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
          * @return builder
          * 
          */
-        public Builder machineName(Output<String> machineName) {
+        public Builder machineName(@Nullable Output<String> machineName) {
             $.machineName = machineName;
             return this;
         }
@@ -384,9 +383,6 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         public MachineArgs build() {
-            if ($.machineName == null) {
-                throw new MissingRequiredPropertyException("MachineArgs", "machineName");
-            }
             return $;
         }
     }

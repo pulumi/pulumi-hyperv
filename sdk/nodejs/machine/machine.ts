@@ -134,7 +134,7 @@ export class Machine extends pulumi.CustomResource {
     /**
      * Name of the Virtual Machine
      */
-    public readonly machineName!: pulumi.Output<string>;
+    public readonly machineName!: pulumi.Output<string | undefined>;
     /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */
@@ -166,13 +166,10 @@ export class Machine extends pulumi.CustomResource {
      * @param args The arguments to use to populate this resource's properties.
      * @param opts A bag of options that control this resource's behavior.
      */
-    constructor(name: string, args: MachineArgs, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args?: MachineArgs, opts?: pulumi.CustomResourceOptions) {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
-            if ((!args || args.machineName === undefined) && !opts.urn) {
-                throw new Error("Missing required property 'machineName'");
-            }
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
             resourceInputs["generation"] = args ? args.generation : undefined;
@@ -221,7 +218,7 @@ export interface MachineArgs {
     /**
      * Name of the Virtual Machine
      */
-    machineName: pulumi.Input<string>;
+    machineName?: pulumi.Input<string>;
     /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */

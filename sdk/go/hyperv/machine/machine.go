@@ -7,7 +7,6 @@ import (
 	"context"
 	"reflect"
 
-	"errors"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -110,7 +109,7 @@ type Machine struct {
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation pulumi.IntPtrOutput `pulumi:"generation"`
 	// Name of the Virtual Machine
-	MachineName pulumi.StringOutput `pulumi:"machineName"`
+	MachineName pulumi.StringPtrOutput `pulumi:"machineName"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize pulumi.IntPtrOutput `pulumi:"memorySize"`
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -132,12 +131,9 @@ type Machine struct {
 func NewMachine(ctx *pulumi.Context,
 	name string, args *MachineArgs, opts ...pulumi.ResourceOption) (*Machine, error) {
 	if args == nil {
-		return nil, errors.New("missing one or more required arguments")
+		args = &MachineArgs{}
 	}
 
-	if args.MachineName == nil {
-		return nil, errors.New("invalid value for required argument 'MachineName'")
-	}
 	replaceOnChanges := pulumi.ReplaceOnChanges([]string{
 		"triggers[*]",
 	})
@@ -184,7 +180,7 @@ type machineArgs struct {
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation *int `pulumi:"generation"`
 	// Name of the Virtual Machine
-	MachineName string `pulumi:"machineName"`
+	MachineName *string `pulumi:"machineName"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize *int `pulumi:"memorySize"`
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -212,7 +208,7 @@ type MachineArgs struct {
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation pulumi.IntPtrInput
 	// Name of the Virtual Machine
-	MachineName pulumi.StringInput
+	MachineName pulumi.StringPtrInput
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize pulumi.IntPtrInput
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -334,8 +330,8 @@ func (o MachineOutput) Generation() pulumi.IntPtrOutput {
 }
 
 // Name of the Virtual Machine
-func (o MachineOutput) MachineName() pulumi.StringOutput {
-	return o.ApplyT(func(v *Machine) pulumi.StringOutput { return v.MachineName }).(pulumi.StringOutput)
+func (o MachineOutput) MachineName() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.MachineName }).(pulumi.StringPtrOutput)
 }
 
 // Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.

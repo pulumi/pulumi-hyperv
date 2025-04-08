@@ -122,7 +122,7 @@ namespace Pulumi.Hyperv.Machine
         /// Name of the Virtual Machine
         /// </summary>
         [Output("machineName")]
-        public Output<string> MachineName { get; private set; } = null!;
+        public Output<string?> MachineName { get; private set; } = null!;
 
         /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
@@ -165,7 +165,7 @@ namespace Pulumi.Hyperv.Machine
         /// <param name="name">The unique name of the resource</param>
         /// <param name="args">The arguments used to populate this resource's properties</param>
         /// <param name="options">A bag of options that control this resource's behavior</param>
-        public Machine(string name, MachineArgs args, CustomResourceOptions? options = null)
+        public Machine(string name, MachineArgs? args = null, CustomResourceOptions? options = null)
             : base("hyperv:machine:Machine", name, args ?? new MachineArgs(), MakeResourceOptions(options, ""))
         {
         }
@@ -229,8 +229,8 @@ namespace Pulumi.Hyperv.Machine
         /// <summary>
         /// Name of the Virtual Machine
         /// </summary>
-        [Input("machineName", required: true)]
-        public Input<string> MachineName { get; set; } = null!;
+        [Input("machineName")]
+        public Input<string>? MachineName { get; set; }
 
         /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
