@@ -18,7 +18,6 @@ go.sum text eol=lf
 *.csx      text diff=csharp
 *.sln      text eol=crlf
 *.csproj   text eol=crlf
-sdk/dotnet/**/*.cs text diff=csharp
 
 # TypeScript/JavaScript files use LF
 *.ts text eol=lf
@@ -26,9 +25,7 @@ sdk/dotnet/**/*.cs text diff=csharp
 *.json text eol=lf
 package.json text eol=lf
 tsconfig.json text eol=lf
-
-# Override for schema.json to use LF explicitly - binary forces git to leave it alone
-provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf -binary
+provider/cmd/pulumi-resource-hyperv/schema.json text eol=lf
 
 # Python files use LF
 *.py text eol=lf
@@ -43,7 +40,6 @@ pyproject.toml text eol=lf
 *.md text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
-Makefile text eol=lf
 
 # Binary files should not be modified
 *.png binary

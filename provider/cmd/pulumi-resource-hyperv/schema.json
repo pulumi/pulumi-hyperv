@@ -1,336 +1,336 @@
 {
-    "name":  "hyperv",
-    "displayName":  "Hyperv",
-    "description":  "The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs.",
-    "keywords":  [
-                     "pulumi",
-                     "hyperv",
-                     "category/utility",
-                     "kind/native"
-                 ],
-    "homepage":  "https://pulumi.com",
-    "license":  "Apache-2.0",
-    "repository":  "https://github.com/pulumi/pulumi-hyperv-provider",
-    "logoUrl":  "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
-    "publisher":  "Pulumi",
-    "meta":  {
-                 "moduleFormat":  "(.*)"
-             },
-    "language":  {
-                     "csharp":  {
-                                    "packageReferences":  {
-                                                              "Pulumi":  "3.*"
-                                                          },
-                                    "respectSchemaVersion":  true
-                                },
-                     "go":  {
-                                "generateResourceContainerTypes":  true,
-                                "importBasePath":  "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
-                                "respectSchemaVersion":  true
-                            },
-                     "java":  {
-                                  "buildFiles":  "gradle",
-                                  "dependencies":  {
-                                                       "com.google.code.findbugs:jsr305":  "3.0.2",
-                                                       "com.google.code.gson:gson":  "2.8.9",
-                                                       "com.pulumi:pulumi":  "1.0.0"
-                                                   },
-                                  "gradleNexusPublishPluginVersion":  "2.0.0"
-                              },
-                     "nodejs":  {
-                                    "respectSchemaVersion":  true
-                                },
-                     "python":  {
-                                    "pyproject":  {
-                                                      "enabled":  true
-                                                  },
-                                    "respectSchemaVersion":  true
-                                }
-                 },
-    "config":  {
-                   "variables":  {
-                                     "host":  {
-                                                  "type":  "string"
-                                              }
-                                 }
-               },
-    "provider":  {
-                     "properties":  {
-                                        "host":  {
-                                                     "type":  "string"
-                                                 }
-                                    },
-                     "type":  "object",
-                     "inputProperties":  {
-                                             "host":  {
-                                                          "type":  "string"
-                                                      }
-                                         }
-                 },
-    "resources":  {
-                      "hyperv:machine:Machine":  {
-                                                     "description":  "# Hyper-V Machine Resource\n\n## Overview\n\nThe Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.\n\n## Features\n\n- Create and delete Hyper-V virtual machines\n- Configure VM hardware properties including:\n  - Memory allocation\n  - Processor count\n  - VM generation (Gen 1 or Gen 2)\n- Unique VM identification with automatic ID generation\n\n## Implementation Details\n\n### Resource Structure\n\nThe Machine resource implementation consists of multiple files:\n- `machine.go` - Core resource type definition, input/output models, and annotations\n- `machineController.go` - Implementation of CRUD operations\n- `machineOutputs.go` - Output-specific methods\n\n### Virtual Machine Creation\n\nThe `Create` method performs the following steps:\n\n1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI\n2. **Configure VM Settings**:\n   - Sets the virtual machine generation (defaults to Generation 2)\n   - Configures memory settings (defaults to 1024 MB)\n   - Sets processor count (defaults to 1 vCPU)\n3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings\n\n### Virtual Machine Read\n\nThe `Read` method retrieves the current state of a virtual machine by:\n1. Connecting to the Hyper-V host\n2. Getting the VM by name\n3. Retrieving VM properties including:\n   - VM ID\n   - Memory settings\n   - Processor configuration  \n   - Generation\n\n### Virtual Machine Update\n\nThe `Update` method currently provides a minimal implementation that preserves the VM\u0027s state while updating its metadata.\n\n### Virtual Machine Delete\n\nThe `Delete` method:\n1. Connects to the Hyper-V host\n2. Gets the virtual machine by name\n3. Starts the VM (to ensure it\u0027s in a state that can be properly deleted)\n4. Gracefully stops the VM\n5. Deletes the virtual machine\n\n## Available Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `machineName` | string | Name of the Virtual Machine | (required) |\n| `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |\n| `processorCount` | int | Number of processors to allocate | 1 |\n| `memorySize` | int | Memory size in MB | 1024 |\n| `triggers` | array | Values that trigger resource replacement when changed | (optional) |\n\n## Future Extensions\n\nThe code includes scaffolding for future enhancements including:\n- Network adapter configuration\n- Hard drive attachments\n- Key protector for secure boot\n- Additional system settings\n\n## Related Documentation\n\n- [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)\n- [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)\n",
-                                                     "properties":  {
-                                                                        "create":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on create."
-                                                                                   },
-                                                                        "delete":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                   },
-                                                                        "generation":  {
-                                                                                           "type":  "integer",
-                                                                                           "description":  "Generation of the Virtual Machine. Defaults to 2."
-                                                                                       },
-                                                                        "machineName":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "Name of the Virtual Machine"
-                                                                                        },
-                                                                        "memorySize":  {
-                                                                                           "type":  "integer",
-                                                                                           "description":  "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
-                                                                                       },
-                                                                        "processorCount":  {
-                                                                                               "type":  "integer",
-                                                                                               "description":  "Number of processors to allocate to the Virtual Machine. Defaults to 1."
-                                                                                           },
-                                                                        "triggers":  {
-                                                                                         "type":  "array",
-                                                                                         "items":  {
-                                                                                                       "$ref":  "pulumi.json#/Any"
-                                                                                                   },
-                                                                                         "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                         "replaceOnChanges":  true
-                                                                                     },
-                                                                        "update":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                   },
-                                                                        "vmId":  {
-                                                                                     "type":  "string"
-                                                                                 }
-                                                                    },
-                                                     "type":  "object",
-                                                     "required":  [
-                                                                      "vmId"
-                                                                  ],
-                                                     "inputProperties":  {
-                                                                             "create":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on create."
-                                                                                        },
-                                                                             "delete":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                        },
-                                                                             "generation":  {
-                                                                                                "type":  "integer",
-                                                                                                "description":  "Generation of the Virtual Machine. Defaults to 2."
-                                                                                            },
-                                                                             "machineName":  {
-                                                                                                 "type":  "string",
-                                                                                                 "description":  "Name of the Virtual Machine"
-                                                                                             },
-                                                                             "memorySize":  {
-                                                                                                "type":  "integer",
-                                                                                                "description":  "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
-                                                                                            },
-                                                                             "processorCount":  {
-                                                                                                    "type":  "integer",
-                                                                                                    "description":  "Number of processors to allocate to the Virtual Machine. Defaults to 1."
-                                                                                                },
-                                                                             "triggers":  {
-                                                                                              "type":  "array",
-                                                                                              "items":  {
-                                                                                                            "$ref":  "pulumi.json#/Any"
-                                                                                                        },
-                                                                                              "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                              "replaceOnChanges":  true
-                                                                                          },
-                                                                             "update":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                        }
-                                                                         }
-                                                 },
-                      "hyperv:vhdfile:VhdFile":  {
-                                                     "description":  "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V\u0027s VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    diskType: \"Dynamic\"\n});\n```\n",
-                                                     "properties":  {
-                                                                        "blockSize":  {
-                                                                                          "type":  "integer",
-                                                                                          "description":  "Block size of the VHD file in bytes"
-                                                                                      },
-                                                                        "create":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on create."
-                                                                                   },
-                                                                        "delete":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                   },
-                                                                        "diskType":  {
-                                                                                         "type":  "string",
-                                                                                         "description":  "Type of the VHD file (fixed or dynamic)"
-                                                                                     },
-                                                                        "path":  {
-                                                                                     "type":  "string",
-                                                                                     "description":  "Path to the VHD file"
-                                                                                 },
-                                                                        "sizeBytes":  {
-                                                                                          "type":  "integer",
-                                                                                          "description":  "Size of the VHD file in bytes"
-                                                                                      },
-                                                                        "triggers":  {
-                                                                                         "type":  "array",
-                                                                                         "items":  {
-                                                                                                       "$ref":  "pulumi.json#/Any"
-                                                                                                   },
-                                                                                         "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                         "replaceOnChanges":  true
-                                                                                     },
-                                                                        "update":  {
-                                                                                       "type":  "string",
-                                                                                       "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                   }
-                                                                    },
-                                                     "type":  "object",
-                                                     "required":  [
-                                                                      "diskType",
-                                                                      "path",
-                                                                      "sizeBytes"
-                                                                  ],
-                                                     "inputProperties":  {
-                                                                             "blockSize":  {
-                                                                                               "type":  "integer",
-                                                                                               "description":  "Block size of the VHD file in bytes"
-                                                                                           },
-                                                                             "create":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on create."
-                                                                                        },
-                                                                             "delete":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                        },
-                                                                             "diskType":  {
-                                                                                              "type":  "string",
-                                                                                              "description":  "Type of the VHD file (fixed or dynamic)"
-                                                                                          },
-                                                                             "path":  {
-                                                                                          "type":  "string",
-                                                                                          "description":  "Path to the VHD file"
-                                                                                      },
-                                                                             "sizeBytes":  {
-                                                                                               "type":  "integer",
-                                                                                               "description":  "Size of the VHD file in bytes"
-                                                                                           },
-                                                                             "triggers":  {
-                                                                                              "type":  "array",
-                                                                                              "items":  {
-                                                                                                            "$ref":  "pulumi.json#/Any"
-                                                                                                        },
-                                                                                              "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                              "replaceOnChanges":  true
-                                                                                          },
-                                                                             "update":  {
-                                                                                            "type":  "string",
-                                                                                            "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                        }
-                                                                         },
-                                                     "requiredInputs":  [
-                                                                            "diskType",
-                                                                            "path",
-                                                                            "sizeBytes"
-                                                                        ]
-                                                 },
-                      "hyperv:virtualswitch:VirtualSwitch":  {
-                                                                 "description":  "# Virtual Switch Resource Management\n\nThe `virtualswitch` package provides utilities for managing Hyper-V virtual switches.\n\n## Overview\n\nThis package enables creating, modifying, and deleting virtual switches through the Pulumi Hyper-V provider. Virtual switches enable network connectivity for virtual machines.\n\n## Key Components\n\n### Types\n\n- **VirtualSwitch**: Represents a Hyper-V virtual switch.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new virtual switch with specified properties.\n- **Read**: Retrieves information about an existing virtual switch.\n- **Update**: Modifies properties of an existing virtual switch.\n- **Delete**: Removes a virtual switch.\n\n## Available Properties\n\nThe VirtualSwitch resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `name` | string | Name of the virtual switch |\n| `switchType` | string | Type of switch: \"External\", \"Internal\", or \"Private\" |\n| `allowManagementOs` | boolean | Allow the management OS to access the switch (External switches) |\n| `netAdapterName` | string | Name of the physical network adapter to bind to (External switches) |\n\n## Implementation Details\n\nThe package uses the WMI interface to interact with Hyper-V\u0027s virtual switch management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n## Usage Examples\n\nVirtual switches can be defined and managed through the Pulumi Hyper-V provider using the standard resource model.\n\n### Creating an External Switch\n\n```typescript\nconst externalSwitch = new hyperv.VirtualSwitch(\"external-switch\", {\n    name: \"External Network\",\n    switchType: \"External\",\n    allowManagementOs: true,\n    netAdapterName: \"Ethernet\"\n});\n```\n\n### Creating an Internal Switch\n\n```typescript\nconst internalSwitch = new hyperv.VirtualSwitch(\"internal-switch\", {\n    name: \"Internal Network\",\n    switchType: \"Internal\"\n});\n```",
-                                                                 "properties":  {
-                                                                                    "allowManagementOs":  {
-                                                                                                              "type":  "boolean",
-                                                                                                              "description":  "Allow the management OS to access the switch (External switches)"
-                                                                                                          },
-                                                                                    "create":  {
-                                                                                                   "type":  "string",
-                                                                                                   "description":  "The command to run on create."
-                                                                                               },
-                                                                                    "delete":  {
-                                                                                                   "type":  "string",
-                                                                                                   "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                               },
-                                                                                    "name":  {
-                                                                                                 "type":  "string",
-                                                                                                 "description":  "Name of the virtual switch"
-                                                                                             },
-                                                                                    "netAdapterName":  {
-                                                                                                           "type":  "string",
-                                                                                                           "description":  "Name of the physical network adapter to bind to (External switches)"
-                                                                                                       },
-                                                                                    "switchType":  {
-                                                                                                       "type":  "string",
-                                                                                                       "description":  "Type of switch: \u0027External\u0027, \u0027Internal\u0027, or \u0027Private\u0027"
-                                                                                                   },
-                                                                                    "triggers":  {
-                                                                                                     "type":  "array",
-                                                                                                     "items":  {
-                                                                                                                   "$ref":  "pulumi.json#/Any"
-                                                                                                               },
-                                                                                                     "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                                     "replaceOnChanges":  true
-                                                                                                 },
-                                                                                    "update":  {
-                                                                                                   "type":  "string",
-                                                                                                   "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                               }
-                                                                                },
-                                                                 "type":  "object",
-                                                                 "required":  [
-                                                                                  "name",
-                                                                                  "switchType"
-                                                                              ],
-                                                                 "inputProperties":  {
-                                                                                         "allowManagementOs":  {
-                                                                                                                   "type":  "boolean",
-                                                                                                                   "description":  "Allow the management OS to access the switch (External switches)"
-                                                                                                               },
-                                                                                         "create":  {
-                                                                                                        "type":  "string",
-                                                                                                        "description":  "The command to run on create."
-                                                                                                    },
-                                                                                         "delete":  {
-                                                                                                        "type":  "string",
-                                                                                                        "description":  "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
-                                                                                                    },
-                                                                                         "name":  {
-                                                                                                      "type":  "string",
-                                                                                                      "description":  "Name of the virtual switch"
-                                                                                                  },
-                                                                                         "netAdapterName":  {
-                                                                                                                "type":  "string",
-                                                                                                                "description":  "Name of the physical network adapter to bind to (External switches)"
-                                                                                                            },
-                                                                                         "switchType":  {
-                                                                                                            "type":  "string",
-                                                                                                            "description":  "Type of switch: \u0027External\u0027, \u0027Internal\u0027, or \u0027Private\u0027"
-                                                                                                        },
-                                                                                         "triggers":  {
-                                                                                                          "type":  "array",
-                                                                                                          "items":  {
-                                                                                                                        "$ref":  "pulumi.json#/Any"
-                                                                                                                    },
-                                                                                                          "description":  "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
-                                                                                                          "replaceOnChanges":  true
-                                                                                                      },
-                                                                                         "update":  {
-                                                                                                        "type":  "string",
-                                                                                                        "description":  "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
-                                                                                                    }
-                                                                                     },
-                                                                 "requiredInputs":  [
-                                                                                        "name",
-                                                                                        "switchType"
-                                                                                    ]
-                                                             }
-                  }
+  "name": "hyperv",
+  "displayName": "Hyperv",
+  "description": "The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs.",
+  "keywords": [
+    "pulumi",
+    "hyperv",
+    "category/utility",
+    "kind/native"
+  ],
+  "homepage": "https://pulumi.com",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/pulumi/pulumi-hyperv-provider",
+  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
+  "publisher": "Pulumi",
+  "meta": {
+    "moduleFormat": "(.*)"
+  },
+  "language": {
+    "csharp": {
+      "packageReferences": {
+        "Pulumi": "3.*"
+      },
+      "respectSchemaVersion": true
+    },
+    "go": {
+      "generateResourceContainerTypes": true,
+      "importBasePath": "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
+      "respectSchemaVersion": true
+    },
+    "java": {
+      "buildFiles": "gradle",
+      "dependencies": {
+        "com.google.code.findbugs:jsr305": "3.0.2",
+        "com.google.code.gson:gson": "2.8.9",
+        "com.pulumi:pulumi": "1.0.0"
+      },
+      "gradleNexusPublishPluginVersion": "2.0.0"
+    },
+    "nodejs": {
+      "respectSchemaVersion": true
+    },
+    "python": {
+      "pyproject": {
+        "enabled": true
+      },
+      "respectSchemaVersion": true
+    }
+  },
+  "config": {
+    "variables": {
+      "host": {
+        "type": "string"
+      }
+    }
+  },
+  "provider": {
+    "properties": {
+      "host": {
+        "type": "string"
+      }
+    },
+    "type": "object",
+    "inputProperties": {
+      "host": {
+        "type": "string"
+      }
+    }
+  },
+  "resources": {
+    "hyperv:machine:Machine": {
+      "description": "# Hyper-V Machine Resource\n\n## Overview\n\nThe Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.\n\n## Features\n\n- Create and delete Hyper-V virtual machines\n- Configure VM hardware properties including:\n  - Memory allocation\n  - Processor count\n  - VM generation (Gen 1 or Gen 2)\n- Unique VM identification with automatic ID generation\n\n## Implementation Details\n\n### Resource Structure\n\nThe Machine resource implementation consists of multiple files:\n- `machine.go` - Core resource type definition, input/output models, and annotations\n- `machineController.go` - Implementation of CRUD operations\n- `machineOutputs.go` - Output-specific methods\n\n### Virtual Machine Creation\n\nThe `Create` method performs the following steps:\n\n1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI\n2. **Configure VM Settings**:\n   - Sets the virtual machine generation (defaults to Generation 2)\n   - Configures memory settings (defaults to 1024 MB)\n   - Sets processor count (defaults to 1 vCPU)\n3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings\n\n### Virtual Machine Read\n\nThe `Read` method retrieves the current state of a virtual machine by:\n1. Connecting to the Hyper-V host\n2. Getting the VM by name\n3. Retrieving VM properties including:\n   - VM ID\n   - Memory settings\n   - Processor configuration  \n   - Generation\n\n### Virtual Machine Update\n\nThe `Update` method currently provides a minimal implementation that preserves the VM's state while updating its metadata.\n\n### Virtual Machine Delete\n\nThe `Delete` method:\n1. Connects to the Hyper-V host\n2. Gets the virtual machine by name\n3. Starts the VM (to ensure it's in a state that can be properly deleted)\n4. Gracefully stops the VM\n5. Deletes the virtual machine\n\n## Available Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `machineName` | string | Name of the Virtual Machine | (required) |\n| `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |\n| `processorCount` | int | Number of processors to allocate | 1 |\n| `memorySize` | int | Memory size in MB | 1024 |\n| `triggers` | array | Values that trigger resource replacement when changed | (optional) |\n\n## Future Extensions\n\nThe code includes scaffolding for future enhancements including:\n- Network adapter configuration\n- Hard drive attachments\n- Key protector for secure boot\n- Additional system settings\n\n## Related Documentation\n\n- [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)\n- [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)\n",
+      "properties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "generation": {
+          "type": "integer",
+          "description": "Generation of the Virtual Machine. Defaults to 2."
+        },
+        "machineName": {
+          "type": "string",
+          "description": "Name of the Virtual Machine"
+        },
+        "memorySize": {
+          "type": "integer",
+          "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "processorCount": {
+          "type": "integer",
+          "description": "Number of processors to allocate to the Virtual Machine. Defaults to 1."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vmId": {
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "required": [
+        "vmId"
+      ],
+      "inputProperties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "generation": {
+          "type": "integer",
+          "description": "Generation of the Virtual Machine. Defaults to 2."
+        },
+        "machineName": {
+          "type": "string",
+          "description": "Name of the Virtual Machine"
+        },
+        "memorySize": {
+          "type": "integer",
+          "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "processorCount": {
+          "type": "integer",
+          "description": "Number of processors to allocate to the Virtual Machine. Defaults to 1."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        }
+      }
+    },
+    "hyperv:vhdfile:VhdFile": {
+      "description": "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V's VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    diskType: \"Dynamic\"\n});\n```\n",
+      "properties": {
+        "blockSize": {
+          "type": "integer",
+          "description": "Block size of the VHD file in bytes"
+        },
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "diskType": {
+          "type": "string",
+          "description": "Type of the VHD file (fixed or dynamic)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the VHD file"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "description": "Size of the VHD file in bytes"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        }
+      },
+      "type": "object",
+      "required": [
+        "diskType",
+        "path",
+        "sizeBytes"
+      ],
+      "inputProperties": {
+        "blockSize": {
+          "type": "integer",
+          "description": "Block size of the VHD file in bytes"
+        },
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "diskType": {
+          "type": "string",
+          "description": "Type of the VHD file (fixed or dynamic)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the VHD file"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "description": "Size of the VHD file in bytes"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        }
+      },
+      "requiredInputs": [
+        "diskType",
+        "path",
+        "sizeBytes"
+      ]
+    },
+    "hyperv:virtualswitch:VirtualSwitch": {
+      "description": "# Virtual Switch Resource Management\n\nThe `virtualswitch` package provides utilities for managing Hyper-V virtual switches.\n\n## Overview\n\nThis package enables creating, modifying, and deleting virtual switches through the Pulumi Hyper-V provider. Virtual switches enable network connectivity for virtual machines.\n\n## Key Components\n\n### Types\n\n- **VirtualSwitch**: Represents a Hyper-V virtual switch.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new virtual switch with specified properties.\n- **Read**: Retrieves information about an existing virtual switch.\n- **Update**: Modifies properties of an existing virtual switch.\n- **Delete**: Removes a virtual switch.\n\n## Available Properties\n\nThe VirtualSwitch resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `name` | string | Name of the virtual switch |\n| `switchType` | string | Type of switch: \"External\", \"Internal\", or \"Private\" |\n| `allowManagementOs` | boolean | Allow the management OS to access the switch (External switches) |\n| `netAdapterName` | string | Name of the physical network adapter to bind to (External switches) |\n\n## Implementation Details\n\nThe package uses the WMI interface to interact with Hyper-V's virtual switch management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n## Usage Examples\n\nVirtual switches can be defined and managed through the Pulumi Hyper-V provider using the standard resource model.\n\n### Creating an External Switch\n\n```typescript\nconst externalSwitch = new hyperv.VirtualSwitch(\"external-switch\", {\n    name: \"External Network\",\n    switchType: \"External\",\n    allowManagementOs: true,\n    netAdapterName: \"Ethernet\"\n});\n```\n\n### Creating an Internal Switch\n\n```typescript\nconst internalSwitch = new hyperv.VirtualSwitch(\"internal-switch\", {\n    name: \"Internal Network\",\n    switchType: \"Internal\"\n});\n```",
+      "properties": {
+        "allowManagementOs": {
+          "type": "boolean",
+          "description": "Allow the management OS to access the switch (External switches)"
+        },
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the virtual switch"
+        },
+        "netAdapterName": {
+          "type": "string",
+          "description": "Name of the physical network adapter to bind to (External switches)"
+        },
+        "switchType": {
+          "type": "string",
+          "description": "Type of switch: 'External', 'Internal', or 'Private'"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        }
+      },
+      "type": "object",
+      "required": [
+        "name",
+        "switchType"
+      ],
+      "inputProperties": {
+        "allowManagementOs": {
+          "type": "boolean",
+          "description": "Allow the management OS to access the switch (External switches)"
+        },
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the virtual switch"
+        },
+        "netAdapterName": {
+          "type": "string",
+          "description": "Name of the physical network adapter to bind to (External switches)"
+        },
+        "switchType": {
+          "type": "string",
+          "description": "Type of switch: 'External', 'Internal', or 'Private'"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        }
+      },
+      "requiredInputs": [
+        "name",
+        "switchType"
+      ]
+    }
+  }
 }

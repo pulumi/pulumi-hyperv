@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Debug build: `make provider_debug` or `.\make.ps1 provider_debug`
 - Generate SDKs: `make codegen` or `.\make.ps1 codegen`
 - Build specific SDK: `make [dotnet|go|nodejs|python|java]_sdk` or `.\make.ps1 [dotnet|go|nodejs|python|java]_sdk`
+  - Note: Each *_sdk target checks if the schema file exists and generates it if needed
+  - The provider binary is built only if needed
 - Install: `make install` or `.\make.ps1 install`
 
 ## Windows-Specific Options
