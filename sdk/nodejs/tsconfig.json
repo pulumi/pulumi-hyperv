@@ -18,6 +18,8 @@
         "index.ts",
         "machine/index.ts",
         "machine/machine.ts",
+        "networkadapter/index.ts",
+        "networkadapter/networkAdapter.ts",
         "provider.ts",
         "utilities.ts",
         "vhdfile/index.ts",

@@ -14,12 +14,14 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 // Export sub-modules:
 import * as config from "./config";
 import * as machine from "./machine";
+import * as networkadapter from "./networkadapter";
 import * as vhdfile from "./vhdfile";
 import * as virtualswitch from "./virtualswitch";
 
 export {
     config,
     machine,
+    networkadapter,
     vhdfile,
     virtualswitch,
 };

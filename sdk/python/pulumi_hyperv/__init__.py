@@ -14,6 +14,8 @@ if typing.TYPE_CHECKING:
     config = __config
     import pulumi_hyperv.machine as __machine
     machine = __machine
+    import pulumi_hyperv.networkadapter as __networkadapter
+    networkadapter = __networkadapter
     import pulumi_hyperv.vhdfile as __vhdfile
     vhdfile = __vhdfile
     import pulumi_hyperv.virtualswitch as __virtualswitch
@@ -21,6 +23,7 @@ if typing.TYPE_CHECKING:
 else:
     config = _utilities.lazy_import('pulumi_hyperv.config')
     machine = _utilities.lazy_import('pulumi_hyperv.machine')
+    networkadapter = _utilities.lazy_import('pulumi_hyperv.networkadapter')
     vhdfile = _utilities.lazy_import('pulumi_hyperv.vhdfile')
     virtualswitch = _utilities.lazy_import('pulumi_hyperv.virtualswitch')
 
@@ -33,6 +36,14 @@ _utilities.register(
   "fqn": "pulumi_hyperv.machine",
   "classes": {
    "hyperv:machine:Machine": "Machine"
+  }
+ },
+ {
+  "pkg": "hyperv",
+  "mod": "networkadapter",
+  "fqn": "pulumi_hyperv.networkadapter",
+  "classes": {
+   "hyperv:networkadapter:NetworkAdapter": "NetworkAdapter"
   }
  },
  {
