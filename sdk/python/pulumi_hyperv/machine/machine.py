@@ -421,6 +421,7 @@ class Machine(pulumi.CustomResource):
             __props__.__dict__["processor_count"] = processor_count
             __props__.__dict__["triggers"] = triggers
             __props__.__dict__["update"] = update
+            __props__.__dict__["vm_id"] = None
         replace_on_changes = pulumi.ResourceOptions(replace_on_changes=["triggers[*]"])
         opts = pulumi.ResourceOptions.merge(opts, replace_on_changes)
         super(Machine, __self__).__init__(
@@ -453,6 +454,7 @@ class Machine(pulumi.CustomResource):
         __props__.__dict__["processor_count"] = None
         __props__.__dict__["triggers"] = None
         __props__.__dict__["update"] = None
+        __props__.__dict__["vm_id"] = None
         return Machine(resource_name, opts=opts, __props__=__props__)
 
     @property
@@ -526,4 +528,9 @@ class Machine(pulumi.CustomResource):
         create or update steps.
         """
         return pulumi.get(self, "update")
+
+    @property
+    @pulumi.getter(name="vmId")
+    def vm_id(self) -> pulumi.Output[builtins.str]:
+        return pulumi.get(self, "vm_id")
 
