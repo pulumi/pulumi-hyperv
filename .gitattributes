@@ -13,9 +13,12 @@ go.sum text eol=lf
 *.ps1 text eol=crlf
 
 # C# source files use CRLF
-*.cs text eol=crlf
-*.csproj text eol=crlf
-sdk/dotnet/**/*.cs text eol=crlf
+*.cs       text diff=csharp
+*.cshtml   text diff=html
+*.csx      text diff=csharp
+*.sln      text eol=crlf
+*.csproj   text eol=crlf
+sdk/dotnet/**/*.cs text diff=csharp
 
 # TypeScript/JavaScript files use LF
 *.ts text eol=lf
