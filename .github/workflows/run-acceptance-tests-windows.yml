@@ -86,16 +86,16 @@ jobs:
     - name: Build Provider
       shell: pwsh
       run: ./make.ps1 provider
-    # - name: Check worktree clean TODO: remove this
-    #   id: worktreeClean
-    #   uses: pulumi/git-status-check-action@54000b91124a8dd9fd6a872cb41f5dd246a46e7c # v1.1.1
-    #   with:
-    #     allowed-changes: |-
-    #       sdk/**/pulumi-plugin.json
-    #       sdk/dotnet/Pulumi.*.csproj
-    #       sdk/go/**/pulumiUtilities.go
-    #       sdk/nodejs/package.json
-    #       sdk/python/pyproject.toml
+    - name: Check worktree clean
+      id: worktreeClean
+      uses: pulumi/git-status-check-action@54000b91124a8dd9fd6a872cb41f5dd246a46e7c # v1.1.1
+      with:
+        allowed-changes: |-
+          sdk/**/pulumi-plugin.json
+          sdk/dotnet/Pulumi.*.csproj
+          sdk/go/**/pulumiUtilities.go
+          sdk/nodejs/package.json
+          sdk/python/pyproject.toml
     - name: Commit SDK changes for Renovate
       if: failure() && steps.worktreeClean.outcome == 'failure' && contains(github.actor, 'renovate') && github.event_name == 'pull_request'
       shell: pwsh
@@ -214,16 +214,16 @@ jobs:
     - name: Generate SDK
       shell: pwsh
       run: ./make.ps1 ${{ matrix.language }}_sdk
-    # - name: Check worktree clean TODO: Re-enable this when we can get the action to work with Windows
-    #   id: worktreeClean
-    #   uses: pulumi/git-status-check-action@54000b91124a8dd9fd6a872cb41f5dd246a46e7c # v1.1.1
-    #   with:
-    #     allowed-changes: |-
-    #       sdk/**/pulumi-plugin.json
-    #       sdk/dotnet/Pulumi.*.csproj
-    #       sdk/go/**/pulumiUtilities.go
-    #       sdk/nodejs/package.json
-    #       sdk/python/pyproject.toml
+    - name:
+      id: worktreeClean
+      uses: pulumi/git-status-check-action@54000b91124a8dd9fd6a872cb41f5dd246a46e7c # v1.1.1
+      with:
+        allowed-changes: |-
+          sdk/**/pulumi-plugin.json
+          sdk/dotnet/Pulumi.*.csproj
+          sdk/go/**/pulumiUtilities.go
+          sdk/nodejs/package.json
+          sdk/python/pyproject.toml
     - name: Commit ${{ matrix.language }} SDK changes for Renovate
       if: failure() && steps.worktreeClean.outcome == 'failure' && contains(github.actor, 'renovate') && github.event_name == 'pull_request'
       shell: pwsh
