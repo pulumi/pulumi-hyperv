@@ -1,3 +1,4 @@
+//d/tmp/machineController.go
 // Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +18,14 @@ package machine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/microsoft/wmi/pkg/base/host"
 	"github.com/microsoft/wmi/pkg/virtualization/core/memory"
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
-	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
+	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	provider "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
@@ -77,7 +79,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	}
 
 	// Connect to Hyper-V
-	_, vsms, err := c.Connect(ctx)
+	vmmsClient, vsms, err := c.Connect(ctx)
 	if err != nil {
 		return outputs, fmt.Errorf("failed to connect to Hyper-V: %v", err)
 	}
@@ -97,12 +99,6 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	if err == nil && vmId != "" {
 		outputs.VmId = &vmId
 		logger.Debug(fmt.Sprintf("VM ID: %s", vmId))
-	}
-
-	// Get the VM settings
-	vmmsClient, _, err := c.Connect(ctx)
-	if err != nil {
-		return outputs, fmt.Errorf("failed to get VM settings: %v", err)
 	}
 
 	// Get the VM settings data
@@ -135,6 +131,62 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 		defaultGeneration := 2
 		inputs.Generation = &defaultGeneration
 		logger.Debug(fmt.Sprintf("Using default generation: %d", defaultGeneration))
+	}
+
+	// Get auto start action if not specified in inputs
+	if inputs.AutoStartAction == nil {
+		autoStartAction, err := vmSettings.GetProperty("AutoStartAction")
+		if err == nil {
+			var actionStr string
+			switch autoStartAction {
+			case 0:
+				actionStr = "Nothing"
+			case 1:
+				actionStr = "StartIfRunning"
+			case 2:
+				actionStr = "Start"
+			default:
+				actionStr = "Nothing"
+			}
+			inputs.AutoStartAction = &actionStr
+			logger.Debug(fmt.Sprintf("Found auto start action: %s", actionStr))
+		}
+	}
+
+	// Get auto stop action if not specified in inputs
+	if inputs.AutoStopAction == nil {
+		autoStopAction, err := vmSettings.GetProperty("AutoStopAction")
+		if err == nil {
+			var actionStr string
+			switch autoStopAction {
+			case 0:
+				actionStr = "TurnOff"
+			case 1:
+				actionStr = "Save"
+			case 2:
+				actionStr = "ShutDown"
+			default:
+				actionStr = "TurnOff"
+			}
+			inputs.AutoStopAction = &actionStr
+			logger.Debug(fmt.Sprintf("Found auto stop action: %s", actionStr))
+		}
+	}
+
+	// Get hard drives attached to the VM
+	// This is an extension point for future implementation
+	// Currently just preserving any hard drives specified in the input
+	if len(inputs.HardDrives) == 0 {
+		// In a real implementation, we would retrieve the actual hard drives from the VM
+		logger.Debug("No hard drives specified in input, and retrieval not implemented")
+	}
+
+	// Get network adapters attached to the VM
+	// This is an extension point for future implementation
+	// Currently just preserving any network adapters specified in the input
+	if len(inputs.NetworkAdapters) == 0 {
+		// In a real implementation, we would retrieve the actual network adapters from the VM
+		logger.Debug("No network adapters specified in input, and retrieval not implemented")
 	}
 
 	// Update outputs with populated inputs
@@ -200,11 +252,53 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 		}
 	}
 
+	// Set auto start action if specified
+	if input.AutoStartAction != nil {
+		var autoStartValue uint16
+		switch *input.AutoStartAction {
+		case "Nothing":
+			autoStartValue = 0
+		case "StartIfRunning":
+			autoStartValue = 1
+		case "Start":
+			autoStartValue = 2
+		default:
+			logger.Errorf("Invalid auto start action: %s, setting Nothing", *input.AutoStartAction)
+			autoStartValue = 0
+		}
+		err = setting.SetProperty("AutoStartAction", autoStartValue)
+		if err != nil {
+			return id, state, fmt.Errorf("Failed to set auto start action: [%+v]", err)
+		}
+	}
+
+	// Set auto stop action if specified
+	if input.AutoStopAction != nil {
+		var autoStopValue uint16
+		switch *input.AutoStopAction {
+		case "TurnOff":
+			autoStopValue = 0
+		case "Save":
+			autoStopValue = 1
+		case "ShutDown":
+			autoStopValue = 2
+		default:
+			logger.Errorf("Invalid auto stop action: %s, setting TurnOff", *input.AutoStopAction)
+			autoStopValue = 0
+		}
+		err = setting.SetProperty("AutoStopAction", autoStopValue)
+		if err != nil {
+			return id, state, fmt.Errorf("Failed to set auto stop action: [%+v]", err)
+		}
+	}
+
 	memorySettings, err := memory.GetDefaultMemorySettingData(vmmsClient.GetVirtualizationConn().WMIHost)
 	if err != nil {
 		return id, state, fmt.Errorf("Failed [%+v]", err)
 	}
 	defer memorySettings.Close()
+
+	// Set memory size
 	var memorySizeMB uint64 = 1024 // Default value
 	if input.MemorySize != nil {
 		memorySizeMB = uint64(*input.MemorySize)
@@ -212,6 +306,32 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	err = memorySettings.SetSizeMB(memorySizeMB)
 	if err != nil {
 		return id, state, fmt.Errorf("Failed to set memory size: %v", err)
+	}
+
+	// Set dynamic memory if specified
+	if input.DynamicMemory != nil && *input.DynamicMemory {
+		err = memorySettings.SetPropertyDynamicMemoryEnabled(true)
+		if err != nil {
+			return id, state, fmt.Errorf("Failed to enable dynamic memory: %v", err)
+		}
+
+		// Set minimum memory if specified
+		if input.MinimumMemory != nil {
+			minMemory := uint64(*input.MinimumMemory)
+			err = memorySettings.SetProperty("MinimumBytes", minMemory*1024*1024) // Convert MB to bytes
+			if err != nil {
+				return id, state, fmt.Errorf("Failed to set minimum memory: %v", err)
+			}
+		}
+
+		// Set maximum memory if specified
+		if input.MaximumMemory != nil {
+			maxMemory := uint64(*input.MaximumMemory)
+			err = memorySettings.SetProperty("MaximumBytes", maxMemory*1024*1024) // Convert MB to bytes
+			if err != nil {
+				return id, state, fmt.Errorf("Failed to set maximum memory: %v", err)
+			}
+		}
 	}
 
 	processorSettings, err := processor.GetDefaultProcessorSettingData(vmmsClient.GetVirtualizationConn().WMIHost)
@@ -227,11 +347,142 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 		return id, state, fmt.Errorf("Failed to set CPU count: %v", err)
 	}
 
-	_, err = vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
+	vm, err := vsms.CreateVirtualMachine(setting, memorySettings, processorSettings)
 	if err != nil {
 		return id, state, fmt.Errorf("Failed vsms.CreateVirtualMachine: [%+v]", err)
 	}
 	logger.Debug("Created VM")
+
+	// Add hard drives if specified
+	if len(input.HardDrives) > 0 {
+		for _, hd := range input.HardDrives {
+			if hd.Path == nil {
+				logger.Debug("Hard drive path not specified, skipping")
+				continue
+			}
+
+			// Default values for controller
+			controllerType := "SCSI"
+			if hd.ControllerType != nil {
+				controllerType = *hd.ControllerType
+			}
+
+			controllerNumber := 0
+			if hd.ControllerNumber != nil {
+				controllerNumber = *hd.ControllerNumber
+			}
+
+			controllerLocation := 0
+			if hd.ControllerLocation != nil {
+				controllerLocation = *hd.ControllerLocation
+			}
+
+			logger.Debug(fmt.Sprintf("Adding hard drive %s to VM %s", *hd.Path, id))
+
+			// Add the hard drive to the VM
+			// Add the hard drive to the VM using direct WMI method invocation
+			vmName, err := vm.GetPropertyElementName()
+			if err != nil {
+				logger.Error(fmt.Sprintf("Failed to get VM name: %v", err))
+				continue
+			}
+
+			params := map[string]interface{}{
+				"VirtualSystemIdentifier": vmName,
+				"ResourceType":            uint16(31), // 31 = Disk drive
+				"Path":                    *hd.Path,
+				"ControllerType":          controllerType,
+				"ControllerNumber":        uint32(controllerNumber),
+				"ControllerLocation":      uint32(controllerLocation),
+			}
+
+			_, err = vsms.InvokeMethod("AddResourceSettings", params)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Failed to add hard drive: %v", err))
+				// Continue with other hard drives even if this one fails
+			}
+		}
+	}
+
+	// Add network adapters if specified
+	if len(input.NetworkAdapters) > 0 {
+		for i, na := range input.NetworkAdapters {
+			if na.SwitchName == nil {
+				logger.Debug("Network adapter switch name not specified, skipping")
+				continue
+			}
+
+			// Use the index as part of name if no name provided
+			adapterName := fmt.Sprintf("Network Adapter %d", i+1)
+			if na.Name != nil {
+				adapterName = *na.Name
+			}
+
+			logger.Debug(fmt.Sprintf("Adding network adapter %s to VM %s, connected to switch %s",
+				adapterName, id, *na.SwitchName))
+
+			// Get the VM name
+			vmName, err := vm.GetPropertyElementName()
+			if err != nil {
+				logger.Error(fmt.Sprintf("Failed to get VM name: %v", err))
+				continue
+			}
+
+			// Check if the adapter already exists (standalone NetworkAdapter resource from simple-all-four example)
+			// This handles the case where a NetworkAdapter resource was created without a vmName
+			adapterExists := false
+
+			// Query for existing standalone adapters with this name
+			query := fmt.Sprintf("SELECT * FROM Msvm_SyntheticEthernetPortSettingData WHERE ElementName = '%s'", adapterName)
+			adapters, err := vmmsClient.GetVirtualizationConn().QueryInstances(query)
+			if err == nil && len(adapters) > 0 {
+				logger.Debug(fmt.Sprintf("Found existing network adapter with name %s, checking if it's attached to a VM", adapterName))
+
+				// Check each result to see if it's already attached to a VM
+				for _, adapter := range adapters {
+					defer adapter.Close()
+
+					// Check if this adapter is already attached to a VM
+					instanceID, err := adapter.GetProperty("InstanceID")
+					if err == nil && instanceID != nil {
+						instanceIDStr, ok := instanceID.(string)
+						if ok {
+							// If the adapter is not attached to any VM, we can't determine from InstanceID
+							// If it's attached to a different VM, the VM name would be in the path
+							// If it's already attached to our VM, we don't need to do anything
+							if !strings.Contains(instanceIDStr, vmName) {
+								// This adapter might be available or attached to another VM
+								logger.Debug(fmt.Sprintf("Adapter %s exists but is not attached to this VM", adapterName))
+							} else {
+								// This adapter is already attached to our VM
+								logger.Debug(fmt.Sprintf("Adapter %s is already attached to VM %s", adapterName, vmName))
+								adapterExists = true
+								break
+							}
+						}
+					}
+				}
+			}
+
+			// If adapter doesn't exist or isn't attached to our VM, create a new one
+			if !adapterExists {
+				params := map[string]interface{}{
+					"VirtualSystemIdentifier": vmName,
+					"ResourceType":            uint16(10), // 10 = Network adapter
+					"SwitchName":              *na.SwitchName,
+					"AdapterName":             adapterName,
+				}
+
+				_, err = vsms.InvokeMethod("AddNetworkAdapter", params)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Failed to add network adapter: %v", err))
+					// Continue with other adapters even if this one fails
+				} else {
+					logger.Debug(fmt.Sprintf("Successfully added network adapter %s to VM %s", adapterName, vmName))
+				}
+			}
+		}
+	}
 
 	return id, state, nil
 }

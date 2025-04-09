@@ -70,6 +70,8 @@ type VirtualSwitch struct {
 	Name pulumi.StringOutput `pulumi:"name"`
 	// Name of the physical network adapter to bind to (External switches)
 	NetAdapterName pulumi.StringPtrOutput `pulumi:"netAdapterName"`
+	// Notes or description for the virtual switch
+	Notes pulumi.StringPtrOutput `pulumi:"notes"`
 	// Type of switch: 'External', 'Internal', or 'Private'
 	SwitchType pulumi.StringOutput `pulumi:"switchType"`
 	// Trigger a resource replacement on changes to any of these values. The
@@ -146,6 +148,8 @@ type virtualSwitchArgs struct {
 	Name string `pulumi:"name"`
 	// Name of the physical network adapter to bind to (External switches)
 	NetAdapterName *string `pulumi:"netAdapterName"`
+	// Notes or description for the virtual switch
+	Notes *string `pulumi:"notes"`
 	// Type of switch: 'External', 'Internal', or 'Private'
 	SwitchType string `pulumi:"switchType"`
 	// Trigger a resource replacement on changes to any of these values. The
@@ -174,6 +178,8 @@ type VirtualSwitchArgs struct {
 	Name pulumi.StringInput
 	// Name of the physical network adapter to bind to (External switches)
 	NetAdapterName pulumi.StringPtrInput
+	// Notes or description for the virtual switch
+	Notes pulumi.StringPtrInput
 	// Type of switch: 'External', 'Internal', or 'Private'
 	SwitchType pulumi.StringInput
 	// Trigger a resource replacement on changes to any of these values. The
@@ -300,6 +306,11 @@ func (o VirtualSwitchOutput) Name() pulumi.StringOutput {
 // Name of the physical network adapter to bind to (External switches)
 func (o VirtualSwitchOutput) NetAdapterName() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *VirtualSwitch) pulumi.StringPtrOutput { return v.NetAdapterName }).(pulumi.StringPtrOutput)
+}
+
+// Notes or description for the virtual switch
+func (o VirtualSwitchOutput) Notes() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *VirtualSwitch) pulumi.StringPtrOutput { return v.Notes }).(pulumi.StringPtrOutput)
 }
 
 // Type of switch: 'External', 'Internal', or 'Private'

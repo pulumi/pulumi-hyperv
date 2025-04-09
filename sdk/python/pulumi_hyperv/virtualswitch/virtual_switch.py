@@ -26,6 +26,7 @@ class VirtualSwitchArgs:
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  net_adapter_name: Optional[pulumi.Input[builtins.str]] = None,
+                 notes: Optional[pulumi.Input[builtins.str]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None):
         """
@@ -38,6 +39,7 @@ class VirtualSwitchArgs:
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
         :param pulumi.Input[builtins.str] net_adapter_name: Name of the physical network adapter to bind to (External switches)
+        :param pulumi.Input[builtins.str] notes: Notes or description for the virtual switch
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
                trigger values can be of any type. If a value is different in the current update compared to the
                previous update, the resource will be replaced, i.e., the "create" command will be re-run.
@@ -57,6 +59,8 @@ class VirtualSwitchArgs:
             pulumi.set(__self__, "delete", delete)
         if net_adapter_name is not None:
             pulumi.set(__self__, "net_adapter_name", net_adapter_name)
+        if notes is not None:
+            pulumi.set(__self__, "notes", notes)
         if triggers is not None:
             pulumi.set(__self__, "triggers", triggers)
         if update is not None:
@@ -138,6 +142,18 @@ class VirtualSwitchArgs:
 
     @property
     @pulumi.getter
+    def notes(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        Notes or description for the virtual switch
+        """
+        return pulumi.get(self, "notes")
+
+    @notes.setter
+    def notes(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "notes", value)
+
+    @property
+    @pulumi.getter
     def triggers(self) -> Optional[pulumi.Input[Sequence[Any]]]:
         """
         Trigger a resource replacement on changes to any of these values. The
@@ -177,6 +193,7 @@ class VirtualSwitch(pulumi.CustomResource):
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  name: Optional[pulumi.Input[builtins.str]] = None,
                  net_adapter_name: Optional[pulumi.Input[builtins.str]] = None,
+                 notes: Optional[pulumi.Input[builtins.str]] = None,
                  switch_type: Optional[pulumi.Input[builtins.str]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
@@ -235,6 +252,7 @@ class VirtualSwitch(pulumi.CustomResource):
                Command resource from previous create or update steps.
         :param pulumi.Input[builtins.str] name: Name of the virtual switch
         :param pulumi.Input[builtins.str] net_adapter_name: Name of the physical network adapter to bind to (External switches)
+        :param pulumi.Input[builtins.str] notes: Notes or description for the virtual switch
         :param pulumi.Input[builtins.str] switch_type: Type of switch: 'External', 'Internal', or 'Private'
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
                trigger values can be of any type. If a value is different in the current update compared to the
@@ -316,6 +334,7 @@ class VirtualSwitch(pulumi.CustomResource):
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  name: Optional[pulumi.Input[builtins.str]] = None,
                  net_adapter_name: Optional[pulumi.Input[builtins.str]] = None,
+                 notes: Optional[pulumi.Input[builtins.str]] = None,
                  switch_type: Optional[pulumi.Input[builtins.str]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
@@ -335,6 +354,7 @@ class VirtualSwitch(pulumi.CustomResource):
                 raise TypeError("Missing required property 'name'")
             __props__.__dict__["name"] = name
             __props__.__dict__["net_adapter_name"] = net_adapter_name
+            __props__.__dict__["notes"] = notes
             if switch_type is None and not opts.urn:
                 raise TypeError("Missing required property 'switch_type'")
             __props__.__dict__["switch_type"] = switch_type
@@ -369,6 +389,7 @@ class VirtualSwitch(pulumi.CustomResource):
         __props__.__dict__["delete"] = None
         __props__.__dict__["name"] = None
         __props__.__dict__["net_adapter_name"] = None
+        __props__.__dict__["notes"] = None
         __props__.__dict__["switch_type"] = None
         __props__.__dict__["triggers"] = None
         __props__.__dict__["update"] = None
@@ -415,6 +436,14 @@ class VirtualSwitch(pulumi.CustomResource):
         Name of the physical network adapter to bind to (External switches)
         """
         return pulumi.get(self, "net_adapter_name")
+
+    @property
+    @pulumi.getter
+    def notes(self) -> pulumi.Output[Optional[builtins.str]]:
+        """
+        Notes or description for the virtual switch
+        """
+        return pulumi.get(self, "notes")
 
     @property
     @pulumi.getter(name="switchType")

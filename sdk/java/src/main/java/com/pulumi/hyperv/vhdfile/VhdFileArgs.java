@@ -69,18 +69,33 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
-     * Type of the VHD file (fixed or dynamic)
+     * Type of the VHD file (Fixed, Dynamic, or Differencing)
      * 
      */
-    @Import(name="diskType", required=true)
-    private Output<String> diskType;
+    @Import(name="diskType")
+    private @Nullable Output<String> diskType;
 
     /**
-     * @return Type of the VHD file (fixed or dynamic)
+     * @return Type of the VHD file (Fixed, Dynamic, or Differencing)
      * 
      */
-    public Output<String> diskType() {
-        return this.diskType;
+    public Optional<Output<String>> diskType() {
+        return Optional.ofNullable(this.diskType);
+    }
+
+    /**
+     * Path to the parent VHD file when creating a differencing disk
+     * 
+     */
+    @Import(name="parentPath")
+    private @Nullable Output<String> parentPath;
+
+    /**
+     * @return Path to the parent VHD file when creating a differencing disk
+     * 
+     */
+    public Optional<Output<String>> parentPath() {
+        return Optional.ofNullable(this.parentPath);
     }
 
     /**
@@ -102,15 +117,15 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
      * Size of the VHD file in bytes
      * 
      */
-    @Import(name="sizeBytes", required=true)
-    private Output<Integer> sizeBytes;
+    @Import(name="sizeBytes")
+    private @Nullable Output<Integer> sizeBytes;
 
     /**
      * @return Size of the VHD file in bytes
      * 
      */
-    public Output<Integer> sizeBytes() {
-        return this.sizeBytes;
+    public Optional<Output<Integer>> sizeBytes() {
+        return Optional.ofNullable(this.sizeBytes);
     }
 
     /**
@@ -162,6 +177,7 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
         this.create = $.create;
         this.delete = $.delete;
         this.diskType = $.diskType;
+        this.parentPath = $.parentPath;
         this.path = $.path;
         this.sizeBytes = $.sizeBytes;
         this.triggers = $.triggers;
@@ -254,24 +270,45 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
-         * @param diskType Type of the VHD file (fixed or dynamic)
+         * @param diskType Type of the VHD file (Fixed, Dynamic, or Differencing)
          * 
          * @return builder
          * 
          */
-        public Builder diskType(Output<String> diskType) {
+        public Builder diskType(@Nullable Output<String> diskType) {
             $.diskType = diskType;
             return this;
         }
 
         /**
-         * @param diskType Type of the VHD file (fixed or dynamic)
+         * @param diskType Type of the VHD file (Fixed, Dynamic, or Differencing)
          * 
          * @return builder
          * 
          */
         public Builder diskType(String diskType) {
             return diskType(Output.of(diskType));
+        }
+
+        /**
+         * @param parentPath Path to the parent VHD file when creating a differencing disk
+         * 
+         * @return builder
+         * 
+         */
+        public Builder parentPath(@Nullable Output<String> parentPath) {
+            $.parentPath = parentPath;
+            return this;
+        }
+
+        /**
+         * @param parentPath Path to the parent VHD file when creating a differencing disk
+         * 
+         * @return builder
+         * 
+         */
+        public Builder parentPath(String parentPath) {
+            return parentPath(Output.of(parentPath));
         }
 
         /**
@@ -301,7 +338,7 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
          * @return builder
          * 
          */
-        public Builder sizeBytes(Output<Integer> sizeBytes) {
+        public Builder sizeBytes(@Nullable Output<Integer> sizeBytes) {
             $.sizeBytes = sizeBytes;
             return this;
         }
@@ -384,14 +421,8 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         public VhdFileArgs build() {
-            if ($.diskType == null) {
-                throw new MissingRequiredPropertyException("VhdFileArgs", "diskType");
-            }
             if ($.path == null) {
                 throw new MissingRequiredPropertyException("VhdFileArgs", "path");
-            }
-            if ($.sizeBytes == null) {
-                throw new MissingRequiredPropertyException("VhdFileArgs", "sizeBytes");
             }
             return $;
         }

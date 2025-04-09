@@ -14,29 +14,46 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import NotRequired, TypedDict, TypeAlias
 from . import _utilities
+from . import outputs
+from ...\. import networkadapter as _networkadapter
+from ._inputs import *
 
 __all__ = ['MachineArgs', 'Machine']
 
 @pulumi.input_type
 class MachineArgs:
     def __init__(__self__, *,
+                 auto_start_action: Optional[pulumi.Input[builtins.str]] = None,
+                 auto_stop_action: Optional[pulumi.Input[builtins.str]] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 dynamic_memory: Optional[pulumi.Input[builtins.bool]] = None,
                  generation: Optional[pulumi.Input[builtins.int]] = None,
+                 hard_drives: Optional[pulumi.Input[Sequence[pulumi.Input['HardDriveInputArgs']]]] = None,
                  machine_name: Optional[pulumi.Input[builtins.str]] = None,
+                 maximum_memory: Optional[pulumi.Input[builtins.int]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
+                 minimum_memory: Optional[pulumi.Input[builtins.int]] = None,
+                 network_adapters: Optional[pulumi.Input[Sequence[pulumi.Input['_networkadapter.NetworkAdapterInputsArgs']]]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None):
         """
         The set of arguments for constructing a Machine resource.
+        :param pulumi.Input[builtins.str] auto_start_action: The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        :param pulumi.Input[builtins.str] auto_stop_action: The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.bool] dynamic_memory: Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
         :param pulumi.Input[builtins.int] generation: Generation of the Virtual Machine. Defaults to 2.
+        :param pulumi.Input[Sequence[pulumi.Input['HardDriveInputArgs']]] hard_drives: Hard drives to attach to the Virtual Machine.
         :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
+        :param pulumi.Input[builtins.int] maximum_memory: Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
+        :param pulumi.Input[builtins.int] minimum_memory: Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        :param pulumi.Input[Sequence[pulumi.Input['_networkadapter.NetworkAdapterInputsArgs']]] network_adapters: Network adapters to attach to the Virtual Machine.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
                trigger values can be of any type. If a value is different in the current update compared to the
@@ -47,22 +64,60 @@ class MachineArgs:
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
         """
+        if auto_start_action is not None:
+            pulumi.set(__self__, "auto_start_action", auto_start_action)
+        if auto_stop_action is not None:
+            pulumi.set(__self__, "auto_stop_action", auto_stop_action)
         if create is not None:
             pulumi.set(__self__, "create", create)
         if delete is not None:
             pulumi.set(__self__, "delete", delete)
+        if dynamic_memory is not None:
+            pulumi.set(__self__, "dynamic_memory", dynamic_memory)
         if generation is not None:
             pulumi.set(__self__, "generation", generation)
+        if hard_drives is not None:
+            pulumi.set(__self__, "hard_drives", hard_drives)
         if machine_name is not None:
             pulumi.set(__self__, "machine_name", machine_name)
+        if maximum_memory is not None:
+            pulumi.set(__self__, "maximum_memory", maximum_memory)
         if memory_size is not None:
             pulumi.set(__self__, "memory_size", memory_size)
+        if minimum_memory is not None:
+            pulumi.set(__self__, "minimum_memory", minimum_memory)
+        if network_adapters is not None:
+            pulumi.set(__self__, "network_adapters", network_adapters)
         if processor_count is not None:
             pulumi.set(__self__, "processor_count", processor_count)
         if triggers is not None:
             pulumi.set(__self__, "triggers", triggers)
         if update is not None:
             pulumi.set(__self__, "update", update)
+
+    @property
+    @pulumi.getter(name="autoStartAction")
+    def auto_start_action(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        """
+        return pulumi.get(self, "auto_start_action")
+
+    @auto_start_action.setter
+    def auto_start_action(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "auto_start_action", value)
+
+    @property
+    @pulumi.getter(name="autoStopAction")
+    def auto_stop_action(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+        """
+        return pulumi.get(self, "auto_stop_action")
+
+    @auto_stop_action.setter
+    def auto_stop_action(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "auto_stop_action", value)
 
     @property
     @pulumi.getter
@@ -91,6 +146,18 @@ class MachineArgs:
         pulumi.set(self, "delete", value)
 
     @property
+    @pulumi.getter(name="dynamicMemory")
+    def dynamic_memory(self) -> Optional[pulumi.Input[builtins.bool]]:
+        """
+        Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+        """
+        return pulumi.get(self, "dynamic_memory")
+
+    @dynamic_memory.setter
+    def dynamic_memory(self, value: Optional[pulumi.Input[builtins.bool]]):
+        pulumi.set(self, "dynamic_memory", value)
+
+    @property
     @pulumi.getter
     def generation(self) -> Optional[pulumi.Input[builtins.int]]:
         """
@@ -101,6 +168,18 @@ class MachineArgs:
     @generation.setter
     def generation(self, value: Optional[pulumi.Input[builtins.int]]):
         pulumi.set(self, "generation", value)
+
+    @property
+    @pulumi.getter(name="hardDrives")
+    def hard_drives(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['HardDriveInputArgs']]]]:
+        """
+        Hard drives to attach to the Virtual Machine.
+        """
+        return pulumi.get(self, "hard_drives")
+
+    @hard_drives.setter
+    def hard_drives(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['HardDriveInputArgs']]]]):
+        pulumi.set(self, "hard_drives", value)
 
     @property
     @pulumi.getter(name="machineName")
@@ -115,6 +194,18 @@ class MachineArgs:
         pulumi.set(self, "machine_name", value)
 
     @property
+    @pulumi.getter(name="maximumMemory")
+    def maximum_memory(self) -> Optional[pulumi.Input[builtins.int]]:
+        """
+        Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+        """
+        return pulumi.get(self, "maximum_memory")
+
+    @maximum_memory.setter
+    def maximum_memory(self, value: Optional[pulumi.Input[builtins.int]]):
+        pulumi.set(self, "maximum_memory", value)
+
+    @property
     @pulumi.getter(name="memorySize")
     def memory_size(self) -> Optional[pulumi.Input[builtins.int]]:
         """
@@ -125,6 +216,30 @@ class MachineArgs:
     @memory_size.setter
     def memory_size(self, value: Optional[pulumi.Input[builtins.int]]):
         pulumi.set(self, "memory_size", value)
+
+    @property
+    @pulumi.getter(name="minimumMemory")
+    def minimum_memory(self) -> Optional[pulumi.Input[builtins.int]]:
+        """
+        Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        """
+        return pulumi.get(self, "minimum_memory")
+
+    @minimum_memory.setter
+    def minimum_memory(self, value: Optional[pulumi.Input[builtins.int]]):
+        pulumi.set(self, "minimum_memory", value)
+
+    @property
+    @pulumi.getter(name="networkAdapters")
+    def network_adapters(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['_networkadapter.NetworkAdapterInputsArgs']]]]:
+        """
+        Network adapters to attach to the Virtual Machine.
+        """
+        return pulumi.get(self, "network_adapters")
+
+    @network_adapters.setter
+    def network_adapters(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['_networkadapter.NetworkAdapterInputsArgs']]]]):
+        pulumi.set(self, "network_adapters", value)
 
     @property
     @pulumi.getter(name="processorCount")
@@ -174,11 +289,18 @@ class Machine(pulumi.CustomResource):
     def __init__(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
+                 auto_start_action: Optional[pulumi.Input[builtins.str]] = None,
+                 auto_stop_action: Optional[pulumi.Input[builtins.str]] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 dynamic_memory: Optional[pulumi.Input[builtins.bool]] = None,
                  generation: Optional[pulumi.Input[builtins.int]] = None,
+                 hard_drives: Optional[pulumi.Input[Sequence[pulumi.Input[Union['HardDriveInputArgs', 'HardDriveInputArgsDict']]]]] = None,
                  machine_name: Optional[pulumi.Input[builtins.str]] = None,
+                 maximum_memory: Optional[pulumi.Input[builtins.int]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
+                 minimum_memory: Optional[pulumi.Input[builtins.int]] = None,
+                 network_adapters: Optional[pulumi.Input[Sequence[pulumi.Input[Union['_networkadapter.NetworkAdapterInputsArgs', '_networkadapter.NetworkAdapterInputsArgsDict']]]]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
@@ -194,9 +316,12 @@ class Machine(pulumi.CustomResource):
 
         - Create and delete Hyper-V virtual machines
         - Configure VM hardware properties including:
-          - Memory allocation
+          - Memory allocation (static or dynamic with min/max)
           - Processor count
           - VM generation (Gen 1 or Gen 2)
+          - Auto start/stop actions
+        - Attach hard drives with custom controller configuration
+        - Configure network adapters with virtual switch connections
         - Unique VM identification with automatic ID generation
 
         ## Implementation Details
@@ -216,8 +341,12 @@ class Machine(pulumi.CustomResource):
         2. **Configure VM Settings**:
            - Sets the virtual machine generation (defaults to Generation 2)
            - Configures memory settings (defaults to 1024 MB)
+           - Sets dynamic memory with min/max values if requested
            - Sets processor count (defaults to 1 vCPU)
+           - Configures auto start/stop actions
         3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+        4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+        5. **Configure Network Adapters**: Adds any specified network adapters to the VM
 
         ### Virtual Machine Read
 
@@ -226,9 +355,10 @@ class Machine(pulumi.CustomResource):
         2. Getting the VM by name
         3. Retrieving VM properties including:
            - VM ID
-           - Memory settings
+           - Memory settings (including dynamic memory configuration)
            - Processor configuration
            - Generation
+           - Auto start/stop actions
 
         ### Virtual Machine Update
 
@@ -251,15 +381,32 @@ class Machine(pulumi.CustomResource):
         | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
         | `processorCount` | int | Number of processors to allocate | 1 |
         | `memorySize` | int | Memory size in MB | 1024 |
+        | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+        | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+        | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+        | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+        | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+        | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+        | `hardDrives` | array | Hard drives to attach to the VM | [] |
         | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 
-        ## Future Extensions
+        ### Network Adapter Properties
 
-        The code includes scaffolding for future enhancements including:
-        - Network adapter configuration
-        - Hard drive attachments
-        - Key protector for secure boot
-        - Additional system settings
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `name` | string | Name of the network adapter | "Network Adapter" |
+        | `switchName` | string | Name of the virtual switch to connect to | (required) |
+
+        ### Hard Drive Properties
+
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `path` | string | Path to the VHD/VHDX file | (required) |
+        | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+        | `controllerNumber` | int | Controller number | 0 |
+        | `controllerLocation` | int | Controller location | 0 |
+
+        ## Usage Examples
 
         ## Related Documentation
 
@@ -268,13 +415,20 @@ class Machine(pulumi.CustomResource):
 
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
+        :param pulumi.Input[builtins.str] auto_start_action: The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        :param pulumi.Input[builtins.str] auto_stop_action: The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.bool] dynamic_memory: Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
         :param pulumi.Input[builtins.int] generation: Generation of the Virtual Machine. Defaults to 2.
+        :param pulumi.Input[Sequence[pulumi.Input[Union['HardDriveInputArgs', 'HardDriveInputArgsDict']]]] hard_drives: Hard drives to attach to the Virtual Machine.
         :param pulumi.Input[builtins.str] machine_name: Name of the Virtual Machine
+        :param pulumi.Input[builtins.int] maximum_memory: Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
         :param pulumi.Input[builtins.int] memory_size: Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
+        :param pulumi.Input[builtins.int] minimum_memory: Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        :param pulumi.Input[Sequence[pulumi.Input[Union['_networkadapter.NetworkAdapterInputsArgs', '_networkadapter.NetworkAdapterInputsArgsDict']]]] network_adapters: Network adapters to attach to the Virtual Machine.
         :param pulumi.Input[builtins.int] processor_count: Number of processors to allocate to the Virtual Machine. Defaults to 1.
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
                trigger values can be of any type. If a value is different in the current update compared to the
@@ -302,9 +456,12 @@ class Machine(pulumi.CustomResource):
 
         - Create and delete Hyper-V virtual machines
         - Configure VM hardware properties including:
-          - Memory allocation
+          - Memory allocation (static or dynamic with min/max)
           - Processor count
           - VM generation (Gen 1 or Gen 2)
+          - Auto start/stop actions
+        - Attach hard drives with custom controller configuration
+        - Configure network adapters with virtual switch connections
         - Unique VM identification with automatic ID generation
 
         ## Implementation Details
@@ -324,8 +481,12 @@ class Machine(pulumi.CustomResource):
         2. **Configure VM Settings**:
            - Sets the virtual machine generation (defaults to Generation 2)
            - Configures memory settings (defaults to 1024 MB)
+           - Sets dynamic memory with min/max values if requested
            - Sets processor count (defaults to 1 vCPU)
+           - Configures auto start/stop actions
         3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+        4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+        5. **Configure Network Adapters**: Adds any specified network adapters to the VM
 
         ### Virtual Machine Read
 
@@ -334,9 +495,10 @@ class Machine(pulumi.CustomResource):
         2. Getting the VM by name
         3. Retrieving VM properties including:
            - VM ID
-           - Memory settings
+           - Memory settings (including dynamic memory configuration)
            - Processor configuration
            - Generation
+           - Auto start/stop actions
 
         ### Virtual Machine Update
 
@@ -359,15 +521,32 @@ class Machine(pulumi.CustomResource):
         | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
         | `processorCount` | int | Number of processors to allocate | 1 |
         | `memorySize` | int | Memory size in MB | 1024 |
+        | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+        | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+        | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+        | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+        | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+        | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+        | `hardDrives` | array | Hard drives to attach to the VM | [] |
         | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 
-        ## Future Extensions
+        ### Network Adapter Properties
 
-        The code includes scaffolding for future enhancements including:
-        - Network adapter configuration
-        - Hard drive attachments
-        - Key protector for secure boot
-        - Additional system settings
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `name` | string | Name of the network adapter | "Network Adapter" |
+        | `switchName` | string | Name of the virtual switch to connect to | (required) |
+
+        ### Hard Drive Properties
+
+        | Property | Type | Description | Default |
+        |----------|------|-------------|---------|
+        | `path` | string | Path to the VHD/VHDX file | (required) |
+        | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+        | `controllerNumber` | int | Controller number | 0 |
+        | `controllerLocation` | int | Controller location | 0 |
+
+        ## Usage Examples
 
         ## Related Documentation
 
@@ -389,11 +568,18 @@ class Machine(pulumi.CustomResource):
     def _internal_init(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
+                 auto_start_action: Optional[pulumi.Input[builtins.str]] = None,
+                 auto_stop_action: Optional[pulumi.Input[builtins.str]] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 dynamic_memory: Optional[pulumi.Input[builtins.bool]] = None,
                  generation: Optional[pulumi.Input[builtins.int]] = None,
+                 hard_drives: Optional[pulumi.Input[Sequence[pulumi.Input[Union['HardDriveInputArgs', 'HardDriveInputArgsDict']]]]] = None,
                  machine_name: Optional[pulumi.Input[builtins.str]] = None,
+                 maximum_memory: Optional[pulumi.Input[builtins.int]] = None,
                  memory_size: Optional[pulumi.Input[builtins.int]] = None,
+                 minimum_memory: Optional[pulumi.Input[builtins.int]] = None,
+                 network_adapters: Optional[pulumi.Input[Sequence[pulumi.Input[Union['_networkadapter.NetworkAdapterInputsArgs', '_networkadapter.NetworkAdapterInputsArgsDict']]]]] = None,
                  processor_count: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
@@ -406,16 +592,23 @@ class Machine(pulumi.CustomResource):
                 raise TypeError('__props__ is only valid when passed in combination with a valid opts.id to get an existing resource')
             __props__ = MachineArgs.__new__(MachineArgs)
 
+            __props__.__dict__["auto_start_action"] = auto_start_action
+            __props__.__dict__["auto_stop_action"] = auto_stop_action
             __props__.__dict__["create"] = create
             __props__.__dict__["delete"] = delete
+            __props__.__dict__["dynamic_memory"] = dynamic_memory
             __props__.__dict__["generation"] = generation
+            __props__.__dict__["hard_drives"] = hard_drives
             __props__.__dict__["machine_name"] = machine_name
+            __props__.__dict__["maximum_memory"] = maximum_memory
             __props__.__dict__["memory_size"] = memory_size
+            __props__.__dict__["minimum_memory"] = minimum_memory
+            __props__.__dict__["network_adapters"] = network_adapters
             __props__.__dict__["processor_count"] = processor_count
             __props__.__dict__["triggers"] = triggers
             __props__.__dict__["update"] = update
             __props__.__dict__["vm_id"] = None
-        replace_on_changes = pulumi.ResourceOptions(replace_on_changes=["triggers[*]"])
+        replace_on_changes = pulumi.ResourceOptions(replace_on_changes=["networkAdapters[*].triggers[*]", "triggers[*]"])
         opts = pulumi.ResourceOptions.merge(opts, replace_on_changes)
         super(Machine, __self__).__init__(
             'hyperv:machine:Machine',
@@ -439,16 +632,39 @@ class Machine(pulumi.CustomResource):
 
         __props__ = MachineArgs.__new__(MachineArgs)
 
+        __props__.__dict__["auto_start_action"] = None
+        __props__.__dict__["auto_stop_action"] = None
         __props__.__dict__["create"] = None
         __props__.__dict__["delete"] = None
+        __props__.__dict__["dynamic_memory"] = None
         __props__.__dict__["generation"] = None
+        __props__.__dict__["hard_drives"] = None
         __props__.__dict__["machine_name"] = None
+        __props__.__dict__["maximum_memory"] = None
         __props__.__dict__["memory_size"] = None
+        __props__.__dict__["minimum_memory"] = None
+        __props__.__dict__["network_adapters"] = None
         __props__.__dict__["processor_count"] = None
         __props__.__dict__["triggers"] = None
         __props__.__dict__["update"] = None
         __props__.__dict__["vm_id"] = None
         return Machine(resource_name, opts=opts, __props__=__props__)
+
+    @property
+    @pulumi.getter(name="autoStartAction")
+    def auto_start_action(self) -> pulumi.Output[Optional[builtins.str]]:
+        """
+        The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        """
+        return pulumi.get(self, "auto_start_action")
+
+    @property
+    @pulumi.getter(name="autoStopAction")
+    def auto_stop_action(self) -> pulumi.Output[Optional[builtins.str]]:
+        """
+        The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+        """
+        return pulumi.get(self, "auto_stop_action")
 
     @property
     @pulumi.getter
@@ -469,12 +685,28 @@ class Machine(pulumi.CustomResource):
         return pulumi.get(self, "delete")
 
     @property
+    @pulumi.getter(name="dynamicMemory")
+    def dynamic_memory(self) -> pulumi.Output[Optional[builtins.bool]]:
+        """
+        Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+        """
+        return pulumi.get(self, "dynamic_memory")
+
+    @property
     @pulumi.getter
     def generation(self) -> pulumi.Output[Optional[builtins.int]]:
         """
         Generation of the Virtual Machine. Defaults to 2.
         """
         return pulumi.get(self, "generation")
+
+    @property
+    @pulumi.getter(name="hardDrives")
+    def hard_drives(self) -> pulumi.Output[Optional[Sequence['outputs.HardDriveInput']]]:
+        """
+        Hard drives to attach to the Virtual Machine.
+        """
+        return pulumi.get(self, "hard_drives")
 
     @property
     @pulumi.getter(name="machineName")
@@ -485,12 +717,36 @@ class Machine(pulumi.CustomResource):
         return pulumi.get(self, "machine_name")
 
     @property
+    @pulumi.getter(name="maximumMemory")
+    def maximum_memory(self) -> pulumi.Output[Optional[builtins.int]]:
+        """
+        Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+        """
+        return pulumi.get(self, "maximum_memory")
+
+    @property
     @pulumi.getter(name="memorySize")
     def memory_size(self) -> pulumi.Output[Optional[builtins.int]]:
         """
         Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         """
         return pulumi.get(self, "memory_size")
+
+    @property
+    @pulumi.getter(name="minimumMemory")
+    def minimum_memory(self) -> pulumi.Output[Optional[builtins.int]]:
+        """
+        Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        """
+        return pulumi.get(self, "minimum_memory")
+
+    @property
+    @pulumi.getter(name="networkAdapters")
+    def network_adapters(self) -> pulumi.Output[Optional[Sequence['_networkadapter.outputs.NetworkAdapterInputs']]]:
+        """
+        Network adapters to attach to the Virtual Machine.
+        """
+        return pulumi.get(self, "network_adapters")
 
     @property
     @pulumi.getter(name="processorCount")

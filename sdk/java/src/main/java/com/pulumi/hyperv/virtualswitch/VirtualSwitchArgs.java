@@ -99,6 +99,21 @@ public final class VirtualSwitchArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
+     * Notes or description for the virtual switch
+     * 
+     */
+    @Import(name="notes")
+    private @Nullable Output<String> notes;
+
+    /**
+     * @return Notes or description for the virtual switch
+     * 
+     */
+    public Optional<Output<String>> notes() {
+        return Optional.ofNullable(this.notes);
+    }
+
+    /**
      * Type of switch: &#39;External&#39;, &#39;Internal&#39;, or &#39;Private&#39;
      * 
      */
@@ -163,6 +178,7 @@ public final class VirtualSwitchArgs extends com.pulumi.resources.ResourceArgs {
         this.delete = $.delete;
         this.name = $.name;
         this.netAdapterName = $.netAdapterName;
+        this.notes = $.notes;
         this.switchType = $.switchType;
         this.triggers = $.triggers;
         this.update = $.update;
@@ -293,6 +309,27 @@ public final class VirtualSwitchArgs extends com.pulumi.resources.ResourceArgs {
          */
         public Builder netAdapterName(String netAdapterName) {
             return netAdapterName(Output.of(netAdapterName));
+        }
+
+        /**
+         * @param notes Notes or description for the virtual switch
+         * 
+         * @return builder
+         * 
+         */
+        public Builder notes(@Nullable Output<String> notes) {
+            $.notes = notes;
+            return this;
+        }
+
+        /**
+         * @param notes Notes or description for the virtual switch
+         * 
+         * @return builder
+         * 
+         */
+        public Builder notes(String notes) {
+            return notes(Output.of(notes));
         }
 
         /**

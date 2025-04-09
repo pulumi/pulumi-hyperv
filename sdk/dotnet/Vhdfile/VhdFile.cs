@@ -54,7 +54,13 @@ namespace Pulumi.Hyperv.Vhdfile
     /// 
     /// VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
     /// 
+    /// ### Creating a Base VHD
+    /// 
     /// ### Creating a Differencing Disk
+    /// 
+    /// ### Using with Machine Resource
+    /// 
+    /// The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
     /// </summary>
     [HypervResourceType("hyperv:vhdfile:VhdFile")]
     public partial class VhdFile : global::Pulumi.CustomResource
@@ -80,10 +86,16 @@ namespace Pulumi.Hyperv.Vhdfile
         public Output<string?> Delete { get; private set; } = null!;
 
         /// <summary>
-        /// Type of the VHD file (fixed or dynamic)
+        /// Type of the VHD file (Fixed, Dynamic, or Differencing)
         /// </summary>
         [Output("diskType")]
-        public Output<string> DiskType { get; private set; } = null!;
+        public Output<string?> DiskType { get; private set; } = null!;
+
+        /// <summary>
+        /// Path to the parent VHD file when creating a differencing disk
+        /// </summary>
+        [Output("parentPath")]
+        public Output<string?> ParentPath { get; private set; } = null!;
 
         /// <summary>
         /// Path to the VHD file
@@ -95,7 +107,7 @@ namespace Pulumi.Hyperv.Vhdfile
         /// Size of the VHD file in bytes
         /// </summary>
         [Output("sizeBytes")]
-        public Output<int> SizeBytes { get; private set; } = null!;
+        public Output<int?> SizeBytes { get; private set; } = null!;
 
         /// <summary>
         /// Trigger a resource replacement on changes to any of these values. The
@@ -185,10 +197,16 @@ namespace Pulumi.Hyperv.Vhdfile
         public Input<string>? Delete { get; set; }
 
         /// <summary>
-        /// Type of the VHD file (fixed or dynamic)
+        /// Type of the VHD file (Fixed, Dynamic, or Differencing)
         /// </summary>
-        [Input("diskType", required: true)]
-        public Input<string> DiskType { get; set; } = null!;
+        [Input("diskType")]
+        public Input<string>? DiskType { get; set; }
+
+        /// <summary>
+        /// Path to the parent VHD file when creating a differencing disk
+        /// </summary>
+        [Input("parentPath")]
+        public Input<string>? ParentPath { get; set; }
 
         /// <summary>
         /// Path to the VHD file
@@ -199,8 +217,8 @@ namespace Pulumi.Hyperv.Vhdfile
         /// <summary>
         /// Size of the VHD file in bytes
         /// </summary>
-        [Input("sizeBytes", required: true)]
-        public Input<int> SizeBytes { get; set; } = null!;
+        [Input("sizeBytes")]
+        public Input<int>? SizeBytes { get; set; }
 
         [Input("triggers")]
         private InputList<object>? _triggers;

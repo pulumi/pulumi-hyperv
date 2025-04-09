@@ -2,6 +2,8 @@
 // *** Do not edit by hand unless you're certain you know what you are doing! ***
 
 import * as pulumi from "@pulumi/pulumi";
+import * as inputs from "../types/input";
+import * as outputs from "../types/output";
 import * as utilities from "../utilities";
 
 /**
@@ -15,9 +17,12 @@ import * as utilities from "../utilities";
  *
  * - Create and delete Hyper-V virtual machines
  * - Configure VM hardware properties including:
- *   - Memory allocation
+ *   - Memory allocation (static or dynamic with min/max)
  *   - Processor count
  *   - VM generation (Gen 1 or Gen 2)
+ *   - Auto start/stop actions
+ * - Attach hard drives with custom controller configuration
+ * - Configure network adapters with virtual switch connections
  * - Unique VM identification with automatic ID generation
  *
  * ## Implementation Details
@@ -37,8 +42,12 @@ import * as utilities from "../utilities";
  * 2. **Configure VM Settings**:
  *    - Sets the virtual machine generation (defaults to Generation 2)
  *    - Configures memory settings (defaults to 1024 MB)
+ *    - Sets dynamic memory with min/max values if requested
  *    - Sets processor count (defaults to 1 vCPU)
+ *    - Configures auto start/stop actions
  * 3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+ * 4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+ * 5. **Configure Network Adapters**: Adds any specified network adapters to the VM
  *
  * ### Virtual Machine Read
  *
@@ -47,9 +56,10 @@ import * as utilities from "../utilities";
  * 2. Getting the VM by name
  * 3. Retrieving VM properties including:
  *    - VM ID
- *    - Memory settings
+ *    - Memory settings (including dynamic memory configuration)
  *    - Processor configuration
  *    - Generation
+ *    - Auto start/stop actions
  *
  * ### Virtual Machine Update
  *
@@ -72,15 +82,57 @@ import * as utilities from "../utilities";
  * | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
  * | `processorCount` | int | Number of processors to allocate | 1 |
  * | `memorySize` | int | Memory size in MB | 1024 |
+ * | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+ * | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+ * | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+ * | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+ * | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+ * | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+ * | `hardDrives` | array | Hard drives to attach to the VM | [] |
  * | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
  *
- * ## Future Extensions
+ * ### Network Adapter Properties
  *
- * The code includes scaffolding for future enhancements including:
- * - Network adapter configuration
- * - Hard drive attachments
- * - Key protector for secure boot
- * - Additional system settings
+ * | Property | Type | Description | Default |
+ * |----------|------|-------------|---------|
+ * | `name` | string | Name of the network adapter | "Network Adapter" |
+ * | `switchName` | string | Name of the virtual switch to connect to | (required) |
+ *
+ * ### Hard Drive Properties
+ *
+ * | Property | Type | Description | Default |
+ * |----------|------|-------------|---------|
+ * | `path` | string | Path to the VHD/VHDX file | (required) |
+ * | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+ * | `controllerNumber` | int | Controller number | 0 |
+ * | `controllerLocation` | int | Controller location | 0 |
+ *
+ * ## Usage Examples
+ *
+ * ```typescript
+ * // Create a new VM with a network adapter and hard drive
+ * const vm = new hyperv.Machine("example-vm", {
+ *     machineName: "example-vm",
+ *     generation: 2,
+ *     processorCount: 4,
+ *     memorySize: 4096,
+ *     dynamicMemory: true,
+ *     minimumMemory: 2048,
+ *     maximumMemory: 8192,
+ *     autoStartAction: "StartIfRunning",
+ *     autoStopAction: "Save",
+ *     hardDrives: [{
+ *         path: "C:\\VMs\\example-vm\\disk.vhdx",
+ *         controllerType: "SCSI",
+ *         controllerNumber: 0,
+ *         controllerLocation: 0
+ *     }],
+ *     networkAdapters: [{
+ *         name: "Primary Network",
+ *         switchName: "External Switch"
+ *     }]
+ * });
+ * ```
  *
  * ## Related Documentation
  *
@@ -115,6 +167,14 @@ export class Machine extends pulumi.CustomResource {
     }
 
     /**
+     * The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     */
+    public readonly autoStartAction!: pulumi.Output<string | undefined>;
+    /**
+     * The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     */
+    public readonly autoStopAction!: pulumi.Output<string | undefined>;
+    /**
      * The command to run on create.
      */
     public readonly create!: pulumi.Output<string | undefined>;
@@ -125,17 +185,37 @@ export class Machine extends pulumi.CustomResource {
      */
     public readonly delete!: pulumi.Output<string | undefined>;
     /**
+     * Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     */
+    public readonly dynamicMemory!: pulumi.Output<boolean | undefined>;
+    /**
      * Generation of the Virtual Machine. Defaults to 2.
      */
     public readonly generation!: pulumi.Output<number | undefined>;
+    /**
+     * Hard drives to attach to the Virtual Machine.
+     */
+    public readonly hardDrives!: pulumi.Output<outputs.machine.HardDriveInput[] | undefined>;
     /**
      * Name of the Virtual Machine
      */
     public readonly machineName!: pulumi.Output<string | undefined>;
     /**
+     * Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     */
+    public readonly maximumMemory!: pulumi.Output<number | undefined>;
+    /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */
     public readonly memorySize!: pulumi.Output<number | undefined>;
+    /**
+     * Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     */
+    public readonly minimumMemory!: pulumi.Output<number | undefined>;
+    /**
+     * Network adapters to attach to the Virtual Machine.
+     */
+    public readonly networkAdapters!: pulumi.Output<outputs.networkadapter.NetworkAdapterInputs[] | undefined>;
     /**
      * Number of processors to allocate to the Virtual Machine. Defaults to 1.
      */
@@ -167,28 +247,42 @@ export class Machine extends pulumi.CustomResource {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
+            resourceInputs["autoStartAction"] = args ? args.autoStartAction : undefined;
+            resourceInputs["autoStopAction"] = args ? args.autoStopAction : undefined;
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
+            resourceInputs["dynamicMemory"] = args ? args.dynamicMemory : undefined;
             resourceInputs["generation"] = args ? args.generation : undefined;
+            resourceInputs["hardDrives"] = args ? args.hardDrives : undefined;
             resourceInputs["machineName"] = args ? args.machineName : undefined;
+            resourceInputs["maximumMemory"] = args ? args.maximumMemory : undefined;
             resourceInputs["memorySize"] = args ? args.memorySize : undefined;
+            resourceInputs["minimumMemory"] = args ? args.minimumMemory : undefined;
+            resourceInputs["networkAdapters"] = args ? args.networkAdapters : undefined;
             resourceInputs["processorCount"] = args ? args.processorCount : undefined;
             resourceInputs["triggers"] = args ? args.triggers : undefined;
             resourceInputs["update"] = args ? args.update : undefined;
             resourceInputs["vmId"] = undefined /*out*/;
         } else {
+            resourceInputs["autoStartAction"] = undefined /*out*/;
+            resourceInputs["autoStopAction"] = undefined /*out*/;
             resourceInputs["create"] = undefined /*out*/;
             resourceInputs["delete"] = undefined /*out*/;
+            resourceInputs["dynamicMemory"] = undefined /*out*/;
             resourceInputs["generation"] = undefined /*out*/;
+            resourceInputs["hardDrives"] = undefined /*out*/;
             resourceInputs["machineName"] = undefined /*out*/;
+            resourceInputs["maximumMemory"] = undefined /*out*/;
             resourceInputs["memorySize"] = undefined /*out*/;
+            resourceInputs["minimumMemory"] = undefined /*out*/;
+            resourceInputs["networkAdapters"] = undefined /*out*/;
             resourceInputs["processorCount"] = undefined /*out*/;
             resourceInputs["triggers"] = undefined /*out*/;
             resourceInputs["update"] = undefined /*out*/;
             resourceInputs["vmId"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const replaceOnChanges = { replaceOnChanges: ["triggers[*]"] };
+        const replaceOnChanges = { replaceOnChanges: ["networkAdapters[*].triggers[*]", "triggers[*]"] };
         opts = pulumi.mergeOptions(opts, replaceOnChanges);
         super(Machine.__pulumiType, name, resourceInputs, opts);
     }
@@ -198,6 +292,14 @@ export class Machine extends pulumi.CustomResource {
  * The set of arguments for constructing a Machine resource.
  */
 export interface MachineArgs {
+    /**
+     * The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     */
+    autoStartAction?: pulumi.Input<string>;
+    /**
+     * The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     */
+    autoStopAction?: pulumi.Input<string>;
     /**
      * The command to run on create.
      */
@@ -209,17 +311,37 @@ export interface MachineArgs {
      */
     delete?: pulumi.Input<string>;
     /**
+     * Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     */
+    dynamicMemory?: pulumi.Input<boolean>;
+    /**
      * Generation of the Virtual Machine. Defaults to 2.
      */
     generation?: pulumi.Input<number>;
+    /**
+     * Hard drives to attach to the Virtual Machine.
+     */
+    hardDrives?: pulumi.Input<pulumi.Input<inputs.machine.HardDriveInputArgs>[]>;
     /**
      * Name of the Virtual Machine
      */
     machineName?: pulumi.Input<string>;
     /**
+     * Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     */
+    maximumMemory?: pulumi.Input<number>;
+    /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      */
     memorySize?: pulumi.Input<number>;
+    /**
+     * Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     */
+    minimumMemory?: pulumi.Input<number>;
+    /**
+     * Network adapters to attach to the Virtual Machine.
+     */
+    networkAdapters?: pulumi.Input<pulumi.Input<inputs.networkadapter.NetworkAdapterInputsArgs>[]>;
     /**
      * Number of processors to allocate to the Virtual Machine. Defaults to 1.
      */

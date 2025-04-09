@@ -22,7 +22,6 @@ class NetworkAdapterArgs:
     def __init__(__self__, *,
                  name: pulumi.Input[builtins.str],
                  switch_name: pulumi.Input[builtins.str],
-                 vm_name: pulumi.Input[builtins.str],
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  dhcp_guard: Optional[pulumi.Input[builtins.bool]] = None,
@@ -34,12 +33,12 @@ class NetworkAdapterArgs:
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None,
                  vlan_id: Optional[pulumi.Input[builtins.int]] = None,
+                 vm_name: Optional[pulumi.Input[builtins.str]] = None,
                  vmq_weight: Optional[pulumi.Input[builtins.int]] = None):
         """
         The set of arguments for constructing a NetworkAdapter resource.
         :param pulumi.Input[builtins.str] name: Name of the network adapter
         :param pulumi.Input[builtins.str] switch_name: Name of the virtual switch to connect the network adapter to
-        :param pulumi.Input[builtins.str] vm_name: Name of the virtual machine to attach the network adapter to
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
@@ -59,11 +58,11 @@ class NetworkAdapterArgs:
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
         :param pulumi.Input[builtins.int] vlan_id: VLAN ID for the network adapter. If not specified, no VLAN tagging is used.
+        :param pulumi.Input[builtins.str] vm_name: Name of the virtual machine to attach the network adapter to
         :param pulumi.Input[builtins.int] vmq_weight: VMQ weight for the network adapter. A value of 0 disables VMQ.
         """
         pulumi.set(__self__, "name", name)
         pulumi.set(__self__, "switch_name", switch_name)
-        pulumi.set(__self__, "vm_name", vm_name)
         if create is not None:
             pulumi.set(__self__, "create", create)
         if delete is not None:
@@ -86,6 +85,8 @@ class NetworkAdapterArgs:
             pulumi.set(__self__, "update", update)
         if vlan_id is not None:
             pulumi.set(__self__, "vlan_id", vlan_id)
+        if vm_name is not None:
+            pulumi.set(__self__, "vm_name", vm_name)
         if vmq_weight is not None:
             pulumi.set(__self__, "vmq_weight", vmq_weight)
 
@@ -112,18 +113,6 @@ class NetworkAdapterArgs:
     @switch_name.setter
     def switch_name(self, value: pulumi.Input[builtins.str]):
         pulumi.set(self, "switch_name", value)
-
-    @property
-    @pulumi.getter(name="vmName")
-    def vm_name(self) -> pulumi.Input[builtins.str]:
-        """
-        Name of the virtual machine to attach the network adapter to
-        """
-        return pulumi.get(self, "vm_name")
-
-    @vm_name.setter
-    def vm_name(self, value: pulumi.Input[builtins.str]):
-        pulumi.set(self, "vm_name", value)
 
     @property
     @pulumi.getter
@@ -266,6 +255,18 @@ class NetworkAdapterArgs:
         pulumi.set(self, "vlan_id", value)
 
     @property
+    @pulumi.getter(name="vmName")
+    def vm_name(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        Name of the virtual machine to attach the network adapter to
+        """
+        return pulumi.get(self, "vm_name")
+
+    @vm_name.setter
+    def vm_name(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "vm_name", value)
+
+    @property
     @pulumi.getter(name="vmqWeight")
     def vmq_weight(self) -> Optional[pulumi.Input[builtins.int]]:
         """
@@ -305,6 +306,12 @@ class NetworkAdapter(pulumi.CustomResource):
         The Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.
 
         ## Example Usage
+
+        ### Standalone Network Adapter
+
+        ### Using the NetworkAdapters Property in Machine Resource
+
+        You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
 
         ## Input Properties
 
@@ -380,6 +387,12 @@ class NetworkAdapter(pulumi.CustomResource):
         The Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.
 
         ## Example Usage
+
+        ### Standalone Network Adapter
+
+        ### Using the NetworkAdapters Property in Machine Resource
+
+        You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
 
         ## Input Properties
 
@@ -473,8 +486,6 @@ class NetworkAdapter(pulumi.CustomResource):
             __props__.__dict__["triggers"] = triggers
             __props__.__dict__["update"] = update
             __props__.__dict__["vlan_id"] = vlan_id
-            if vm_name is None and not opts.urn:
-                raise TypeError("Missing required property 'vm_name'")
             __props__.__dict__["vm_name"] = vm_name
             __props__.__dict__["vmq_weight"] = vmq_weight
             __props__.__dict__["adapter_id"] = None
@@ -642,7 +653,7 @@ class NetworkAdapter(pulumi.CustomResource):
 
     @property
     @pulumi.getter(name="vmName")
-    def vm_name(self) -> pulumi.Output[builtins.str]:
+    def vm_name(self) -> pulumi.Output[Optional[builtins.str]]:
         """
         Name of the virtual machine to attach the network adapter to
         """
