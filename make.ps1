@@ -1,4 +1,11 @@
 param([switch]$ForceWindowsMode = $true) # Force Windows mode for testing
+
+# Check PowerShell version
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Error "PowerShell 7 or greater is required to run this script."
+    exit 1
+}
+
 $IsWindowsEnvironment = if ($PSVersionTable.PSVersion.Major -ge 6) { $IsWindows } else { $ForceWindowsMode }
 #region Configuration
 # Stop on first error
@@ -124,44 +131,58 @@ function Target-tidy_provider {
 
 function Target-SchemaFile {
     Write-Host "Generating $($SCHEMA_FILE)"
-    Target-provider
-    if ($IsWindowsEnvironment) {
-        $fullPath = "$WORKING_DIR\bin\$PROVIDER$EXE"
-        if (Test-Path $fullPath) {
-            # Check if Pulumi exists and invoke it with arguments separately
-            if (Test-Path $PULUMI) {
-                $schemaOutput = & "$PULUMI" "package" "get-schema" "$fullPath"
-                $schema = $schemaOutput | ConvertFrom-Json
-                $schema.PSObject.Properties.Remove('version')
-                $schema | ConvertTo-Json -Depth 10 -Compress:$false | Set-Content -Encoding default -Path $SCHEMA_FILE
-            }
-            else {
-                Write-Error "Pulumi executable not found at $PULUMI"
-                exit 1
-            }
-        }
-        else {
-            Write-Error "Provider binary not found at $fullPath"
-            exit 1
-        }
+    # Ensure bin directory exists before continuing
+    if (-not (Test-Path "$WORKING_DIR\bin")) {
+        New-Item -ItemType Directory -Path "$WORKING_DIR\bin" -Force | Out-Null
     }
-    else {
+    
+    # Check if provider exists, build it if not
+    $fullPath = "$WORKING_DIR\bin\$PROVIDER$EXE"
+    if (-not (Test-Path $fullPath)) {
+        Target-provider
+    }
+    
+    # Check if the provider binary exists now
+    if (Test-Path $fullPath) {
+        # Check if Pulumi exists and invoke it with arguments separately
         if (Test-Path $PULUMI) {
-            & "$PULUMI" package get-schema "$WORKING_DIR/bin/$PROVIDER$EXE" | jq --indent 2 'del(.version)' > $SCHEMA_FILE
+            $schemaOutput = & "$PULUMI" "package" "get-schema" "$fullPath"
+            $schema = $schemaOutput | ConvertFrom-Json
+            $schema.PSObject.Properties.Remove('version')
+            # Convert to JSON and explicitly ensure UTF-8 without BOM and with LF line endings
+            $jsonContent = $schema | ConvertTo-Json -Depth 100
+            # Replace all Windows line endings with Unix line endings
+            $jsonContent = $jsonContent.Replace("`r`n", "`n")
+            # Remove any trailing newline to prevent git warnings about EOL at EOF
+            $jsonContent = $jsonContent.TrimEnd("`n")
+            # Construct full path from working directory
+            $fullSchemaPath = Join-Path -Path $WORKING_DIR -ChildPath $SCHEMA_FILE
+            Write-Host "Writing schema to: $fullSchemaPath"
+            # Use .NET methods to write the file with explicit UTF-8 without BOM encoding
+            [System.IO.File]::WriteAllText($fullSchemaPath, $jsonContent, [System.Text.UTF8Encoding]::new($false))
+            Write-Host "Schema file generated at $fullSchemaPath"
+            # Count and display the number of lines in the schema file
+            $lineCount = (Get-Content $fullSchemaPath | Measure-Object -Line).Lines
+            Write-Host "Schema file contains $lineCount lines"
         }
         else {
             Write-Error "Pulumi executable not found at $PULUMI"
             exit 1
         }
     }
+    else {
+        Write-Error "Provider binary not found at $fullPath after attempting to build it"
+        exit 1
+    }
 }
 
 function Target-codegen {
     Target-Pulumi
+    Target-provider
     Target-SchemaFile
     Target-sdk_dotnet
     Target-sdk_go
-    Target-sdk_nodejs
+    Target-nodejs_sdk 
     Target-sdk_python
     Target-sdk_java
 }
@@ -228,6 +249,11 @@ function Target-sdk_dotnet {
         Target-Pulumi
     }
     
+    # Ensure bin directory exists before continuing
+    if (-not (Test-Path "$WORKING_DIR\bin")) {
+        New-Item -ItemType Directory -Path "$WORKING_DIR\bin" -Force
+    }
+    
     $sdkPath = "sdk\dotnet"
     if (Test-Path $sdkPath) {
         Remove-Item -Recurse -Force $sdkPath
@@ -259,17 +285,14 @@ function Target-sdk_go {
             
             # Restore doc.go file
             Set-Content -Path "$sdkPath\hyperv\doc.go" -Value $docGoContent
-        } else {
+        }
+        else {
             Remove-Item -Recurse -Force $sdkPath
         }
     }
     
     # Call Pulumi executable with separate arguments
     & "$PULUMI" "package" "gen-sdk" "--language" "go" "$SCHEMA_FILE" "--version" "$VERSION_GENERIC"
-}
-
-function Target-sdk_nodejs {
-    Target-sdk "nodejs"
 }
 
 function Target-provider {
@@ -308,6 +331,16 @@ function Target-test_provider {
 }
 
 function Target-dotnet_sdk {
+    # Use Target-SchemaFile only if schema.json doesn't exist
+    if (-not (Test-Path $SCHEMA_FILE)) {
+        Target-SchemaFile
+    } else {
+        # Ensure Pulumi exists
+        if (-not (Test-Path $PULUMI)) {
+            Target-Pulumi
+        }
+    }
+    
     Target-sdk_dotnet
     Invoke-CommandWithChangeDirectory "sdk/dotnet" {
         "$VERSION_GENERIC" | Out-File version.txt
@@ -316,21 +349,52 @@ function Target-dotnet_sdk {
 }
 
 function Target-go_sdk {
+    # Use Target-SchemaFile only if schema.json doesn't exist
+    if (-not (Test-Path $SCHEMA_FILE)) {
+        Target-SchemaFile
+    } else {
+        # Ensure Pulumi exists
+        if (-not (Test-Path $PULUMI)) {
+            Target-Pulumi
+        }
+    }
+    
     Target-sdk_go
 }
 
 function Target-nodejs_sdk {
-    Target-sdk_nodejs
+    # Use Target-SchemaFile only if schema.json doesn't exist
+    if (-not (Test-Path $SCHEMA_FILE)) {
+        Target-SchemaFile
+    } else {
+        # Ensure Pulumi exists
+        if (-not (Test-Path $PULUMI)) {
+            Target-Pulumi
+        }
+    }
+    
+    Target-sdk "nodejs"
     Invoke-CommandWithChangeDirectory "sdk/nodejs" {
         yarn install
         yarn run tsc
     }
+    Write-Host "Copying nodejs SDK files to bin directory"
     Copy-Item README.md -Destination "sdk/nodejs/" -Force
     Copy-Item "sdk/nodejs/package.json" -Destination "sdk/nodejs/bin/" -Force
     Copy-Item "sdk/nodejs/yarn.lock" -Destination "sdk/nodejs/bin/" -Force
 }
 
 function Target-python_sdk {
+    # Use Target-SchemaFile only if schema.json doesn't exist
+    if (-not (Test-Path $SCHEMA_FILE)) {
+        Target-SchemaFile
+    } else {
+        # Ensure Pulumi exists
+        if (-not (Test-Path $PULUMI)) {
+            Target-Pulumi
+        }
+    }
+    
     Copy-Item README.md "sdk/python/" -Force
     Invoke-CommandWithChangeDirectory "sdk/python" {
         # Check if directories exist before removing them
@@ -355,10 +419,6 @@ function Target-python_sdk {
             }
         }
     }
-}
-
-function Target-bin_pulumi_java_gen {
-    Write-Host "pulumi-java-gen is no longer necessary"
 }
 
 function Find-JavaExe {
@@ -430,6 +490,16 @@ function Find-GradleExe {
 }
 
 function Target-java_sdk {
+    # Use Target-SchemaFile only if schema.json doesn't exist
+    if (-not (Test-Path $SCHEMA_FILE)) {
+        Target-SchemaFile
+    } else {
+        # Ensure Pulumi exists
+        if (-not (Test-Path $PULUMI)) {
+            Target-Pulumi
+        }
+    }
+    
     $env:PACKAGE_VERSION = $VERSION_GENERIC
     Target-sdk_java
     
@@ -456,25 +526,30 @@ function Target-java_sdk {
             if (Test-Path $gradleWrapperWin) {
                 Write-Host "Using Gradle wrapper: $gradleWrapperWin"
                 & $gradleWrapperWin --console=plain build
-            } elseif (Test-Path $gradleWrapperUnix) {
+            }
+            elseif (Test-Path $gradleWrapperUnix) {
                 Write-Host "Using Gradle wrapper: $gradleWrapperUnix"
                 & $gradleWrapperUnix --console=plain build
-            } elseif ($gradleExe) {
+            }
+            elseif ($gradleExe) {
                 Write-Host "Using Gradle from PATH"
                 & $gradleExe --console=plain build
-            } else {
+            }
+            else {
                 Write-Host "Attempting to use 'gradle' command from PATH"
                 gradle --console=plain build
             }
         }
-    } else {
+    }
+    else {
         # Non-Windows systems
         Invoke-CommandWithChangeDirectory "sdk/java" {
             if (Test-Path "./gradlew") {
                 Write-Host "Using Gradle wrapper: ./gradlew"
                 chmod +x ./gradlew
                 ./gradlew --console=plain build
-            } else {
+            }
+            else {
                 Write-Host "Using gradle from PATH"
                 gradle --console=plain build
             }
@@ -508,7 +583,10 @@ function Target-lint {
 function Target-install {
     Target-install_nodejs_sdk
     Target-install_dotnet_sdk
-    Copy-Item "$WORKING_DIR/bin/$PROVIDER$EXE" "$env:GOPATH/bin" -Force
+    if (Test-Path "$WORKING_DIR/bin/$PROVIDER$EXE") {
+        New-Item -ItemType Directory -Force -Path "$env:GOPATH/bin" | Out-Null
+        Copy-Item "$WORKING_DIR/bin/$PROVIDER$EXE" "$env:GOPATH/bin/" -Force
+    }
 }
 
 $GO_TEST = "go test -v -count=1 -cover -timeout 2h -parallel $TESTPARALLELISM"
@@ -533,7 +611,8 @@ function Target-install_dotnet_sdk {
     $nupkgFiles = Get-ChildItem -Path "$WORKING_DIR/sdk/dotnet/bin" -Recurse -Filter "*.nupkg" -ErrorAction SilentlyContinue
     if ($nupkgFiles) {
         $nupkgFiles | ForEach-Object { Copy-Item -Path $_.FullName -Destination "$WORKING_DIR/nuget" -Force }
-    } else {
+    }
+    else {
         Write-Warning "No .nupkg files found in $WORKING_DIR/sdk/dotnet/bin"
     }
 }
@@ -681,7 +760,7 @@ switch ($target) {
     "sdk/python" { Target-sdk_python }
     "sdk/dotnet" { Target-sdk_dotnet }
     "sdk/go" { Target-sdk_go }
-    "sdk/nodejs" { Target-sdk_nodejs }
+    "sdk/nodejs" { Target-nodejs_sdk }
     "provider" { Target-provider }
     "provider_debug" { Target-provider_debug }
     "test_provider" { Target-test_provider }
