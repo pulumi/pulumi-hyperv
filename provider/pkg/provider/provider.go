@@ -20,6 +20,7 @@ import (
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vhdfile"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/virtualswitch"
 )
@@ -102,6 +103,11 @@ func NewProvider() p.Provider {
 				*virtualswitch.VirtualSwitch,
 				virtualswitch.VirtualSwitchInputs,
 				virtualswitch.VirtualSwitchOutputs,
+			](),
+			infer.Resource[
+				*networkadapter.NetworkAdapter,
+				networkadapter.NetworkAdapterInputs,
+				networkadapter.NetworkAdapterOutputs,
 			](),
 		},
 		// Functions or invokes that are provided by the provider.

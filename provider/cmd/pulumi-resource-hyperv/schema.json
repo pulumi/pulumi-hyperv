@@ -154,6 +154,157 @@
         }
       }
     },
+    "hyperv:networkadapter:NetworkAdapter": {
+      "description": "# Network Adapter Resource\n\nThe Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.\n\n## Example Usage\n\n```typescript\nimport * as hyperv from \"@pulumi/hyperv\";\n\n// Create a virtual switch\nconst vSwitch = new hyperv.VirtualSwitch(\"example-switch\", {\n    name: \"example-switch\",\n    switchType: \"Internal\",\n});\n\n// Create a virtual machine\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 2,\n    memorySize: 2048,\n});\n\n// Create a network adapter for the VM\nconst nic = new hyperv.NetworkAdapter(\"example-nic\", {\n    name: \"example-nic\",\n    vmName: vm.machineName,\n    switchName: vSwitch.name,\n    // Optional properties\n    dhcpGuard: false,\n    routerGuard: false,\n    vlanId: 100,\n});\n```\n\n## Input Properties\n\n| Property         | Type     | Required | Description |\n|------------------|----------|----------|-------------|\n| name             | string   | Yes      | Name of the network adapter |\n| vmName           | string   | Yes      | Name of the virtual machine to attach the network adapter to |\n| switchName       | string   | Yes      | Name of the virtual switch to connect the network adapter to |\n| macAddress       | string   | No       | MAC address for the network adapter. If not specified, a dynamic MAC address will be generated |\n| vlanId           | number   | No       | VLAN ID for the network adapter. If not specified, no VLAN tagging is used |\n| dhcpGuard        | boolean  | No       | Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages |\n| routerGuard      | boolean  | No       | Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages |\n| portMirroring    | string   | No       | Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None |\n| ieeePriorityTag  | boolean  | No       | Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value |\n| vmqWeight        | number   | No       | VMQ weight for the network adapter. A value of 0 disables VMQ |\n| ipAddresses      | string   | No       | Comma-separated list of IP addresses to assign to the network adapter |\n\n## Output Properties\n\n| Property         | Type     | Description |\n|------------------|----------|-------------|\n| adapterId        | string   | The ID of the network adapter |\n\n## Lifecycle Management\n\n- **Create**: Creates a new network adapter and attaches it to the specified virtual machine.\n- **Read**: Reads the properties of an existing network adapter.\n- **Update**: Updates the properties of an existing network adapter.\n- **Delete**: Removes a network adapter from a virtual machine.\n\n## Notes\n\n- The network adapter creation will fail if the virtual machine or virtual switch does not exist.\n- Dynamic MAC addresses are automatically generated if not specified.\n- IP addresses are specified as a comma-separated string (e.g., \"192.168.1.10,192.168.1.11\").\n- When updating a network adapter, the virtual machine may need to be powered off depending on the properties being changed.",
+      "properties": {
+        "adapterId": {
+          "type": "string",
+          "description": "The ID of the network adapter"
+        },
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "dhcpGuard": {
+          "type": "boolean",
+          "description": "Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages."
+        },
+        "ieeePriorityTag": {
+          "type": "boolean",
+          "description": "Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value."
+        },
+        "ipAddresses": {
+          "type": "string",
+          "description": "Comma-separated list of IP addresses to assign to the network adapter."
+        },
+        "macAddress": {
+          "type": "string",
+          "description": "MAC address for the network adapter. If not specified, a dynamic MAC address will be generated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the network adapter"
+        },
+        "portMirroring": {
+          "type": "string",
+          "description": "Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None."
+        },
+        "routerGuard": {
+          "type": "boolean",
+          "description": "Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages."
+        },
+        "switchName": {
+          "type": "string",
+          "description": "Name of the virtual switch to connect the network adapter to"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vlanId": {
+          "type": "integer",
+          "description": "VLAN ID for the network adapter. If not specified, no VLAN tagging is used."
+        },
+        "vmName": {
+          "type": "string",
+          "description": "Name of the virtual machine to attach the network adapter to"
+        },
+        "vmqWeight": {
+          "type": "integer",
+          "description": "VMQ weight for the network adapter. A value of 0 disables VMQ."
+        }
+      },
+      "type": "object",
+      "required": [
+        "adapterId",
+        "name",
+        "switchName",
+        "vmName"
+      ],
+      "inputProperties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "dhcpGuard": {
+          "type": "boolean",
+          "description": "Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages."
+        },
+        "ieeePriorityTag": {
+          "type": "boolean",
+          "description": "Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value."
+        },
+        "ipAddresses": {
+          "type": "string",
+          "description": "Comma-separated list of IP addresses to assign to the network adapter."
+        },
+        "macAddress": {
+          "type": "string",
+          "description": "MAC address for the network adapter. If not specified, a dynamic MAC address will be generated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the network adapter"
+        },
+        "portMirroring": {
+          "type": "string",
+          "description": "Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None."
+        },
+        "routerGuard": {
+          "type": "boolean",
+          "description": "Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages."
+        },
+        "switchName": {
+          "type": "string",
+          "description": "Name of the virtual switch to connect the network adapter to"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vlanId": {
+          "type": "integer",
+          "description": "VLAN ID for the network adapter. If not specified, no VLAN tagging is used."
+        },
+        "vmName": {
+          "type": "string",
+          "description": "Name of the virtual machine to attach the network adapter to"
+        },
+        "vmqWeight": {
+          "type": "integer",
+          "description": "VMQ weight for the network adapter. A value of 0 disables VMQ."
+        }
+      },
+      "requiredInputs": [
+        "name",
+        "switchName",
+        "vmName"
+      ]
+    },
     "hyperv:vhdfile:VhdFile": {
       "description": "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V's VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    diskType: \"Dynamic\"\n});\n```\n",
       "properties": {
