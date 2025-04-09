@@ -9,6 +9,9 @@ import com.pulumi.core.annotations.ResourceType;
 import com.pulumi.core.internal.Codegen;
 import com.pulumi.hyperv.Utilities;
 import com.pulumi.hyperv.machine.MachineArgs;
+import com.pulumi.hyperv.machine.outputs.HardDriveInput;
+import com.pulumi.hyperv.networkadapter.outputs.NetworkAdapterInputs;
+import java.lang.Boolean;
 import java.lang.Integer;
 import java.lang.Object;
 import java.lang.String;
@@ -27,9 +30,12 @@ import javax.annotation.Nullable;
  * 
  * - Create and delete Hyper-V virtual machines
  * - Configure VM hardware properties including:
- *   - Memory allocation
+ *   - Memory allocation (static or dynamic with min/max)
  *   - Processor count
  *   - VM generation (Gen 1 or Gen 2)
+ *   - Auto start/stop actions
+ * - Attach hard drives with custom controller configuration
+ * - Configure network adapters with virtual switch connections
  * - Unique VM identification with automatic ID generation
  * 
  * ## Implementation Details
@@ -49,8 +55,12 @@ import javax.annotation.Nullable;
  * 2. **Configure VM Settings**:
  *    - Sets the virtual machine generation (defaults to Generation 2)
  *    - Configures memory settings (defaults to 1024 MB)
+ *    - Sets dynamic memory with min/max values if requested
  *    - Sets processor count (defaults to 1 vCPU)
+ *    - Configures auto start/stop actions
  * 3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+ * 4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+ * 5. **Configure Network Adapters**: Adds any specified network adapters to the VM
  * 
  * ### Virtual Machine Read
  * 
@@ -59,9 +69,10 @@ import javax.annotation.Nullable;
  * 2. Getting the VM by name
  * 3. Retrieving VM properties including:
  *    - VM ID
- *    - Memory settings
+ *    - Memory settings (including dynamic memory configuration)
  *    - Processor configuration
  *    - Generation
+ *    - Auto start/stop actions
  * 
  * ### Virtual Machine Update
  * 
@@ -84,15 +95,32 @@ import javax.annotation.Nullable;
  * | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
  * | `processorCount` | int | Number of processors to allocate | 1 |
  * | `memorySize` | int | Memory size in MB | 1024 |
+ * | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+ * | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+ * | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+ * | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+ * | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+ * | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+ * | `hardDrives` | array | Hard drives to attach to the VM | [] |
  * | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
  * 
- * ## Future Extensions
+ * ### Network Adapter Properties
  * 
- * The code includes scaffolding for future enhancements including:
- * - Network adapter configuration
- * - Hard drive attachments
- * - Key protector for secure boot
- * - Additional system settings
+ * | Property | Type | Description | Default |
+ * |----------|------|-------------|---------|
+ * | `name` | string | Name of the network adapter | &#34;Network Adapter&#34; |
+ * | `switchName` | string | Name of the virtual switch to connect to | (required) |
+ * 
+ * ### Hard Drive Properties
+ * 
+ * | Property | Type | Description | Default |
+ * |----------|------|-------------|---------|
+ * | `path` | string | Path to the VHD/VHDX file | (required) |
+ * | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+ * | `controllerNumber` | int | Controller number | 0 |
+ * | `controllerLocation` | int | Controller location | 0 |
+ * 
+ * ## Usage Examples
  * 
  * ## Related Documentation
  * 
@@ -102,6 +130,34 @@ import javax.annotation.Nullable;
  */
 @ResourceType(type="hyperv:machine:Machine")
 public class Machine extends com.pulumi.resources.CustomResource {
+    /**
+     * The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     * 
+     */
+    @Export(name="autoStartAction", refs={String.class}, tree="[0]")
+    private Output</* @Nullable */ String> autoStartAction;
+
+    /**
+     * @return The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     * 
+     */
+    public Output<Optional<String>> autoStartAction() {
+        return Codegen.optional(this.autoStartAction);
+    }
+    /**
+     * The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     * 
+     */
+    @Export(name="autoStopAction", refs={String.class}, tree="[0]")
+    private Output</* @Nullable */ String> autoStopAction;
+
+    /**
+     * @return The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     * 
+     */
+    public Output<Optional<String>> autoStopAction() {
+        return Codegen.optional(this.autoStopAction);
+    }
     /**
      * The command to run on create.
      * 
@@ -135,6 +191,20 @@ public class Machine extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.delete);
     }
     /**
+     * Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     * 
+     */
+    @Export(name="dynamicMemory", refs={Boolean.class}, tree="[0]")
+    private Output</* @Nullable */ Boolean> dynamicMemory;
+
+    /**
+     * @return Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     * 
+     */
+    public Output<Optional<Boolean>> dynamicMemory() {
+        return Codegen.optional(this.dynamicMemory);
+    }
+    /**
      * Generation of the Virtual Machine. Defaults to 2.
      * 
      */
@@ -147,6 +217,20 @@ public class Machine extends com.pulumi.resources.CustomResource {
      */
     public Output<Optional<Integer>> generation() {
         return Codegen.optional(this.generation);
+    }
+    /**
+     * Hard drives to attach to the Virtual Machine.
+     * 
+     */
+    @Export(name="hardDrives", refs={List.class,HardDriveInput.class}, tree="[0,1]")
+    private Output</* @Nullable */ List<HardDriveInput>> hardDrives;
+
+    /**
+     * @return Hard drives to attach to the Virtual Machine.
+     * 
+     */
+    public Output<Optional<List<HardDriveInput>>> hardDrives() {
+        return Codegen.optional(this.hardDrives);
     }
     /**
      * Name of the Virtual Machine
@@ -163,6 +247,20 @@ public class Machine extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.machineName);
     }
     /**
+     * Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    @Export(name="maximumMemory", refs={Integer.class}, tree="[0]")
+    private Output</* @Nullable */ Integer> maximumMemory;
+
+    /**
+     * @return Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    public Output<Optional<Integer>> maximumMemory() {
+        return Codegen.optional(this.maximumMemory);
+    }
+    /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      * 
      */
@@ -175,6 +273,34 @@ public class Machine extends com.pulumi.resources.CustomResource {
      */
     public Output<Optional<Integer>> memorySize() {
         return Codegen.optional(this.memorySize);
+    }
+    /**
+     * Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    @Export(name="minimumMemory", refs={Integer.class}, tree="[0]")
+    private Output</* @Nullable */ Integer> minimumMemory;
+
+    /**
+     * @return Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    public Output<Optional<Integer>> minimumMemory() {
+        return Codegen.optional(this.minimumMemory);
+    }
+    /**
+     * Network adapters to attach to the Virtual Machine.
+     * 
+     */
+    @Export(name="networkAdapters", refs={List.class,NetworkAdapterInputs.class}, tree="[0,1]")
+    private Output</* @Nullable */ List<NetworkAdapterInputs>> networkAdapters;
+
+    /**
+     * @return Network adapters to attach to the Virtual Machine.
+     * 
+     */
+    public Output<Optional<List<NetworkAdapterInputs>>> networkAdapters() {
+        return Codegen.optional(this.networkAdapters);
     }
     /**
      * Number of processors to allocate to the Virtual Machine. Defaults to 1.

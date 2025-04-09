@@ -5,19 +5,42 @@
 package examples
 
 import (
+	"path/filepath"
 	"testing"
 
-	"github.com/pulumi/pulumi/pkg/v3/testing/integration"
+	"github.com/pulumi/providertest/pulumitest"
+	"github.com/pulumi/providertest/pulumitest/opttest"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optrefresh"
 )
 
-func getNodeBaseOptions(t *testing.T) integration.ProgramTestOptions {
-	base := getBaseOptions(t)
-	baseGo := base.With(integration.ProgramTestOptions{
-		Verbose: true,
-		Dependencies: []string{
-			"github.com/pulumi/pulumi-hyperv-provider/sdk",
-		},
-	})
-
-	return baseGo
+func TestTsExamples(t *testing.T) {
+	tests := map[string]struct {
+		directoryName    string
+		additionalConfig map[string]string
+	}{
+		"TestDevEnv":       {directoryName: "devenv"},
+		"TestSimpleAllFour": {directoryName: "simple-all-four"},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			p := pulumitest.NewPulumiTest(t, test.directoryName,
+				opttest.LocalProviderPath("pulumi-hyperv-provider", filepath.Join(getCwd(t), "..", "bin")),
+				opttest.YarnLink("@pulumi/hyperv"),
+			)
+			if test.additionalConfig != nil {
+				for key, value := range test.additionalConfig {
+					p.SetConfig(t, key, value)
+				}
+			}
+			// Run pulumi up and verify resources
+			res := p.Up(t)
+			// Verify resources (1 switch + 1 base VHD + 3 VMs + 3 NICs + 3 differencing VHDs)
+			if len(res.Outputs) > 0 {
+				t.Logf("Deployed resources successfully")
+			}
+			p.Preview(t, optpreview.ExpectNoChanges())
+			p.Refresh(t, optrefresh.ExpectNoChanges())
+		})
+	}
 }

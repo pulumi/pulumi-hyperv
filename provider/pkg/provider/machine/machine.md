@@ -8,9 +8,12 @@ The Machine resource in the Pulumi Hyper-V provider allows you to create, manage
 
 - Create and delete Hyper-V virtual machines
 - Configure VM hardware properties including:
-  - Memory allocation
+  - Memory allocation (static or dynamic with min/max)
   - Processor count
   - VM generation (Gen 1 or Gen 2)
+  - Auto start/stop actions
+- Attach hard drives with custom controller configuration
+- Configure network adapters with virtual switch connections
 - Unique VM identification with automatic ID generation
 
 ## Implementation Details
@@ -30,8 +33,12 @@ The `Create` method performs the following steps:
 2. **Configure VM Settings**:
    - Sets the virtual machine generation (defaults to Generation 2)
    - Configures memory settings (defaults to 1024 MB)
+   - Sets dynamic memory with min/max values if requested
    - Sets processor count (defaults to 1 vCPU)
+   - Configures auto start/stop actions
 3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+5. **Configure Network Adapters**: Adds any specified network adapters to the VM
 
 ### Virtual Machine Read
 
@@ -40,9 +47,10 @@ The `Read` method retrieves the current state of a virtual machine by:
 2. Getting the VM by name
 3. Retrieving VM properties including:
    - VM ID
-   - Memory settings
+   - Memory settings (including dynamic memory configuration)
    - Processor configuration  
    - Generation
+   - Auto start/stop actions
 
 ### Virtual Machine Update
 
@@ -65,15 +73,57 @@ The `Delete` method:
 | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
 | `processorCount` | int | Number of processors to allocate | 1 |
 | `memorySize` | int | Memory size in MB | 1024 |
+| `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+| `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+| `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+| `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+| `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+| `networkAdapters` | array | Network adapters to attach to the VM | [] |
+| `hardDrives` | array | Hard drives to attach to the VM | [] |
 | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 
-## Future Extensions
+### Network Adapter Properties
 
-The code includes scaffolding for future enhancements including:
-- Network adapter configuration
-- Hard drive attachments
-- Key protector for secure boot
-- Additional system settings
+| Property | Type | Description | Default |
+|----------|------|-------------|---------|
+| `name` | string | Name of the network adapter | "Network Adapter" |
+| `switchName` | string | Name of the virtual switch to connect to | (required) |
+
+### Hard Drive Properties
+
+| Property | Type | Description | Default |
+|----------|------|-------------|---------|
+| `path` | string | Path to the VHD/VHDX file | (required) |
+| `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+| `controllerNumber` | int | Controller number | 0 |
+| `controllerLocation` | int | Controller location | 0 |
+
+## Usage Examples
+
+```typescript
+// Create a new VM with a network adapter and hard drive
+const vm = new hyperv.Machine("example-vm", {
+    machineName: "example-vm",
+    generation: 2,
+    processorCount: 4,
+    memorySize: 4096,
+    dynamicMemory: true,
+    minimumMemory: 2048,
+    maximumMemory: 8192,
+    autoStartAction: "StartIfRunning",
+    autoStopAction: "Save",
+    hardDrives: [{
+        path: "C:\\VMs\\example-vm\\disk.vhdx",
+        controllerType: "SCSI",
+        controllerNumber: 0,
+        controllerLocation: 0
+    }],
+    networkAdapters: [{
+        name: "Primary Network",
+        switchName: "External Switch"
+    }]
+});
+```
 
 ## Related Documentation
 

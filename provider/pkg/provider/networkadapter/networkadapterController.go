@@ -76,9 +76,13 @@ func (c *NetworkAdapter) Read(ctx context.Context, id string, inputs NetworkAdap
 		adapterName = *inputs.Name
 	}
 
-	// If VM name is not provided, we can't find the adapter
+	// If VM name is not provided, this might be a reference adapter used by a Machine resource
 	if vmName == "" {
-		return outputs, fmt.Errorf("vmName is required to read network adapter")
+		logger.Debug("vmName not provided for read - this may be a reference adapter for use in a Machine resource")
+		// Return the current state for reference adapters
+		adapterId := id
+		outputs.AdapterId = &adapterId
+		return outputs, nil
 	}
 
 	// Connect to Hyper-V
@@ -256,9 +260,14 @@ func (c *NetworkAdapter) Create(ctx context.Context, name string, input NetworkA
 		return id, state, nil
 	}
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if input.VMName == nil {
-		return id, state, fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided - this may be a reference adapter for use in a Machine resource")
+		// In this case, we'll create a "virtual" adapter state that can be referenced
+		// but the actual adapter will be created by the Machine resource
+		adapterIdStr := fmt.Sprintf("ref-%s", id)
+		state.AdapterId = &adapterIdStr
+		return id, state, nil
 	}
 	if input.SwitchName == nil {
 		return id, state, fmt.Errorf("switchName is required")
@@ -582,9 +591,11 @@ func (c *NetworkAdapter) Update(ctx context.Context, id string, olds NetworkAdap
 		return state, nil
 	}
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if news.VMName == nil {
-		return state, fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided for update - this may be a reference adapter for use in a Machine resource")
+		// Return the state as-is since this may be a reference adapter
+		return state, nil
 	}
 
 	// Preserve adapter ID from old state
@@ -822,9 +833,11 @@ func (c *NetworkAdapter) Update(ctx context.Context, id string, olds NetworkAdap
 func (c *NetworkAdapter) Delete(ctx context.Context, id string, props NetworkAdapterOutputs) error {
 	logger := provider.GetLogger(ctx)
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if props.VMName == nil {
-		return fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided for delete - this may be a reference adapter for use in a Machine resource")
+		// No real adapter to delete, this was just a reference
+		return nil
 	}
 
 	// Connect to Hyper-V

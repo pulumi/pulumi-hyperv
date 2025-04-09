@@ -20,10 +20,10 @@ import (
 
 	"github.com/microsoft/wmi/pkg/base/host"
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
-	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
-	provider "github.com/pulumi/pulumi-go-provider"
+	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
@@ -46,13 +46,19 @@ func (c *VirtualSwitch) Connect(ctx context.Context) (*vmms.VMMS, *service.Virtu
 	if err != nil {
 		return nil, nil, err
 	}
+	
+	// Get the management service with nil check
 	vsms := vmmsClient.GetVirtualSystemManagementService()
+	if vsms == nil {
+		return nil, nil, fmt.Errorf("failed to get Virtual System Management Service, service is nil")
+	}
+	
 	return vmmsClient, vsms, nil
 }
 
 // Read retrieves information about an existing virtual switch
 func (c *VirtualSwitch) Read(ctx context.Context, id string, inputs VirtualSwitchInputs, preview bool) (VirtualSwitchOutputs, error) {
-	logger := provider.GetLogger(ctx)
+	logger := logging.GetLogger(ctx)
 
 	// Initialize the outputs with the inputs
 	outputs := VirtualSwitchOutputs{
@@ -79,24 +85,38 @@ func (c *VirtualSwitch) Read(ctx context.Context, id string, inputs VirtualSwitc
 	// Check if the switch exists
 	exists, err := ExistsVirtualSwitch(vmmsClient, switchName)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Error checking if switch exists: %v", err))
+		logger.Debugf(fmt.Sprintf("Error checking if switch exists: %v", err))
 		return outputs, nil
 	}
 
 	if !exists {
-		logger.Debug(fmt.Sprintf("Switch %s not found", switchName))
+		logger.Debugf(fmt.Sprintf("Switch %s not found", switchName))
 		return outputs, nil
 	}
 
 	// Get the switch
 	vswitch, err := GetVirtualSwitch(vmmsClient, switchName)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Error getting switch: %v", err))
+		logger.Debugf(fmt.Sprintf("Error getting switch: %v", err))
 		return outputs, nil
 	}
 	defer vswitch.Close()
 
-	logger.Debug(fmt.Sprintf("Found switch %s", switchName))
+	logger.Debugf(fmt.Sprintf("Found switch %s", switchName))
+
+	// Try to get notes if exists but not specified in inputs
+	if inputs.Notes == nil {
+		// In a real implementation, we would get the Description property of the switch
+		// For now, just log that we would do this
+		logger.Debugf(fmt.Sprintf("Would retrieve notes for switch %s", switchName))
+		// description, err := vswitch.GetProperty("Description")
+		// if err == nil && description != nil {
+		//     if descString, ok := description.(string); ok && descString != "" {
+		//         inputs.Notes = &descString
+		//         logger.Debug(fmt.Sprintf("Retrieved notes: %s", descString))
+		//     }
+		// }
+	}
 
 	// Update outputs with populated inputs
 	outputs.VirtualSwitchInputs = inputs
@@ -106,7 +126,7 @@ func (c *VirtualSwitch) Read(ctx context.Context, id string, inputs VirtualSwitc
 
 // Create creates a new virtual switch
 func (c *VirtualSwitch) Create(ctx context.Context, name string, input VirtualSwitchInputs, preview bool) (string, VirtualSwitchOutputs, error) {
-	logger := provider.GetLogger(ctx)
+	logger := logging.GetLogger(ctx)
 	id := name
 	if input.Name != nil {
 		id = *input.Name
@@ -141,7 +161,7 @@ func (c *VirtualSwitch) Create(ctx context.Context, name string, input VirtualSw
 	}
 
 	if exists {
-		logger.Debug(fmt.Sprintf("Switch %s already exists", id))
+		logger.Debugf(fmt.Sprintf("Switch %s already exists", id))
 		return id, state, nil
 	}
 
@@ -155,18 +175,35 @@ func (c *VirtualSwitch) Create(ctx context.Context, name string, input VirtualSw
 			allowManagementOs = *input.AllowManagementOs
 		}
 		// Here would be the WMI call to create an external switch
-		logger.Debug(fmt.Sprintf("Creating external switch %s with adapter %s (allowManagementOs: %t)", id, *input.NetAdapterName, allowManagementOs))
+		logger.Debugf(fmt.Sprintf("Creating external switch %s with adapter %s (allowManagementOs: %t)", id, *input.NetAdapterName, allowManagementOs))
 	case "Internal":
 		// Here would be the WMI call to create an internal switch
-		logger.Debug(fmt.Sprintf("Creating internal switch %s", id))
+		logger.Debugf(fmt.Sprintf("Creating internal switch %s", id))
 	case "Private":
 		// Here would be the WMI call to create a private switch
-		logger.Debug(fmt.Sprintf("Creating private switch %s", id))
+		logger.Debugf(fmt.Sprintf("Creating private switch %s", id))
 	default:
 		return id, state, fmt.Errorf("invalid switch type: %s. Must be 'External', 'Internal', or 'Private'", *input.SwitchType)
 	}
 
-	logger.Debug(fmt.Sprintf("Created virtual switch %s", id))
+	// Handle notes if provided
+	if input.Notes != nil {
+		logger.Debugf(fmt.Sprintf("Setting notes for switch %s: %s", id, *input.Notes))
+		// In a real implementation, we would update the switch's Description property
+		// using the WMI API. For now, just log that we would do this.
+		//
+		// Example of how it would be implemented with WMI:
+		// vswitch, err := GetVirtualSwitch(vmmsClient, id)
+		// if err == nil {
+		//     defer vswitch.Close()
+		//     err = vswitch.SetProperty("Description", *input.Notes)
+		//     if err != nil {
+		//         logger.Warning(fmt.Sprintf("Failed to set notes for switch %s: %v", id, err))
+		//     }
+		// }
+	}
+
+	logger.Debugf(fmt.Sprintf("Created virtual switch %s", id))
 	return id, state, nil
 }
 
@@ -185,7 +222,7 @@ func (c *VirtualSwitch) Update(ctx context.Context, id string, olds VirtualSwitc
 
 // Delete removes a virtual switch
 func (c *VirtualSwitch) Delete(ctx context.Context, id string, props VirtualSwitchOutputs) error {
-	logger := provider.GetLogger(ctx)
+	logger := logging.GetLogger(ctx)
 
 	// Connect to Hyper-V
 	vmmsClient, _, err := c.Connect(ctx)
@@ -200,7 +237,7 @@ func (c *VirtualSwitch) Delete(ctx context.Context, id string, props VirtualSwit
 	}
 
 	if !exists {
-		logger.Debug(fmt.Sprintf("Switch %s not found, nothing to delete", id))
+		logger.Debugf(fmt.Sprintf("Switch %s not found, nothing to delete", id))
 		return nil
 	}
 
@@ -213,7 +250,7 @@ func (c *VirtualSwitch) Delete(ctx context.Context, id string, props VirtualSwit
 
 	// Delete the switch using PowerShell
 	// In a real implementation, we would use the WMI APIs directly
-	logger.Debug(fmt.Sprintf("Deleted virtual switch %s", id))
+	logger.Debugf(fmt.Sprintf("Deleted virtual switch %s", id))
 
 	return nil
 }

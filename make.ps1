@@ -297,8 +297,9 @@ function Target-sdk_go {
 
 function Target-provider {
     if ($IsWindowsEnvironment) {
+        Write-Host "Building provider for Windows: $WORKING_DIR\bin\$PROVIDER$EXE with version $VERSION_GENERIC"
         Invoke-CommandWithChangeDirectory "provider" {
-            go build -o "$WORKING_DIR\bin\$PROVIDER$EXE" -ldflags "-X '$PROJECT/$VERSION_PATH=$VERSION_GENERIC'" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
+            go build -o "$WORKING_DIR\bin\$PROVIDER$EXE" -ldflags "-X $PROJECT/$VERSION_PATH=$VERSION_GENERIC" "$PROJECT/$PROVIDER_PATH/cmd/$PROVIDER"
         }
     }
     else {
@@ -334,7 +335,8 @@ function Target-dotnet_sdk {
     # Use Target-SchemaFile only if schema.json doesn't exist
     if (-not (Test-Path $SCHEMA_FILE)) {
         Target-SchemaFile
-    } else {
+    }
+    else {
         # Ensure Pulumi exists
         if (-not (Test-Path $PULUMI)) {
             Target-Pulumi
@@ -352,7 +354,8 @@ function Target-go_sdk {
     # Use Target-SchemaFile only if schema.json doesn't exist
     if (-not (Test-Path $SCHEMA_FILE)) {
         Target-SchemaFile
-    } else {
+    }
+    else {
         # Ensure Pulumi exists
         if (-not (Test-Path $PULUMI)) {
             Target-Pulumi
@@ -366,7 +369,8 @@ function Target-nodejs_sdk {
     # Use Target-SchemaFile only if schema.json doesn't exist
     if (-not (Test-Path $SCHEMA_FILE)) {
         Target-SchemaFile
-    } else {
+    }
+    else {
         # Ensure Pulumi exists
         if (-not (Test-Path $PULUMI)) {
             Target-Pulumi
@@ -376,6 +380,7 @@ function Target-nodejs_sdk {
     Target-sdk "nodejs"
     Invoke-CommandWithChangeDirectory "sdk/nodejs" {
         yarn install
+        yarn run tsc --version
         yarn run tsc
     }
     Write-Host "Copying nodejs SDK files to bin directory"
@@ -388,7 +393,8 @@ function Target-python_sdk {
     # Use Target-SchemaFile only if schema.json doesn't exist
     if (-not (Test-Path $SCHEMA_FILE)) {
         Target-SchemaFile
-    } else {
+    }
+    else {
         # Ensure Pulumi exists
         if (-not (Test-Path $PULUMI)) {
             Target-Pulumi
@@ -493,7 +499,8 @@ function Target-java_sdk {
     # Use Target-SchemaFile only if schema.json doesn't exist
     if (-not (Test-Path $SCHEMA_FILE)) {
         Target-SchemaFile
-    } else {
+    }
+    else {
         # Ensure Pulumi exists
         if (-not (Test-Path $PULUMI)) {
             Target-Pulumi

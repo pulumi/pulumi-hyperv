@@ -19,6 +19,7 @@ import (
 
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
 )
 
 //go:embed machine.md
@@ -40,7 +41,10 @@ func (c *Machine) Annotate(a infer.Annotator) {
 	a.Describe(&c, resourceDoc)
 }
 
-// This is the type that implements the network adapter inputs.
+// We use the NetworkAdapterInputs from the networkadapter package
+// The local NetworkAdapterInput type is kept for backward compatibility but marked as deprecated
+// and will be removed in a future version
+// DEPRECATED: Use networkadapter.NetworkAdapterInputs instead
 type NetworkAdapterInput struct {
 	Name       *string `pulumi:"name"`
 	SwitchName *string `pulumi:"switchName"`
@@ -56,12 +60,17 @@ type HardDriveInput struct {
 // These are the inputs (or arguments) to a Vm resource.
 type MachineInputs struct {
 	common.ResourceInputs
-	MachineName    *string `pulumi:"machineName,optional"`
-	Generation     *int    `pulumi:"generation,optional"`
-	ProcessorCount *int    `pulumi:"processorCount,optional"`
-	MemorySize     *int    `pulumi:"memorySize,optional"`
-	// NetworkAdapters []*NetworkAdapterInput `pulumi:"networkAdapters,optional"`
-	// HardDrives []*HardDriveInput `pulumi:"hardDrives,optional"`
+	MachineName     *string                                `pulumi:"machineName,optional"`
+	Generation      *int                                   `pulumi:"generation,optional"`
+	ProcessorCount  *int                                   `pulumi:"processorCount,optional"`
+	MemorySize      *int                                   `pulumi:"memorySize,optional"`
+	DynamicMemory   *bool                                  `pulumi:"dynamicMemory,optional"`
+	MinimumMemory   *int                                   `pulumi:"minimumMemory,optional"`
+	MaximumMemory   *int                                   `pulumi:"maximumMemory,optional"`
+	AutoStartAction *string                                `pulumi:"autoStartAction,optional"`
+	AutoStopAction  *string                                `pulumi:"autoStopAction,optional"`
+	NetworkAdapters []*networkadapter.NetworkAdapterInputs `pulumi:"networkAdapters,optional"`
+	HardDrives      []*HardDriveInput                      `pulumi:"hardDrives,optional"`
 }
 
 func (c *MachineInputs) Annotate(a infer.Annotator) {
@@ -69,14 +78,13 @@ func (c *MachineInputs) Annotate(a infer.Annotator) {
 	a.Describe(&c.ProcessorCount, "Number of processors to allocate to the Virtual Machine. Defaults to 1.")
 	a.Describe(&c.MemorySize, "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.")
 	a.Describe(&c.Generation, "Generation of the Virtual Machine. Defaults to 2.")
-	// a.Describe(&c.HardDrives, "Hard drives to attach to the Virtual Machine.")
-	// a.Describe(&c.HardDrives[0].Path, "Path to the hard drive file.")
-	// a.Describe(&c.HardDrives[0].ControllerType, "Type of controller to use for the hard drive. Defaults to SCSI.")
-	// a.Describe(&c.HardDrives[0].ControllerNumber, "Number of the controller to use for the hard drive. Defaults to 0.")
-	// a.Describe(&c.HardDrives[0].ControllerLocation, "Location of the controller to use for the hard drive. Defaults to 0.")
-	// a.Describe(&c.NetworkAdapters, "Network adapters to attach to the Virtual Machine.")
-	// a.Describe(&c.NetworkAdapters[0].Name, "Name of the network adapter.")
-	// a.Describe(&c.NetworkAdapters[0].SwitchName, "Name of the virtual switch to connect the network adapter to.")
+	a.Describe(&c.DynamicMemory, "Whether to enable dynamic memory for the Virtual Machine. Defaults to false.")
+	a.Describe(&c.MinimumMemory, "Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.")
+	a.Describe(&c.MaximumMemory, "Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.")
+	a.Describe(&c.AutoStartAction, "The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.")
+	a.Describe(&c.AutoStopAction, "The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.")
+	a.Describe(&c.HardDrives, "Hard drives to attach to the Virtual Machine.")
+	a.Describe(&c.NetworkAdapters, "Network adapters to attach to the Virtual Machine.")
 }
 
 // These are the outputs (or properties) of a Vm resource.

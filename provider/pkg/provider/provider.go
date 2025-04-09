@@ -21,6 +21,7 @@ import (
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vhdfile"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/virtualswitch"
 )
@@ -31,6 +32,9 @@ const (
 
 // This provider uses the `pulumi-go-provider` library to produce a code-first provider definition.
 func NewProvider() p.Provider {
+	// Check if Hyper-V is supported on this system
+	util.CheckHyperVSupport()
+
 	return infer.Provider(infer.Options{
 		// This is the metadata for the provider
 		Metadata: schema.Metadata{

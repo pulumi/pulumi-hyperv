@@ -235,15 +235,15 @@ public final class NetworkAdapterArgs extends com.pulumi.resources.ResourceArgs 
      * Name of the virtual machine to attach the network adapter to
      * 
      */
-    @Import(name="vmName", required=true)
-    private Output<String> vmName;
+    @Import(name="vmName")
+    private @Nullable Output<String> vmName;
 
     /**
      * @return Name of the virtual machine to attach the network adapter to
      * 
      */
-    public Output<String> vmName() {
-        return this.vmName;
+    public Optional<Output<String>> vmName() {
+        return Optional.ofNullable(this.vmName);
     }
 
     /**
@@ -607,7 +607,7 @@ public final class NetworkAdapterArgs extends com.pulumi.resources.ResourceArgs 
          * @return builder
          * 
          */
-        public Builder vmName(Output<String> vmName) {
+        public Builder vmName(@Nullable Output<String> vmName) {
             $.vmName = vmName;
             return this;
         }
@@ -649,9 +649,6 @@ public final class NetworkAdapterArgs extends com.pulumi.resources.ResourceArgs 
             }
             if ($.switchName == null) {
                 throw new MissingRequiredPropertyException("NetworkAdapterArgs", "switchName");
-            }
-            if ($.vmName == null) {
-                throw new MissingRequiredPropertyException("NetworkAdapterArgs", "vmName");
             }
             return $;
         }

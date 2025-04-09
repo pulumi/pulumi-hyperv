@@ -11,6 +11,8 @@ import * as utilities from "../utilities";
  *
  * ## Example Usage
  *
+ * ### Standalone Network Adapter
+ *
  * ```typescript
  * import * as hyperv from "@pulumi/hyperv";
  *
@@ -37,6 +39,32 @@ import * as utilities from "../utilities";
  *     dhcpGuard: false,
  *     routerGuard: false,
  *     vlanId: 100,
+ * });
+ * ```
+ *
+ * ### Using the NetworkAdapters Property in Machine Resource
+ *
+ * You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
+ *
+ * ```typescript
+ * import * as hyperv from "@pulumi/hyperv";
+ *
+ * // Create a virtual switch
+ * const vSwitch = new hyperv.VirtualSwitch("example-switch", {
+ *     name: "example-switch",
+ *     switchType: "Internal",
+ * });
+ *
+ * // Create a virtual machine with a network adapter
+ * const vm = new hyperv.Machine("example-vm", {
+ *     machineName: "example-vm",
+ *     generation: 2,
+ *     processorCount: 2,
+ *     memorySize: 2048,
+ *     networkAdapters: [{
+ *         name: "Primary Network",
+ *         switchName: vSwitch.name,
+ *     }],
  * });
  * ```
  *
@@ -170,7 +198,7 @@ export class NetworkAdapter extends pulumi.CustomResource {
     /**
      * Name of the virtual machine to attach the network adapter to
      */
-    public readonly vmName!: pulumi.Output<string>;
+    public readonly vmName!: pulumi.Output<string | undefined>;
     /**
      * VMQ weight for the network adapter. A value of 0 disables VMQ.
      */
@@ -192,9 +220,6 @@ export class NetworkAdapter extends pulumi.CustomResource {
             }
             if ((!args || args.switchName === undefined) && !opts.urn) {
                 throw new Error("Missing required property 'switchName'");
-            }
-            if ((!args || args.vmName === undefined) && !opts.urn) {
-                throw new Error("Missing required property 'vmName'");
             }
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
@@ -304,7 +329,7 @@ export interface NetworkAdapterArgs {
     /**
      * Name of the virtual machine to attach the network adapter to
      */
-    vmName: pulumi.Input<string>;
+    vmName?: pulumi.Input<string>;
     /**
      * VMQ weight for the network adapter. A value of 0 disables VMQ.
      */

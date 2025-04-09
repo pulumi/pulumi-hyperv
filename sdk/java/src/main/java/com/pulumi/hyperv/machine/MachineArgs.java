@@ -5,6 +5,9 @@ package com.pulumi.hyperv.machine;
 
 import com.pulumi.core.Output;
 import com.pulumi.core.annotations.Import;
+import com.pulumi.hyperv.machine.inputs.HardDriveInputArgs;
+import com.pulumi.hyperv.networkadapter.inputs.NetworkAdapterInputsArgs;
+import java.lang.Boolean;
 import java.lang.Integer;
 import java.lang.Object;
 import java.lang.String;
@@ -17,6 +20,36 @@ import javax.annotation.Nullable;
 public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
 
     public static final MachineArgs Empty = new MachineArgs();
+
+    /**
+     * The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     * 
+     */
+    @Import(name="autoStartAction")
+    private @Nullable Output<String> autoStartAction;
+
+    /**
+     * @return The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+     * 
+     */
+    public Optional<Output<String>> autoStartAction() {
+        return Optional.ofNullable(this.autoStartAction);
+    }
+
+    /**
+     * The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     * 
+     */
+    @Import(name="autoStopAction")
+    private @Nullable Output<String> autoStopAction;
+
+    /**
+     * @return The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+     * 
+     */
+    public Optional<Output<String>> autoStopAction() {
+        return Optional.ofNullable(this.autoStopAction);
+    }
 
     /**
      * The command to run on create.
@@ -53,6 +86,21 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
+     * Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     * 
+     */
+    @Import(name="dynamicMemory")
+    private @Nullable Output<Boolean> dynamicMemory;
+
+    /**
+     * @return Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+     * 
+     */
+    public Optional<Output<Boolean>> dynamicMemory() {
+        return Optional.ofNullable(this.dynamicMemory);
+    }
+
+    /**
      * Generation of the Virtual Machine. Defaults to 2.
      * 
      */
@@ -65,6 +113,21 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
      */
     public Optional<Output<Integer>> generation() {
         return Optional.ofNullable(this.generation);
+    }
+
+    /**
+     * Hard drives to attach to the Virtual Machine.
+     * 
+     */
+    @Import(name="hardDrives")
+    private @Nullable Output<List<HardDriveInputArgs>> hardDrives;
+
+    /**
+     * @return Hard drives to attach to the Virtual Machine.
+     * 
+     */
+    public Optional<Output<List<HardDriveInputArgs>>> hardDrives() {
+        return Optional.ofNullable(this.hardDrives);
     }
 
     /**
@@ -83,6 +146,21 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
+     * Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    @Import(name="maximumMemory")
+    private @Nullable Output<Integer> maximumMemory;
+
+    /**
+     * @return Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    public Optional<Output<Integer>> maximumMemory() {
+        return Optional.ofNullable(this.maximumMemory);
+    }
+
+    /**
      * Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
      * 
      */
@@ -95,6 +173,36 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
      */
     public Optional<Output<Integer>> memorySize() {
         return Optional.ofNullable(this.memorySize);
+    }
+
+    /**
+     * Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    @Import(name="minimumMemory")
+    private @Nullable Output<Integer> minimumMemory;
+
+    /**
+     * @return Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+     * 
+     */
+    public Optional<Output<Integer>> minimumMemory() {
+        return Optional.ofNullable(this.minimumMemory);
+    }
+
+    /**
+     * Network adapters to attach to the Virtual Machine.
+     * 
+     */
+    @Import(name="networkAdapters")
+    private @Nullable Output<List<NetworkAdapterInputsArgs>> networkAdapters;
+
+    /**
+     * @return Network adapters to attach to the Virtual Machine.
+     * 
+     */
+    public Optional<Output<List<NetworkAdapterInputsArgs>>> networkAdapters() {
+        return Optional.ofNullable(this.networkAdapters);
     }
 
     /**
@@ -157,11 +265,18 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
     private MachineArgs() {}
 
     private MachineArgs(MachineArgs $) {
+        this.autoStartAction = $.autoStartAction;
+        this.autoStopAction = $.autoStopAction;
         this.create = $.create;
         this.delete = $.delete;
+        this.dynamicMemory = $.dynamicMemory;
         this.generation = $.generation;
+        this.hardDrives = $.hardDrives;
         this.machineName = $.machineName;
+        this.maximumMemory = $.maximumMemory;
         this.memorySize = $.memorySize;
+        this.minimumMemory = $.minimumMemory;
+        this.networkAdapters = $.networkAdapters;
         this.processorCount = $.processorCount;
         this.triggers = $.triggers;
         this.update = $.update;
@@ -183,6 +298,48 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
 
         public Builder(MachineArgs defaults) {
             $ = new MachineArgs(Objects.requireNonNull(defaults));
+        }
+
+        /**
+         * @param autoStartAction The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder autoStartAction(@Nullable Output<String> autoStartAction) {
+            $.autoStartAction = autoStartAction;
+            return this;
+        }
+
+        /**
+         * @param autoStartAction The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder autoStartAction(String autoStartAction) {
+            return autoStartAction(Output.of(autoStartAction));
+        }
+
+        /**
+         * @param autoStopAction The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder autoStopAction(@Nullable Output<String> autoStopAction) {
+            $.autoStopAction = autoStopAction;
+            return this;
+        }
+
+        /**
+         * @param autoStopAction The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder autoStopAction(String autoStopAction) {
+            return autoStopAction(Output.of(autoStopAction));
         }
 
         /**
@@ -232,6 +389,27 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
+         * @param dynamicMemory Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder dynamicMemory(@Nullable Output<Boolean> dynamicMemory) {
+            $.dynamicMemory = dynamicMemory;
+            return this;
+        }
+
+        /**
+         * @param dynamicMemory Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder dynamicMemory(Boolean dynamicMemory) {
+            return dynamicMemory(Output.of(dynamicMemory));
+        }
+
+        /**
          * @param generation Generation of the Virtual Machine. Defaults to 2.
          * 
          * @return builder
@@ -250,6 +428,37 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
          */
         public Builder generation(Integer generation) {
             return generation(Output.of(generation));
+        }
+
+        /**
+         * @param hardDrives Hard drives to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder hardDrives(@Nullable Output<List<HardDriveInputArgs>> hardDrives) {
+            $.hardDrives = hardDrives;
+            return this;
+        }
+
+        /**
+         * @param hardDrives Hard drives to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder hardDrives(List<HardDriveInputArgs> hardDrives) {
+            return hardDrives(Output.of(hardDrives));
+        }
+
+        /**
+         * @param hardDrives Hard drives to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder hardDrives(HardDriveInputArgs... hardDrives) {
+            return hardDrives(List.of(hardDrives));
         }
 
         /**
@@ -274,6 +483,27 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
+         * @param maximumMemory Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder maximumMemory(@Nullable Output<Integer> maximumMemory) {
+            $.maximumMemory = maximumMemory;
+            return this;
+        }
+
+        /**
+         * @param maximumMemory Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder maximumMemory(Integer maximumMemory) {
+            return maximumMemory(Output.of(maximumMemory));
+        }
+
+        /**
          * @param memorySize Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
          * 
          * @return builder
@@ -292,6 +522,58 @@ public final class MachineArgs extends com.pulumi.resources.ResourceArgs {
          */
         public Builder memorySize(Integer memorySize) {
             return memorySize(Output.of(memorySize));
+        }
+
+        /**
+         * @param minimumMemory Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder minimumMemory(@Nullable Output<Integer> minimumMemory) {
+            $.minimumMemory = minimumMemory;
+            return this;
+        }
+
+        /**
+         * @param minimumMemory Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder minimumMemory(Integer minimumMemory) {
+            return minimumMemory(Output.of(minimumMemory));
+        }
+
+        /**
+         * @param networkAdapters Network adapters to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder networkAdapters(@Nullable Output<List<NetworkAdapterInputsArgs>> networkAdapters) {
+            $.networkAdapters = networkAdapters;
+            return this;
+        }
+
+        /**
+         * @param networkAdapters Network adapters to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder networkAdapters(List<NetworkAdapterInputsArgs> networkAdapters) {
+            return networkAdapters(Output.of(networkAdapters));
+        }
+
+        /**
+         * @param networkAdapters Network adapters to attach to the Virtual Machine.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder networkAdapters(NetworkAdapterInputsArgs... networkAdapters) {
+            return networkAdapters(List.of(networkAdapters));
         }
 
         /**

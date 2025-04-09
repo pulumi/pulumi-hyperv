@@ -107,7 +107,15 @@ The codebase follows these style guidelines:
 
 # Run a specific test
 cd provider && go test -v -count=1 ./... -run TestName
+
+# Run example tests
+cd examples && go test -v ./...
+
+# Run specific example test
+cd examples && go test -v -run TestDevEnvironmentTypeScript
 ```
+
+Example tests use both the standard Pulumi integration testing framework and the `github.com/pulumi/providertest/pulumitest` package for more advanced testing capabilities.
 
 ### Adding New Resources
 
@@ -118,6 +126,21 @@ cd provider && go test -v -count=1 ./... -run TestName
 5. Regenerate SDKs with `.\make.ps1 codegen`
 6. Add tests for your resource
 7. Add an example of your resource to the examples directory
+
+### Creating Examples
+
+Examples demonstrate real-world use cases of the provider resources:
+
+1. Create a new directory in `examples/` for your example
+2. Add three key files:
+   - `Pulumi.yaml` - Project configuration
+   - `index.ts` - TypeScript implementation 
+   - `package.json` - Node.js dependencies
+3. Add tests to `examples_nodejs_test.go` using:
+   - Standard Pulumi integration testing framework
+   - Advanced testing with `github.com/pulumi/providertest/pulumitest`
+4. Examples should be complete, executable Pulumi programs
+5. Consider advanced scenarios like the "devenv" example that shows creating multiple related resources
 
 ## Submitting Pull Requests
 

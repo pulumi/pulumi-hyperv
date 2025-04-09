@@ -4,6 +4,8 @@ The Network Adapter resource allows you to create and manage network adapters fo
 
 ## Example Usage
 
+### Standalone Network Adapter
+
 ```typescript
 import * as hyperv from "@pulumi/hyperv";
 
@@ -30,6 +32,32 @@ const nic = new hyperv.NetworkAdapter("example-nic", {
     dhcpGuard: false,
     routerGuard: false,
     vlanId: 100,
+});
+```
+
+### Using the NetworkAdapters Property in Machine Resource
+
+You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
+
+```typescript
+import * as hyperv from "@pulumi/hyperv";
+
+// Create a virtual switch
+const vSwitch = new hyperv.VirtualSwitch("example-switch", {
+    name: "example-switch",
+    switchType: "Internal",
+});
+
+// Create a virtual machine with a network adapter
+const vm = new hyperv.Machine("example-vm", {
+    machineName: "example-vm",
+    generation: 2,
+    processorCount: 2,
+    memorySize: 2048,
+    networkAdapters: [{
+        name: "Primary Network",
+        switchName: vSwitch.name,
+    }],
 });
 ```
 
