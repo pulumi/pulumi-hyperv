@@ -280,7 +280,7 @@ Navigate to the simple example and run Pulumi:
 
 ```bash
 
-cd examples/simple
+cd examples/simple-all-four
 yarn link @pulumi/hyperv
 yarn install
 pulumi up

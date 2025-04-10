@@ -21,6 +21,7 @@ password.txt
 password2.txt
 private_ip.txt
 out.txt
+out*.txt
 examples/**/venv/
 examples/**/__pycache__/
 
@@ -30,6 +31,8 @@ sdk/java/gradle
 sdk/java/gradlew
 sdk/java/gradlew.bat
 
+**/package-lock.json
+package-lock.json
 sdk/python/venv
 *.sln
 coverage.txt

@@ -157,6 +157,14 @@ func (v *VMMS) GetSecurityService() *securitysvc.SecurityService {
 // GetImageManagementService returns the image management service or nil if not available.
 // Callers must check for nil before using the returned service.
 func (v *VMMS) GetImageManagementService() *imsvc.ImageManagementService {
+	if v == nil {
+		log.Printf("[ERROR] VMMS object is nil when trying to get ImageManagementService")
+		return nil
+	}
+	if v.imageManagementSvc == nil {
+		log.Printf("[WARN] ImageManagementService is not initialized")
+		return nil
+	}
 	return v.imageManagementSvc
 }
 

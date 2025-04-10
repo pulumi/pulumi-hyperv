@@ -195,6 +195,7 @@ compared to Windows Server:
      - Helpful debug logging
    - VHD operations can use alternative methods via VirtualSystemManagementService when ImageManagementService is unavailable
    - Differencing disks and regular VHDs can both be created through fallback methods
+   - PowerShell fallback is available as a last resort when both ImageManagementService and VirtualSystemManagementService are unavailable (implemented in `provider/pkg/provider/vhdfile/vhdfileController.go`)
 
 3. **Virtual System Management Service**
    - Critical service with enhanced error handling
@@ -207,6 +208,12 @@ compared to Windows Server:
 - Careful null checking before accessing any WMI objects
 - Clear logging with different levels (INFO, WARN, ERROR) to help diagnose issues
 - Alternative code paths for key operations when primary methods fail
+- PowerShell fallback for VHD operations as a last resort:
+  - Uses the `CreateVirtualHardDiskFallback` function in `vhdfileController.go` 
+  - Invokes `New-VHD` PowerShell cmdlet when WMI services are unavailable
+  - Supports all VHD types: Fixed, Dynamic, and Differencing
+  - Includes thorough input validation and error handling
+  - Properly escapes file paths and handles various parameter combinations
 - Handles common Windows 10/11 permission limitations with administrator privilege reminders
 
 ## Approved Commands
@@ -252,7 +259,8 @@ compared to Windows Server:
   - **ImageManagementService unavailable**:
     - Provider automatically uses VirtualSystemManagementService as fallback
     - VHD creation operations should still work through alternative methods
-    - Clear error messages will indicate which service is unavailable
+    - If both ImageManagementService and VirtualSystemManagementService are unavailable, a PowerShell fallback (`New-VHD` cmdlet) is used as a last resort
+    - Clear error messages will indicate which service is unavailable and which fallback method is being used
 - **Windows 10/11 vs Windows Server differences**:
   - Client Windows editions (10/11) often have more limited WMI service access
   - The provider includes specific handling for client Windows editions
