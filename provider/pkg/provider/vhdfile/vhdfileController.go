@@ -17,6 +17,7 @@ package vhdfile
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/microsoft/wmi/pkg/base/host"
@@ -181,16 +182,38 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 			dynamicDiskType = false
 		}
 		ims := vmmsClient.GetImageManagementService()
+
 		if ims == nil {
 			logger.Warnf("ImageManagementService is unavailable, trying alternative method via VSMS")
 
-			// Alternative method using VirtualSystemManagementService
+			// If the ImageManagementService is unavailable, we can try using the VirtualSystemManagementService
 			vsms := vmmsClient.GetVirtualSystemManagementService()
+			// If both services are unavailable, we can fall back to PowerShell
+			// This is a last resort and should be avoided if possible.
 			if vsms == nil {
-				return id, state, fmt.Errorf("Both ImageManagementService and VirtualSystemManagementService are unavailable")
-			}
+				logger.Warnf("Both ImageManagementService and VirtualSystemManagementService are unavailable, falling back to PowerShell")
 
-			// Use VSMS to create a regular disk
+				// Ensure we have valid values for required parameters
+				if input.DiskType == nil {
+					diskType := "dynamic" // Default to dynamic disk if not specified
+					input.DiskType = &diskType
+					logger.Infof("No disk type specified, defaulting to 'dynamic' for PowerShell fallback")
+				}
+
+				// BlockSize might be nil if it wasn't set in the original input
+				var blockSizeVal int64 = 0
+				if input.BlockSize != nil {
+					blockSizeVal = *input.BlockSize
+				}
+
+				err := CreateVirtualHardDiskFallback(vhdFileName, vhdFileSize, blockSizeVal, *input.DiskType, input.ParentPath)
+				if err != nil {
+					return id, state, fmt.Errorf("failed to create VHD using PowerShell fallback: %v", err)
+				}
+				logger.Infof("Created VHD [%s] using PowerShell fallback", vhdFileName)
+				return id, state, nil
+			}
+			// If we have the VirtualSystemManagementService, we can create the disk using it
 			diskType := uint32(3) // 3 = Dynamic (default)
 			if !dynamicDiskType {
 				diskType = uint32(2) // 2 = Fixed
@@ -285,6 +308,82 @@ func (c *VhdFile) Read(ctx context.Context, id string, inputs VhdFileInputs, cur
 	}
 
 	return id, inputs, outputs, nil
+}
+
+// CreateVirtualHardDiskFallback uses PowerShell to create a VHD if WMI services are unavailable.
+// This is a fallback method when both ImageManagementService and VirtualSystemManagementService are unavailable.
+func CreateVirtualHardDiskFallback(path string, sizeBytes int64, blockSize int64, diskType string, parentPath *string) error {
+	// Input validation
+	if path == "" {
+		return fmt.Errorf("VHD path cannot be empty")
+	}
+
+	if !strings.HasSuffix(path, ".vhd") && !strings.HasSuffix(path, ".vhdx") {
+		return fmt.Errorf("path '%s' must end with .vhd or .vhdx", path)
+	}
+
+	// Validate disk type and required parameters
+	diskTypeNormalized := strings.ToLower(diskType)
+	if diskTypeNormalized != "fixed" && diskTypeNormalized != "dynamic" && diskTypeNormalized != "differencing" {
+		return fmt.Errorf("invalid disk type: %s (must be 'Fixed', 'Dynamic', or 'Differencing')", diskType)
+	}
+
+	// For differencing disks, parentPath is required
+	if diskTypeNormalized == "differencing" {
+		if parentPath == nil || *parentPath == "" {
+			return fmt.Errorf("parentPath is required for Differencing disk type")
+		}
+
+		// Validate parent path extension
+		if !strings.HasSuffix(*parentPath, ".vhd") && !strings.HasSuffix(*parentPath, ".vhdx") {
+			return fmt.Errorf("parentPath '%s' must end with .vhd or .vhdx", *parentPath)
+		}
+	} else {
+		// For non-differencing disks, sizeBytes must be positive
+		if sizeBytes <= 0 {
+			return fmt.Errorf("sizeBytes must be greater than 0 for Fixed or Dynamic disk types")
+		}
+	}
+
+	// Validate blockSize if specified
+	if blockSize < 0 {
+		return fmt.Errorf("blockSize cannot be negative")
+	}
+
+	// Construct the PowerShell command with proper escaping
+	var cmdArgs []string
+
+	// Base command
+	cmdArgs = append(cmdArgs, "New-VHD", "-Path", fmt.Sprintf("\"%s\"", path))
+
+	// Add size parameter for non-differencing disks
+	if diskTypeNormalized != "differencing" {
+		cmdArgs = append(cmdArgs, "-SizeBytes", fmt.Sprintf("%d", sizeBytes))
+	}
+
+	// Add block size if specified and valid
+	if blockSize > 0 {
+		cmdArgs = append(cmdArgs, "-BlockSizeBytes", fmt.Sprintf("%d", blockSize))
+	}
+
+	// Set the disk type
+	switch diskTypeNormalized {
+	case "fixed":
+		cmdArgs = append(cmdArgs, "-Fixed")
+	case "dynamic":
+		cmdArgs = append(cmdArgs, "-Dynamic")
+	case "differencing":
+		cmdArgs = append(cmdArgs, "-Differencing", "-ParentPath", fmt.Sprintf("\"%s\"", *parentPath))
+	}
+
+	// Execute the PowerShell command
+	cmd := exec.Command("powershell.exe", cmdArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to create VHD using PowerShell: %v, output: %s", err, string(output))
+	}
+
+	return nil
 }
 
 // WireDependencies controls how secrets and unknowns flow through a resource.
