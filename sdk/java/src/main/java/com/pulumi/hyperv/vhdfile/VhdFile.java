@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
  * | `parentPath` | string | Path to parent VHD when creating differencing disks |
  * | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
  * | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+ * | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
  * 
  * ## Implementation Details
  * 
@@ -73,14 +74,14 @@ import javax.annotation.Nullable;
 @ResourceType(type="hyperv:vhdfile:VhdFile")
 public class VhdFile extends com.pulumi.resources.CustomResource {
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     @Export(name="blockSize", refs={Integer.class}, tree="[0]")
     private Output</* @Nullable */ Integer> blockSize;
 
     /**
-     * @return Block size of the VHD file in bytes
+     * @return Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     public Output<Optional<Integer>> blockSize() {

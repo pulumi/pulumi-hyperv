@@ -161,7 +161,7 @@ type Machine struct {
 	// are set to the stdout and stderr properties of the Command resource from previous
 	// create or update steps.
 	Update pulumi.StringPtrOutput `pulumi:"update"`
-	VmId   pulumi.StringOutput    `pulumi:"vmId"`
+	VmId   pulumi.StringPtrOutput `pulumi:"vmId"`
 }
 
 // NewMachine registers a new resource with the given unique name, arguments, and options.
@@ -461,8 +461,8 @@ func (o MachineOutput) Update() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.Update }).(pulumi.StringPtrOutput)
 }
 
-func (o MachineOutput) VmId() pulumi.StringOutput {
-	return o.ApplyT(func(v *Machine) pulumi.StringOutput { return v.VmId }).(pulumi.StringOutput)
+func (o MachineOutput) VmId() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.VmId }).(pulumi.StringPtrOutput)
 }
 
 type MachineArrayOutput struct{ *pulumi.OutputState }

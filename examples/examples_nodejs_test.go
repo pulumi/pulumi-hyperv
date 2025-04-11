@@ -19,7 +19,7 @@ func TestTsExamples(t *testing.T) {
 		directoryName    string
 		additionalConfig map[string]string
 	}{
-		"TestDevEnv":       {directoryName: "devenv"},
+		"TestDevEnv":        {directoryName: "devenv"},
 		"TestSimpleAllFour": {directoryName: "simple-all-four"},
 	}
 	for name, test := range tests {
@@ -35,7 +35,6 @@ func TestTsExamples(t *testing.T) {
 			}
 			// Run pulumi up and verify resources
 			res := p.Up(t)
-			// Verify resources (1 switch + 1 base VHD + 3 VMs + 3 NICs + 3 differencing VHDs)
 			if len(res.Outputs) > 0 {
 				t.Logf("Deployed resources successfully")
 			}

@@ -357,10 +357,10 @@ public class Machine extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.update);
     }
     @Export(name="vmId", refs={String.class}, tree="[0]")
-    private Output<String> vmId;
+    private Output</* @Nullable */ String> vmId;
 
-    public Output<String> vmId() {
-        return this.vmId;
+    public Output<Optional<String>> vmId() {
+        return Codegen.optional(this.vmId);
     }
 
     /**

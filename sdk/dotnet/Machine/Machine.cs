@@ -219,7 +219,7 @@ namespace Pulumi.Hyperv.Machine
         public Output<string?> Update { get; private set; } = null!;
 
         [Output("vmId")]
-        public Output<string> VmId { get; private set; } = null!;
+        public Output<string?> VmId { get; private set; } = null!;
 
 
         /// <summary>

@@ -29,6 +29,7 @@ The VhdFile resource supports the following properties:
 | `parentPath` | string | Path to parent VHD when creating differencing disks |
 | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
 | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+| `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 
 ## Implementation Details
 
@@ -48,6 +49,7 @@ VHD files can be defined and managed through the Pulumi Hyper-V provider using t
 const baseVhd = new hyperv.VhdFile("base-vhd", {
     path: "c:\\vms\\base\\disk.vhdx",
     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+    blockSize: 1048576, // 1MB block size (recommended)
     diskType: "Dynamic"
 });
 ```
@@ -58,6 +60,7 @@ const baseVhd = new hyperv.VhdFile("base-vhd", {
 const baseVhd = new hyperv.VhdFile("base-vhd", {
     path: "c:\\vms\\base\\disk.vhdx",
     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+    blockSize: 1048576, // 1MB block size (recommended)
     diskType: "Dynamic"
 });
 
@@ -77,6 +80,7 @@ The VhdFile resource can be used in conjunction with the Machine resource by att
 const baseVhd = new hyperv.VhdFile("base-vhd", {
     path: "c:\\vms\\base\\disk.vhdx",
     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+    blockSize: 1048576, // 1MB block size (recommended)
     diskType: "Dynamic"
 });
 

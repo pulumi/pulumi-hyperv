@@ -8,3 +8,7 @@ config:
   pulumi:tags:
     value:
       pulumi:template: typescript
+plugins:
+  providers:
+    - name: hyperv
+      path: C:\Github\Go\src\github.com\pulumi\pulumi-hyperv-provider\bin\

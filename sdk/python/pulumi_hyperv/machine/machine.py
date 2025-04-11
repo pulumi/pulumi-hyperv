@@ -780,6 +780,6 @@ class Machine(pulumi.CustomResource):
 
     @property
     @pulumi.getter(name="vmId")
-    def vm_id(self) -> pulumi.Output[builtins.str]:
+    def vm_id(self) -> pulumi.Output[Optional[builtins.str]]:
         return pulumi.get(self, "vm_id")
 

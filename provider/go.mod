@@ -8,6 +8,8 @@ require (
 	github.com/pulumi/pulumi/sdk/v3 v3.160.0
 )
 
+replace github.com/pulumi/providertest v0.2.0 => ../../providertest/
+
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect

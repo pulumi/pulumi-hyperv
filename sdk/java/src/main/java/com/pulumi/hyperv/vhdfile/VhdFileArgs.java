@@ -20,14 +20,14 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
     public static final VhdFileArgs Empty = new VhdFileArgs();
 
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     @Import(name="blockSize")
     private @Nullable Output<Integer> blockSize;
 
     /**
-     * @return Block size of the VHD file in bytes
+     * @return Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     public Optional<Output<Integer>> blockSize() {
@@ -203,7 +203,7 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
-         * @param blockSize Block size of the VHD file in bytes
+         * @param blockSize Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
          * 
          * @return builder
          * 
@@ -214,7 +214,7 @@ public final class VhdFileArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
-         * @param blockSize Block size of the VHD file in bytes
+         * @param blockSize Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
          * 
          * @return builder
          * 

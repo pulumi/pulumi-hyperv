@@ -43,6 +43,7 @@ import (
 // | `parentPath` | string | Path to parent VHD when creating differencing disks |
 // | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
 // | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+// | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 //
 // ## Implementation Details
 //
@@ -66,7 +67,7 @@ import (
 type VhdFile struct {
 	pulumi.CustomResourceState
 
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize pulumi.IntPtrOutput `pulumi:"blockSize"`
 	// The command to run on create.
 	Create pulumi.StringPtrOutput `pulumi:"create"`
@@ -141,7 +142,7 @@ func (VhdFileState) ElementType() reflect.Type {
 }
 
 type vhdFileArgs struct {
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize *int `pulumi:"blockSize"`
 	// The command to run on create.
 	Create *string `pulumi:"create"`
@@ -171,7 +172,7 @@ type vhdFileArgs struct {
 
 // The set of arguments for constructing a VhdFile resource.
 type VhdFileArgs struct {
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize pulumi.IntPtrInput
 	// The command to run on create.
 	Create pulumi.StringPtrInput
@@ -286,7 +287,7 @@ func (o VhdFileOutput) ToVhdFileOutputWithContext(ctx context.Context) VhdFileOu
 	return o
 }
 
-// Block size of the VHD file in bytes
+// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 func (o VhdFileOutput) BlockSize() pulumi.IntPtrOutput {
 	return o.ApplyT(func(v *VhdFile) pulumi.IntPtrOutput { return v.BlockSize }).(pulumi.IntPtrOutput)
 }

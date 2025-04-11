@@ -2,26 +2,27 @@ import * as pulumi from "@pulumi/pulumi";
 import * as hyperv from "@pulumi/hyperv";
 
 // Create a virtual switch for the VM to connect to
-const vswitch = new hyperv.VirtualSwitch("example-switch", {
+const vswitch = new hyperv.virtualswitch.VirtualSwitch("example-switch", {
     name: "example-switch",
     switchType: "Internal",
 });
 
 // Create a VHD file for the VM
-const vhd = new hyperv.VhdFile("example-vhd", {
+const vhd = new hyperv.vhdfile.VhdFile("example-vhd", {
     path: "C:\\VMs\\example-vm\\disk.vhdx",
-    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+    sizeBytes: 2 * 1024 * 1024 * 1024, // 2GB
+    blockSize: 1048576, // 1MB block size
     diskType: "Dynamic",
 });
 
 // Create a network adapter and attach it to the VM and switch
-const nic = new hyperv.NetworkAdapter("example-nic", {
+const nic = new hyperv.networkadapter.NetworkAdapter("example-nic", {
     name: "example-nic",
     switchName: vswitch.name,
 });
 
 // Create a virtual machine
-const vm = new hyperv.Machine("example-vm", {
+const vm = new hyperv.machine.Machine("example-vm", {
     machineName: "example-vm",
     generation: 2,
     processorCount: 2,

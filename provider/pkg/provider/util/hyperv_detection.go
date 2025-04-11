@@ -206,16 +206,46 @@ func getOSInfo(conn *wmiinstance.WmiSession) (*osInfo, error) {
 			result.isServer = strings.Contains(strings.ToLower(caption), "server")
 
 			// Extract version from caption (simple heuristic)
+			captionLower := strings.ToLower(caption)
 			if strings.Contains(caption, "10") {
 				result.version = "10"
 			} else if strings.Contains(caption, "11") {
 				result.version = "11"
 			} else if strings.Contains(caption, "2016") {
-				result.version = "2016"
+				// Check for Azure Edition in 2016
+				if strings.Contains(captionLower, "azure") {
+					result.version = "2016-datacenter-azure-edition"
+				} else {
+					result.version = "2016"
+				}
 			} else if strings.Contains(caption, "2019") {
-				result.version = "2019"
+				// Check for Azure Edition in 2019
+				if strings.Contains(strings.ToLower(caption), "azure") {
+					result.version = "2019-datacenter-azure-edition"
+				} else {
+					result.version = "2019"
+				}
 			} else if strings.Contains(caption, "2022") {
-				result.version = "2022"
+				// Check for Azure Edition in 2022
+				if strings.Contains(strings.ToLower(caption), "azure") {
+					result.version = "2022-datacenter-azure-edition"
+				} else {
+					result.version = "2022"
+				}
+			} else if strings.Contains(caption, "2025") {
+				// Future-proofing for 2025 release
+				if strings.Contains(strings.ToLower(caption), "azure") {
+					result.version = "2025-datacenter-azure-edition"
+				} else {
+					result.version = "2025"
+				}
+			} else if strings.Contains(caption, "2023") {
+				// Support for potential 2023 version
+				if strings.Contains(strings.ToLower(caption), "azure") {
+					result.version = "2023-datacenter-azure-edition"
+				} else {
+					result.version = "2023"
+				}
 			}
 		}
 	}

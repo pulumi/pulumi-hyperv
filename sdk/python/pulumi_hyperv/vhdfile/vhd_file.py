@@ -32,7 +32,7 @@ class VhdFileArgs:
         """
         The set of arguments for constructing a VhdFile resource.
         :param pulumi.Input[builtins.str] path: Path to the VHD file
-        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes
+        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
@@ -83,7 +83,7 @@ class VhdFileArgs:
     @pulumi.getter(name="blockSize")
     def block_size(self) -> Optional[pulumi.Input[builtins.int]]:
         """
-        Block size of the VHD file in bytes
+        Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         """
         return pulumi.get(self, "block_size")
 
@@ -231,6 +231,7 @@ class VhdFile(pulumi.CustomResource):
         | `parentPath` | string | Path to parent VHD when creating differencing disks |
         | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
         | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+        | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 
         ## Implementation Details
 
@@ -254,7 +255,7 @@ class VhdFile(pulumi.CustomResource):
 
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
-        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes
+        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
@@ -310,6 +311,7 @@ class VhdFile(pulumi.CustomResource):
         | `parentPath` | string | Path to parent VHD when creating differencing disks |
         | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
         | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+        | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 
         ## Implementation Details
 
@@ -414,7 +416,7 @@ class VhdFile(pulumi.CustomResource):
     @pulumi.getter(name="blockSize")
     def block_size(self) -> pulumi.Output[Optional[builtins.int]]:
         """
-        Block size of the VHD file in bytes
+        Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         """
         return pulumi.get(self, "block_size")
 
