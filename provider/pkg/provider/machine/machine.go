@@ -90,7 +90,7 @@ func (c *MachineInputs) Annotate(a infer.Annotator) {
 // These are the outputs (or properties) of a Vm resource.
 type MachineOutputs struct {
 	MachineInputs
-	VmId *string `pulumi:"vmId"`
+	VmId *string `pulumi:"vmId,optional"`
 }
 
 func (c *MachineOutputs) Annotate(a infer.Annotator) {}

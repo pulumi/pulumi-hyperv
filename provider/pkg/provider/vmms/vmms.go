@@ -4,12 +4,17 @@ package vmms
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/microsoft/wmi/pkg/base/host"
 	securitysvc "github.com/microsoft/wmi/pkg/virtualization/core/security/service"
 	vmmsvc "github.com/microsoft/wmi/pkg/virtualization/core/service"
 	imsvc "github.com/microsoft/wmi/pkg/virtualization/core/storage/service"
+	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
+	"github.com/microsoft/wmi/pkg/virtualization/network/virtualswitch"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
 )
 
 // VMMS represents the Hyper-V Virtual Machine Management Service.
@@ -24,61 +29,168 @@ type VMMS struct {
 
 // NewVMMS creates a new VMMS instance.
 func NewVMMS(host *host.WmiHost) (*VMMS, error) {
+	// Check if host is nil
+	if host == nil {
+		log.Printf("[ERROR] WMI host is nil")
+		return nil, fmt.Errorf("WMI host is nil")
+	}
+
 	vmms := &VMMS{
 		host: host,
 	}
 
-	sm := wmi.NewWmiSessionManager()
-	defer sm.Close()
-	defer sm.Dispose()
+	// Each session manager operation is wrapped in panic recovery
+	var sm *wmi.WmiSessionManager
+	var smErr error
 
-	// Set up virtualization connection
-	virtConn, err := sm.GetLocalSession("root\\virtualization\\v2")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create virtualization connection: %w", err)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[ERROR] Recovered from panic in NewWmiSessionManager: %v", r)
+				smErr = fmt.Errorf("panic in NewWmiSessionManager: %v", r)
+			}
+		}()
+
+		sm = wmi.NewWmiSessionManager()
+	}()
+
+	if smErr != nil {
+		return nil, smErr
 	}
-	_, err = virtConn.Connect()
-	if err != nil {
-		log.Printf("Could not connect session %v", err)
-		return nil, fmt.Errorf("failed to connect to virtconn virtualization namespace: %w", err)
+
+	if sm == nil {
+		return nil, fmt.Errorf("failed to create WMI session manager")
 	}
-	defer virtConn.Close()
-	defer virtConn.Dispose()
+
+	defer func() {
+		if sm != nil {
+			sm.Close()
+			sm.Dispose()
+		}
+	}()
+
+	// Set up virtualization connection with robust error handling
+	var virtConn *wmi.WmiSession
+	var virtConnErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[ERROR] Recovered from panic in GetLocalSession: %v", r)
+				virtConnErr = fmt.Errorf("panic in GetLocalSession: %v", r)
+			}
+		}()
+
+		virtConn, virtConnErr = sm.GetLocalSession("root\\virtualization\\v2")
+		if virtConnErr == nil && virtConn != nil {
+			// Try to connect, but handle errors gracefully
+			_, connectErr := virtConn.Connect()
+			if connectErr != nil {
+				log.Printf("[ERROR] Could not connect session: %v", connectErr)
+				virtConnErr = fmt.Errorf("failed to connect to virtualization namespace: %w", connectErr)
+
+				// Close and dispose if connection failed but session was created
+				virtConn.Close()
+				virtConn.Dispose()
+				virtConn = nil
+			}
+		}
+	}()
+
+	if virtConnErr != nil {
+		log.Printf("[ERROR] Failed to create virtualization connection: %v", virtConnErr)
+		return nil, fmt.Errorf("failed to create virtualization connection: %w", virtConnErr)
+	}
+
+	if virtConn == nil {
+		log.Printf("[ERROR] Virtualization connection is nil")
+		return nil, fmt.Errorf("virtualization connection is nil after creation")
+	}
+
+	defer func() {
+		if virtConn != nil {
+			virtConn.Close()
+			virtConn.Dispose()
+		}
+	}()
+
 	vmms.virtualizationConn = virtConn
 
 	// Set up HGS connection (optional - not needed for basic Hyper-V functionality)
-	hgsConn, err := sm.GetLocalSession("root\\Microsoft\\Windows\\Hgs")
-	if err != nil {
-		log.Printf("[WARN] HGS connection not available: %v", err)
-		log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
-	} else {
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[WARN] Recovered from panic in HGS connection setup: %v", r)
+				log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
+			}
+		}()
+
+		hgsConn, err := sm.GetLocalSession("root\\Microsoft\\Windows\\Hgs")
+		if err != nil {
+			log.Printf("[WARN] HGS connection not available: %v", err)
+			log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
+			return
+		}
+
+		if hgsConn == nil {
+			log.Printf("[WARN] HGS session is nil")
+			return
+		}
+
 		_, err = hgsConn.Connect()
 		if err != nil {
 			log.Printf("[WARN] Could not connect to HGS session: %v", err)
 			log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
-		} else {
-			defer hgsConn.Close()
-			defer hgsConn.Dispose()
-			vmms.hgsConn = hgsConn
+			hgsConn.Close()
+			hgsConn.Dispose()
+			return
 		}
-	}
+
+		// Only store the HGS connection if everything succeeded
+		vmms.hgsConn = hgsConn
+
+		// Don't defer close here since we want to keep this connection
+		// It will be closed when the VMMS instance is disposed
+	}()
 
 	// Get security service (optional - not required for basic functionality)
-	ss, err := securitysvc.GetSecurityService(vmms.virtualizationConn.WMIHost)
-	if err != nil {
-		log.Printf("[WARN] Could not get security service: %v", err)
-		log.Printf("[INFO] Continuing without security service (needed only for advanced security features)")
-		// Don't return error, just continue without security service
-	} else {
+	func() {
+		// Skip if virtualization connection is not available
+		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
+			log.Printf("[WARN] Virtualization connection or WMI host is nil, skipping SecurityService")
+			return
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[WARN] Recovered from panic in GetSecurityService: %v", r)
+				log.Printf("[INFO] Continuing without security service (needed only for advanced security features)")
+			}
+		}()
+
+		ss, err := securitysvc.GetSecurityService(vmms.virtualizationConn.WMIHost)
+		if err != nil {
+			log.Printf("[WARN] Could not get security service: %v", err)
+			log.Printf("[INFO] Continuing without security service (needed only for advanced security features)")
+			return
+		}
+
+		if ss == nil {
+			log.Printf("[WARN] Security service is nil")
+			return
+		}
+
 		vmms.securityService = ss
-	}
+	}()
 
 	// Get image management service (optional - not required for all functionality)
-	// First check if virtualization connection is available
-	if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
-		log.Printf("[WARN] Virtualization connection or WMI host is nil, skipping ImageManagementService")
-	} else {
-		// Try with explicit error handling and recovery
+	func() {
+		// Skip if virtualization connection is not available
+		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
+			log.Printf("[WARN] Virtualization connection or WMI host is nil, skipping ImageManagementService")
+			return
+		}
+
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("[WARN] Recovered from panic in GetImageManagementService: %v", r)
@@ -86,59 +198,81 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 			}
 		}()
 
-		// Wrapped in separate function to make recovery cleaner
-		func() {
-			ims, err := imsvc.GetImageManagementService(vmms.virtualizationConn.WMIHost)
-			if err != nil {
-				log.Printf("[WARN] Could not get image management service: %v", err)
-				log.Printf("[INFO] Continuing without image management service (needed for some disk operations)")
-				// Don't return error, just continue without image management service
-			} else {
-				vmms.imageManagementSvc = ims
-			}
-		}()
-	}
+		ims, err := imsvc.GetImageManagementService(vmms.virtualizationConn.WMIHost)
+		if err != nil {
+			log.Printf("[WARN] Could not get image management service: %v", err)
+			log.Printf("[INFO] Continuing without image management service (needed for some disk operations)")
+			return
+		}
 
-	// Virtual System Management Service is a critical service that's required for operation
-	// We can't continue without it, but we'll wrap it in recovery to handle potential panics
-	if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
-		log.Printf("[ERROR] Virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
-		return nil, fmt.Errorf("virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
-	}
+		if ims == nil {
+			log.Printf("[WARN] Image management service is nil")
+			return
+		}
 
-	// Try with explicit panic recovery
-	var panicErr error
+		vmms.imageManagementSvc = ims
+	}()
+
+	// Get Virtual System Management Service (critical service)
+	// Even though this is considered critical, we'll make our code robust enough to
+	// continue without it and handle the nil value in each resource's controller
+	var vsmsErr error
+
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("[ERROR] Recovered from panic in GetVirtualSystemManagementService: %v", r)
 				if err, ok := r.(error); ok {
-					panicErr = err
+					vsmsErr = err
 				} else {
-					panicErr = fmt.Errorf("panic in GetVirtualSystemManagementService: %v", r)
+					vsmsErr = fmt.Errorf("panic in GetVirtualSystemManagementService: %v", r)
 				}
 			}
 		}()
 
+		// Skip if virtualization connection is not available
+		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
+			log.Printf("[ERROR] Virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
+			vsmsErr = fmt.Errorf("virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
+			return
+		}
+
 		vmmSvc, err := vmmsvc.GetVirtualSystemManagementService(vmms.virtualizationConn.WMIHost)
 		if err != nil {
 			log.Printf("[ERROR] Failed to get virtual system management service: %v", err)
-			log.Printf("[ERROR] This service is required for Hyper-V provider operation")
-			panicErr = fmt.Errorf("failed to get virtual system management service: %w", err)
+			log.Printf("[WARN] Continuing without VSMS - some operations will not be available")
+			vsmsErr = fmt.Errorf("failed to get virtual system management service: %w", err)
 			return
 		}
+
+		if vmmSvc == nil {
+			log.Printf("[ERROR] Virtual system management service is nil")
+			log.Printf("[WARN] Continuing without VSMS - some operations will not be available")
+			vsmsErr = fmt.Errorf("virtual system management service is nil")
+			return
+		}
+
 		vmms.vmManagementService = vmmSvc
 	}()
 
-	if panicErr != nil {
-		return nil, panicErr
+	// Log the warning but return the VMMS object anyway so controllers can handle this case
+	if vsmsErr != nil {
+		log.Printf("[WARN] Failed to initialize VirtualSystemManagementService: %v", vsmsErr)
+		log.Printf("[WARN] Continuing with limited functionality - some operations may fail")
 	}
 
+	// Return VMMS instance even with limited functionality
+	// Each controller will need to handle nil services appropriately
 	return vmms, nil
 }
 
 // GetVirtualizationConn returns the virtualization connection.
 func (v *VMMS) GetVirtualizationConn() *wmi.WmiSession {
+	// Add nil check to prevent panic when VMMS is nil
+	if v == nil {
+		log.Printf("[ERROR] VMMS object is nil when trying to get virtualization connection")
+		return nil
+	}
 	return v.virtualizationConn
 }
 
@@ -177,21 +311,6 @@ func (v *VMMS) GetVirtualSystemManagementService() *vmmsvc.VirtualSystemManageme
 	}
 	return v.vmManagementService
 }
-
-// GetUntrustedGuardian gets the untrusted guardian.
-// func (v *VMMS) GetUntrustedGuardian() (*wmi.Result, error) {
-// 	query := "SELECT * FROM MSFT_HgsGuardian WHERE Name = 'UntrustedGuardian'"
-// 	guardians, err := v.hgsConn.Query(query)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to query guardians: %w", err)
-// 	}
-
-// 	if len(guardians) == 0 {
-// 		return nil, nil
-// 	}
-
-// 	return guardians[0], nil
-// }
 
 // ErrorCodeMeaning returns a string description for a WMI error code.
 func ErrorCodeMeaning(returnValue uint32) string {
@@ -299,65 +418,330 @@ const (
 	RequestedStateFastSavingCritical RequestedState = 32792
 )
 
-// RequestStateChange requests a state change for a virtual machine.
-// func RequestStateChange(v VMMS, virtualMachine *vmmsvc.VirtualSystemManagementService, requestedState RequestedState) error {
-// 	params := map[string]interface{}{
-// 		"RequestedState": uint16(requestedState),
-// 	}
+func (v *VMMS) AttachVirtualHardDisk(vm *virtualsystem.VirtualMachine, hdPath string, controllerType string, controllerNumber int, controllerLocation int, logger logging.Logger) error {
+	if v == nil {
+		return fmt.Errorf("VMMS object is nil")
+	}
 
-// 	result, err := virtualMachine.InvokeMethod("RequestStateChange", params)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to request state change: %w", err)
-// 	}
+	if vm == nil {
+		return fmt.Errorf("virtual machine is nil")
+	}
 
-// 	return v.ValidateOutput(result)
-// }
+	vsms := v.GetVirtualSystemManagementService()
+	if vsms == nil {
+		logger.Warnf("VirtualSystemManagementService is unavailable, falling back to PowerShell")
+		return attachVirtualHardDiskPowerShell(vm, hdPath, controllerType, controllerNumber, controllerLocation, logger)
+	}
 
-// validateOutput validates the output of a WMI method call.
-// func (v *VMMS) ValidateOutput(output *wmi.Result) error {
-// 	returnValue, err := output.GetUint32("ReturnValue")
-// 	if err != nil {
-// 		return fmt.Errorf("failed to get return value: %w", err)
-// 	}
+	// Determine disk type based on controller type
+	var diskType virtualsystem.VirtualHardDiskType
+	switch strings.ToUpper(controllerType) {
+	case "IDE":
+		diskType = virtualsystem.VirtualHardDiskType_DATADISK_VIRTUALHARDDISK
+	case "SCSI":
+		diskType = virtualsystem.VirtualHardDiskType_DATADISK_VIRTUALHARDDISK
+	default:
+		logger.Warnf("Unknown controller type '%s', defaulting to SCSI", controllerType)
+		diskType = virtualsystem.VirtualHardDiskType_DATADISK_VIRTUALHARDDISK
+	}
 
-// 	if returnValue == 4096 {
-// 		// Job started - wait for completion
-// 		jobPath, err := output.GetString("Job")
-// 		if err != nil {
-// 			return fmt.Errorf("failed to get job path: %w", err)
-// 		}
+	// Attempt to attach using WMI API
+	err := vsms.AddSCSIController(vm)
+	if err != nil {
+		logger.Warnf("Failed to add SCSI controller: %v", err)
+		return attachVirtualHardDiskPowerShell(vm, hdPath, controllerType, controllerNumber, controllerLocation, logger)
+	}
+	_, _, err = vsms.AttachVirtualHardDisk(vm, hdPath, diskType)
+	if err == nil {
+		logger.Infof("[INFO] Successfully attached VHD [%s] using WMI", hdPath)
+		return nil
+	}
 
-// 		job, err := v.virtualizationConn.Get(jobPath)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to get job object: %w", err)
-// 		}
+	logger.Warnf("Failed to attach VHD [%s] using WMI: %v, trying direct API", hdPath, err)
 
-// 		for {
-// 			jobState, err := job.GetUint16("JobState")
-// 			if err != nil {
-// 				return fmt.Errorf("failed to get job state: %w", err)
-// 			}
+	// Attempt direct API call
+	err = v.AttachVirtualHardDiskDirectApi(vm, hdPath, controllerNumber, controllerLocation, logger)
+	if err == nil {
+		logger.Infof("[INFO] Successfully attached VHD [%s] using direct API", hdPath)
+		return nil
+	}
 
-// 			if IsJobComplete(jobState) {
-// 				if !IsJobSuccessful(jobState) {
-// 					errorDesc, err := job.GetString("ErrorDescription")
-// 					if err != nil || errorDesc == "" {
-// 						return fmt.Errorf("job failed: %s", ErrorCodeMeaning(uint32(jobState)))
-// 					}
-// 					return fmt.Errorf(errorDesc)
-// 				}
-// 				break
-// 			}
+	logger.Warnf("Failed to attach VHD [%s] using direct API: %v, falling back to PowerShell", hdPath, err)
 
-// 			time.Sleep(500 * time.Millisecond)
-// 			job, err = v.virtualizationConn.Get(jobPath)
-// 			if err != nil {
-// 				return fmt.Errorf("failed to refresh job object: %w", err)
-// 			}
-// 		}
-// 	} else if returnValue != 0 {
-// 		return fmt.Errorf(ErrorCodeMeaning(returnValue))
-// 	}
+	// Fallback to PowerShell
+	return attachVirtualHardDiskPowerShell(vm, hdPath, controllerType, controllerNumber, controllerLocation, logger)
+}
 
-// 	return nil
-// }
+// attachVirtualHardDiskPowerShell attaches a VHD using PowerShell as a fallback.
+func attachVirtualHardDiskPowerShell(vm *virtualsystem.VirtualMachine, hdPath string, controllerType string, controllerNumber int, controllerLocation int, logger logging.Logger) error {
+	vmName, err := vm.GetPropertyElementName()
+	if err != nil {
+		return fmt.Errorf("failed to get VM name: %w", err)
+	}
+
+	cmd := fmt.Sprintf("Add-VMHardDiskDrive -VMName \"%s\" -Path \"%s\" -ControllerType %s -ControllerNumber %d -ControllerLocation %d",
+		vmName, hdPath, controllerType, controllerNumber, controllerLocation)
+
+	output, err := util.RunPowerShellCommand(cmd)
+	if err != nil {
+		outputStr := string(output)
+
+		// Check for common PowerShell error patterns and provide more user-friendly messages
+		if strings.Contains(outputStr, "ObjectNotFound") && strings.Contains(outputStr, "Add-VMHardDiskDrive") {
+			return fmt.Errorf("failed to attach disk: virtual machine '%s' not found. Please verify the VM exists and you have permission to modify it", vmName)
+		}
+
+		if strings.Contains(outputStr, "no available locations were found on the disk controller") {
+			return fmt.Errorf("failed to attach disk: no available locations found on %s controller %d. Try using a different controller number or location, or add a new controller",
+				controllerType, controllerNumber)
+		}
+
+		if strings.Contains(outputStr, "The system cannot find the file specified") || strings.Contains(outputStr, "Cannot find path") {
+			return fmt.Errorf("failed to attach disk: VHD file '%s' not found. Please verify the path is correct and accessible", hdPath)
+		}
+
+		if strings.Contains(outputStr, "The parameter is incorrect") {
+			return fmt.Errorf("failed to attach disk: incorrect parameter. This often happens with incompatible VHDX formats or block sizes. Try a different VHD file or format")
+		}
+
+		if strings.Contains(outputStr, "Access is denied") || strings.Contains(outputStr, "AccessDenied") {
+			return fmt.Errorf("failed to attach disk: access denied. Please verify you have administrator privileges")
+		}
+
+		if strings.Contains(outputStr, "The requested operation cannot be performed on a file with a user-mapped section open") {
+			return fmt.Errorf("failed to attach disk: the VHD file '%s' is in use by another process. Make sure the disk is not mounted elsewhere", hdPath)
+		}
+
+		// Default error with full details if we couldn't match a specific pattern
+		return fmt.Errorf("failed to attach VHD using PowerShell: %v\nDetailed error: %s", err, outputStr)
+	}
+
+	logger.Infof("[INFO] Successfully attached VHD [%s] to VM [%s] using PowerShell", hdPath, vmName)
+	return nil
+}
+
+func (v *VMMS) AttachVirtualHardDiskDirectApi(vm *virtualsystem.VirtualMachine, path string, controllerNumber int, controllerLocation int, logger logging.Logger) error {
+	if v == nil {
+		return fmt.Errorf("VMMS object is nil")
+	}
+
+	if vm == nil {
+		return fmt.Errorf("virtual machine is nil")
+	}
+
+	if v.vmManagementService == nil {
+		return fmt.Errorf("virtual system management service is nil")
+	}
+
+	// Get VM element name for identifying the VM
+	vmName, err := vm.GetPropertyElementName()
+	if err != nil {
+		return fmt.Errorf("failed to get VM element name: %w", err)
+	}
+
+	// Create resource settings for the hard drive
+	resourceSettings := []interface{}{
+		map[string]interface{}{
+			"ResourceType":       uint16(31), // 31 = Disk drive
+			"ResourceSubType":    "Microsoft:Hyper-V:Virtual Hard Disk",
+			"Path":               path,
+			"ControllerType":     "Microsoft:Hyper-V:Synthetic SCSI Controller",
+			"ControllerNumber":   uint32(controllerNumber),
+			"ControllerLocation": uint32(controllerLocation),
+		},
+	}
+
+	// Get the VM path or system name to use in AddResourceSettings
+	systemName := fmt.Sprintf("\\\\%s\\root\\virtualization\\v2:Msvm_ComputerSystem.CreationClassName=\"Msvm_ComputerSystem\",Name=\"%s\"",
+		v.host.HostName, vm.InstanceID)
+
+	// Add the resource settings to the VM
+	result, err := v.vmManagementService.InvokeMethod("AddResourceSettings", []interface{}{systemName, resourceSettings})
+	if err != nil {
+		return fmt.Errorf("failed to add hard drive: %w", err)
+	}
+
+	// Check return value
+	if len(result) == 0 {
+		return fmt.Errorf("empty result from AddResourceSettings")
+	}
+
+	// The first element should be a map with ReturnValue
+	resultMap, ok := result[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected result type from AddResourceSettings")
+	}
+
+	// Check return value
+	returnValue, ok := resultMap["ReturnValue"].(uint32)
+	if !ok {
+		return fmt.Errorf("unexpected ReturnValue type from AddResourceSettings")
+	}
+
+	if returnValue != 0 {
+		return fmt.Errorf("AddResourceSettings failed with error: %s", ErrorCodeMeaning(returnValue))
+	}
+
+	logger.Infof("[INFO] Successfully attached virtual hard disk %s to VM %s", path, vmName)
+	return nil
+}
+
+func (v *VMMS) AddVirtualNetworkAdapterAndConnect(vm *virtualsystem.VirtualMachine, adapterName string, switchName string, logger logging.Logger) error {
+	if v == nil {
+		return fmt.Errorf("VMMS object is nil")
+	}
+
+	if vm == nil {
+		return fmt.Errorf("virtual machine is nil")
+	}
+
+	vsms := v.GetVirtualSystemManagementService()
+	if vsms == nil {
+		logger.Warnf("VirtualSystemManagementService is unavailable, falling back to PowerShell")
+		return addVirtualNetworkAdapterPowerShell(vm, adapterName, switchName, logger)
+	}
+
+	// Attempt to add adapter using WMI API
+	var addErr error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				addErr = fmt.Errorf("recovered from panic in AddVirtualNetworkAdapter: %v", r)
+				logger.Errorf("Recovered from panic in AddVirtualNetworkAdapter: %v", r)
+			}
+		}()
+
+		adapter, err := vsms.AddVirtualNetworkAdapter(vm, adapterName)
+		if err != nil {
+			addErr = fmt.Errorf("failed to add network adapter via WMI: %v", err)
+			return
+		}
+		defer adapter.Close()
+
+		// Connect adapter to switch
+		vs, err := virtualswitch.GetVirtualSwitch(v.virtualizationConn.WMIHost, switchName)
+		if err != nil {
+			logger.Errorf("Failed [%+v]", err)
+		}
+		defer vs.Close()
+		logger.Infof("Got VirtualSwitch[%s]", "test")
+		err = vsms.ConnectAdapterToVirtualSwitch(vm, adapterName, vs)
+		if err != nil {
+			addErr = fmt.Errorf("failed to connect network adapter to switch via WMI: %v", err)
+			return
+		}
+	}()
+
+	if addErr == nil {
+		logger.Infof("Successfully added and connected network adapter [%s] to switch [%s] using WMI", adapterName, switchName)
+		return nil
+	}
+
+	logger.Warnf("Failed to add/connect network adapter [%s] using WMI: %v, falling back to PowerShell", adapterName, addErr)
+
+	// Fallback to PowerShell
+	return addVirtualNetworkAdapterPowerShell(vm, adapterName, switchName, logger)
+}
+
+// addVirtualNetworkAdapterPowerShell adds and connects a network adapter using PowerShell as a fallback.
+func addVirtualNetworkAdapterPowerShell(vm *virtualsystem.VirtualMachine, adapterName string, switchName string, logger logging.Logger) error {
+	vmName, err := vm.GetPropertyElementName()
+	if err != nil {
+		return fmt.Errorf("failed to get VM name: %w", err)
+	}
+	cmd := fmt.Sprintf("Add-VMNetworkAdapter -VMName \"%s\" -Name \"%s\" -SwitchName \"%s\"",
+		vmName, adapterName, switchName)
+	output, err := util.RunPowerShellCommand(cmd)
+	if err != nil {
+		outputStr := string(output)
+
+		// Check for common PowerShell error patterns and provide more user-friendly messages
+		if strings.Contains(outputStr, "ObjectNotFound") && strings.Contains(outputStr, "Add-VMNetworkAdapter") {
+			return fmt.Errorf("failed to add network adapter: virtual machine '%s' not found. Please verify the VM exists and you have permission to modify it", vmName)
+		}
+
+		if strings.Contains(outputStr, "Cannot find virtual switch") {
+			return fmt.Errorf("failed to add network adapter: virtual switch '%s' not found. Please verify the switch exists", switchName)
+		}
+
+		if strings.Contains(outputStr, "already exists") {
+			return fmt.Errorf("failed to add network adapter: an adapter named '%s' already exists on VM '%s'", adapterName, vmName)
+		}
+
+		if strings.Contains(outputStr, "Access is denied") || strings.Contains(outputStr, "AccessDenied") {
+			return fmt.Errorf("failed to add network adapter: access denied. Please verify you have administrator privileges")
+		}
+
+		// Default error with full details if we couldn't match a specific pattern
+		return fmt.Errorf("failed to add/connect network adapter using PowerShell: %v\nDetailed error: %s", err, outputStr)
+	}
+
+	logger.Infof("[INFO] Successfully added and connected network adapter [%s] to switch [%s] on VM [%s] using PowerShell", adapterName, switchName, vmName)
+	return nil
+}
+
+// AddVirtualNetworkAdapterAndConnect adds a virtual network adapter to a virtual machine
+// and connects it to a virtual switch.
+func (v *VMMS) AddVirtualNetworkAdapterAndConnectApi(vm *virtualsystem.VirtualMachine, adapterName string, switchName string, logger logging.Logger) error {
+	if v == nil {
+		return fmt.Errorf("VMMS object is nil")
+	}
+
+	if vm == nil {
+		return fmt.Errorf("virtual machine is nil")
+	}
+
+	if v.vmManagementService == nil {
+		return fmt.Errorf("virtual system management service is nil")
+	}
+
+	// Get VM element name for identifying the VM
+	vmName, err := vm.GetPropertyElementName()
+	if err != nil {
+		return fmt.Errorf("failed to get VM element name: %w", err)
+	}
+
+	// Create resource settings for the network adapter
+	resourceSettings := []interface{}{
+		map[string]interface{}{
+			"ResourceType":    uint16(10), // 10 = Network adapter
+			"ResourceSubType": "Microsoft:Hyper-V:Synthetic Ethernet Port",
+			"ElementName":     adapterName,
+			"Connection":      []string{switchName},
+		},
+	}
+
+	// Get the VM path or system name to use in AddResourceSettings
+	systemName := fmt.Sprintf("\\\\%s\\root\\virtualization\\v2:Msvm_ComputerSystem.CreationClassName=\"Msvm_ComputerSystem\",Name=\"%s\"",
+		v.host.HostName, vm.InstanceID)
+
+	// Add the resource settings to the VM
+	result, err := v.vmManagementService.InvokeMethod("AddResourceSettings", []interface{}{systemName, resourceSettings})
+	if err != nil {
+		return fmt.Errorf("failed to add network adapter: %w", err)
+	}
+
+	// Check return value
+	if len(result) == 0 {
+		return fmt.Errorf("empty result from AddResourceSettings")
+	}
+
+	// The first element should be a map with ReturnValue
+	resultMap, ok := result[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected result type from AddResourceSettings")
+	}
+
+	// Check return value
+	returnValue, ok := resultMap["ReturnValue"].(uint32)
+	if !ok {
+		return fmt.Errorf("unexpected ReturnValue type from AddResourceSettings")
+	}
+
+	if returnValue != 0 {
+		return fmt.Errorf("AddResourceSettings failed with error: %s", ErrorCodeMeaning(returnValue))
+	}
+
+	logger.Infof("[INFO] Successfully added network adapter %s to VM %s connected to switch %s", adapterName, vmName, switchName)
+	return nil
+}

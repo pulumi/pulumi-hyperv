@@ -234,7 +234,7 @@ export class Machine extends pulumi.CustomResource {
      * create or update steps.
      */
     public readonly update!: pulumi.Output<string | undefined>;
-    public /*out*/ readonly vmId!: pulumi.Output<string>;
+    public /*out*/ readonly vmId!: pulumi.Output<string | undefined>;
 
     /**
      * Create a Machine resource with the given unique name, arguments, and options.

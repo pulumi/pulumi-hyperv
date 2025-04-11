@@ -14,8 +14,11 @@
 
 package machine
 
-// func run(ctx context.Context, in MachineInputs, out *MachineOutputs) error {
-// 	contract.Assertf(out != nil, "run:out cannot be nil")
-
-// 	return nil
-// }
+// EnsureVmId ensures that the VM ID is set when performing operations like deletion
+// This is called during the Create and Read operations in the machineController.go
+func EnsureVmId(out *MachineOutputs, id string) {
+	// If the VM ID is not set, set it to the machine name
+	if out.VmId == nil {
+		out.VmId = &id
+	}
+}

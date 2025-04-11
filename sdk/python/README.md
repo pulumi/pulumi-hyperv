@@ -29,6 +29,43 @@ You'll need to [install and configure the Pulumi CLI](https://pulumi.com/docs/ge
 
 > **NOTE**: The Hyper-V provider is in preview. The API design may change ahead of general availability based on [user feedback](https://github.com/pulumi/pulumi-hyperv-provider/issues).
 
+## Features
+
+The provider includes robust error handling and compatibility features designed to work across different Windows environments:
+
+* **Automatic Hyper-V Detection**: Checks and logs the availability of Hyper-V during initialization
+* **Windows 10/11 Compatibility**: Enhanced support for both client and server Windows editions
+* **Fallback Mechanisms**: Multi-layer fallback approaches for core operations when primary WMI services are unavailable
+* **Panic Recovery**: All WMI operations are wrapped in panic recovery blocks to prevent crashes
+* **Detailed Logging**: Comprehensive logging with different levels to help diagnose issues
+* **Multiple Service Paths**: Alternative code paths for key operations when primary methods fail
+* **PowerShell Fallbacks**: Uses PowerShell commands as a last resort for operations like VHD creation
+
+## Implementation Details
+
+### Multi-Layer Fallback Design
+
+The provider implements a multi-layer fallback approach to handle various Windows environments:
+
+1. **Primary Method**: Uses WMI interfaces through the Microsoft WMI library
+2. **Secondary Methods**: Falls back to alternative WMI services when primary ones are unavailable
+3. **Last Resort**: Uses PowerShell commands when WMI services are completely unavailable
+
+### VHD Creation and Management
+
+VHD operations are particularly robust with multiple fallback mechanisms:
+
+1. **ImageManagementService**: First attempts to use the Hyper-V Image Management Service
+2. **VirtualSystemManagementService**: Falls back to VSMS if IMS is unavailable
+3. **PowerShell Fallback**: Uses the `New-VHD` PowerShell cmdlet as a last resort
+
+The provider supports all VHD types with comprehensive input validation:
+* **Fixed**: Pre-allocated storage, better performance
+* **Dynamic**: Expands as needed, more efficient storage usage
+* **Differencing**: Child disks that store changes relative to a parent VHD
+
+Differencing disks are fully supported with proper handling of parent paths and validation.
+
 ## Examples
 
 ### Creating a simple virtual machine
@@ -157,6 +194,36 @@ export const switchName = devSwitch.name;
 export const vmNames = vms.map(vm => vm.name);
 ```
 
+### SDK Import Styles
+
+The provider supports two import styles in TypeScript:
+
+#### Namespaced Imports (Recommended)
+
+```typescript
+import * as hyperv from "@pulumi/hyperv";
+
+// Use namespaced resources
+const vSwitch = new hyperv.virtualswitch.VirtualSwitch("example-switch", {...});
+const vhd = new hyperv.vhdfile.VhdFile("example-disk", {...});
+const vm = new hyperv.machine.Machine("example-vm", {...});
+const adapter = new hyperv.networkadapter.NetworkAdapter("example-adapter", {...});
+```
+
+#### Direct Imports (Legacy)
+
+```typescript
+import * as hyperv from "@pulumi/hyperv";
+
+// Use direct resources 
+const vSwitch = new hyperv.VirtualSwitch("example-switch", {...});
+const vhd = new hyperv.VhdFile("example-disk", {...});
+const vm = new hyperv.Machine("example-vm", {...});
+const adapter = new hyperv.NetworkAdapter("example-adapter", {...});
+```
+
+For new code, the namespaced style is recommended for better type safety and clarity.
+
 ## Requirements
 
 ### System Requirements
@@ -222,7 +289,7 @@ Get-ComputerInfo -Property "HyperVRequirementVirtualizationFirmwareEnabled", "Hy
 
 #### Windows 10/11 Additional Configuration
 
-Windows 10/11 client systems may require additional configuration for the Hyper-V provider to work properly:
+Windows 10/11 client systems may require additional configuration for the Hyper-V provider to work properly. The provider now includes enhanced compatibility features specifically for Windows 10/11:
 
 1. **Run as Administrator**: Always run Pulumi commands with administrator privileges
 (right-click command prompt/PowerShell and select "Run as administrator")
@@ -230,7 +297,6 @@ Windows 10/11 client systems may require additional configuration for the Hyper-
 2. **Check Hyper-V Administrator Membership**:
 
    ```powershell
-
    # Check if your user is in the Hyper-V Administrators group
    Get-LocalGroupMember "Hyper-V Administrators"
    
@@ -241,7 +307,6 @@ Windows 10/11 client systems may require additional configuration for the Hyper-
 3. **Verify Required Services are Running**:
 
    ```powershell
-
    # Verify Hyper-V Virtual Machine Management service is running
    Get-Service vmms
    
@@ -250,6 +315,28 @@ Windows 10/11 client systems may require additional configuration for the Hyper-
    ```
 
 4. **Restart after Enabling Hyper-V**: Always restart your computer after enabling Hyper-V features
+
+#### Service Availability and Fallback Mechanisms
+
+The provider now includes robust handling for common Windows 10/11 service limitations:
+
+* **Host Guardian Service (HGS)**: HGS connection is now optional - the provider logs a warning but continues if it can't connect
+* **Image Management Service**: Multiple fallbacks when this service is unavailable:
+  * First tries VirtualSystemManagementService for VHD operations
+  * Falls back to PowerShell commands (`New-VHD`) if needed
+* **Virtual System Management Service**: Enhanced error handling with recovery mechanisms
+* **Automatic Hyper-V Detection**: Detects OS version and provides tailored guidance
+
+#### Error Handling and Recovery
+
+The provider has been significantly hardened with:
+
+* **Panic Recovery**: All WMI operations are wrapped in panic recovery blocks
+* **Thorough Nil Checks**: Comprehensive checking for nil pointers throughout the codebase
+* **Detailed Error Logs**: More descriptive error messages with troubleshooting guidance
+* **Graceful Degradation**: Services continue with limited functionality when certain components are unavailable
+
+If you see warnings about unavailable services, they are likely expected on Windows 10/11 systems and can generally be ignored - the provider will attempt alternative methods to complete operations.
 
 ### Software Dependencies
 

@@ -59,7 +59,7 @@ type VhdFileInputs struct {
 func (c *VhdFileInputs) Annotate(a infer.Annotator) {
 	a.Describe(&c.Path, "Path to the VHD file")
 	a.Describe(&c.SizeBytes, "Size of the VHD file in bytes")
-	a.Describe(&c.BlockSize, "Block size of the VHD file in bytes")
+	a.Describe(&c.BlockSize, "Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.")
 	a.Describe(&c.ParentPath, "Path to the parent VHD file when creating a differencing disk")
 	a.Describe(&c.DiskType, "Type of the VHD file (Fixed, Dynamic, or Differencing)")
 }

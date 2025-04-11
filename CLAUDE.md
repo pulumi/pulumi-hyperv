@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Contributing to the Pulumi HyperV Provider
+
+First, thank you for your interest in contributing to the Pulumi HyperV Provider!
+
+### Code of Conduct
+
+Please read our [Code of Conduct](CODE-OF-CONDUCT.md) before participating in this project.
+
+### Development Environment Setup
+
+#### Prerequisites
+
+- [Go 1.24 or later](https://golang.org/dl/)
+- [NodeJS 16.X.X or later](https://nodejs.org/en/download/)
+- [Python 3.8 or later](https://www.python.org/downloads/)
+- [.NET Core 6.0 or later](https://dotnet.microsoft.com/download)
+- [PowerShell 7 or later](https://github.com/PowerShell/PowerShell/releases) (required for Windows builds)
+- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/)
+
 ## Build Commands
 
 - Windows builds use PowerShell: `.\make.ps1 [target]`
@@ -26,24 +45,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Lint/Test Commands
 
-- Run linter: `.\make.ps1 lint`
-- Run all tests: `.\make.ps1 test`
-- Provider tests only: `.\make.ps1 test_provider`
+- Run linter: `.\make.ps1 lint` (Windows) or `make lint` (Linux/macOS)
+- Run all tests: `.\make.ps1 test` (Windows) or `make test` (Linux/macOS)
+- Provider tests only: `.\make.ps1 test_provider` (Windows) or `make test_provider` (Linux/macOS)
 - Run a single test: `cd provider && GOOS=windows go test -v -count=1 ./... -run TestName`
-- Format Go code: `gofmt -w .`
-- Run Go linter: `cd provider && GOOS=windows golangci-lint run --path-prefix=provider -c ../.golangci.yml`
+- Format Go code: `gofmt -w .` or `make format`
+- Run Go linter: `make lint` (ALWAYS preferred over direct golangci-lint calls)
 
 ## Post-Code Change Commands
 
 Run these commands after every change to Go files:
 
-- Format code: `gofmt -w .`
-- Lint code: `cd provider && GOOS=windows golangci-lint run --path-prefix=provider -c ../.golangci.yml`
-- Build provider: `cd $GOPATH/src/github.com/pulumi/pulumi-hyperv-provider/provider; GOOS=windows go build .`
+- Format code: `make format` (preferred) or `gofmt -w .`
+- Lint code: `make lint` (ALWAYS preferred over direct golangci-lint calls)
+- Build provider: `make provider` (preferred) or `cd provider && GOOS=windows go build -o bin/pulumi-resource-hyperv ./cmd/pulumi-resource-hyperv`
 
 For Markdown files:
 
-- Lint Markdown: `npx markdownlint "**/*.md"`
+- Lint Markdown: `npx markdownlint "**/*.md"` or `make lint`
 - Fix most issues automatically: `npx markdownlint --fix "**/*.md"`
 
 ## Example Tests
@@ -79,6 +98,7 @@ For Markdown files:
 - Resource dependencies:
   - NetworkAdapters require `vmName` property when creating network adapters
   - VhdFile as differencing disk requires `parentPath` (parent VHD) and `diskType: "Differencing"` but no `sizeBytes`
+  - VhdFile creation strongly benefits from using `blockSize: 1048576` (1MB) for better compatibility
   - Machine with dynamic memory uses `dynamicMemory: true`, `minimumMemory` and `maximumMemory`
   - Machine auto start/stop behavior configured with `autoStartAction` and `autoStopAction` properties
   - Create resources in proper order (create VMs before attaching network adapters to them)
@@ -102,6 +122,49 @@ For Markdown files:
 - Pulumi Go Provider: This project requires specific versions of Pulumi packages
   - Required Provider Version: `github.com/pulumi/pulumi-go-provider@v0.25.0`
   - Compatible Pulumi SDK: `github.com/pulumi/pulumi/sdk/v3@v3.160.0`
+  - Go version: 1.24
+
+## Development Workflow
+
+### Adding New Resources
+
+1. Create a new folder in `provider/pkg/provider` for your resource
+2. Create the main resource file, controller file, and outputs file
+3. Document your resource in a separate markdown file
+4. Update the provider schema in `provider.go`
+5. Regenerate SDKs with `.\make.ps1 codegen`
+6. Add tests for your resource
+7. Add an example of your resource to the examples directory
+
+### Creating Examples
+
+Examples demonstrate real-world use cases of the provider resources:
+
+1. Create a new directory in `examples/` for your example
+2. Add three key files:
+   - `Pulumi.yaml` - Project configuration
+   - `index.ts` - TypeScript implementation
+   - `package.json` - Node.js dependencies
+3. Add tests to `examples_nodejs_test.go` using:
+   - Standard Pulumi integration testing framework
+   - Advanced testing with `github.com/pulumi/providertest/pulumitest`
+4. Examples should be complete, executable Pulumi programs
+5. Consider advanced scenarios like the "devenv" example that shows creating multiple related resources
+
+### Submitting Pull Requests
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests to ensure your changes work as expected
+5. Submit a pull request with a clear description of your changes
+
+When submitting a PR, include:
+
+- A clear description of what the change does
+- Any new documentation needed
+- Tests that validate your change works
+- Examples demonstrating the use of new features
 
 ## Code Style Guidelines
 
@@ -148,9 +211,93 @@ For Markdown files:
 - Results from InvokeMethod are returned as []interface{} where the first element is a map[string]interface{}
 - Common methods:
   - vsms.InvokeMethod(): For invoking WMI methods on VirtualSystemManagementService
-  - vm.GetPath(): For getting the path to a VM (don't use GetID())
   - vmmsClient.GetVirtualizationConn().QueryInstances(): For WMI queries
   - wmiInstance.SetProperty(): For setting properties on WMI objects
+
+### Utility Functions
+
+The provider includes various utility functions in the `provider/pkg/provider/util` package:
+
+#### PowerShell Utilities
+
+The codebase includes robust PowerShell integration for fallback operations when WMI is unavailable:
+
+```go
+// FindPowerShellExe finds the PowerShell executable (powershell.exe or pwsh.exe)
+// It tries powershell.exe first, then pwsh.exe, then pwsh (for Linux/macOS).
+// Returns the executable name and nil if found, or an error if no PowerShell executable is found.
+func FindPowerShellExe() (string, error) {
+    // Check if PowerShell is available - try powershell.exe first, then pwsh.exe
+    if _, err := exec.LookPath("powershell.exe"); err == nil {
+        return "powershell.exe", nil
+    } else if _, err := exec.LookPath("pwsh.exe"); err == nil {
+        return "pwsh.exe", nil
+    } else if _, err := exec.LookPath("pwsh"); err == nil {
+        return "pwsh", nil
+    }
+    return "", fmt.Errorf("neither powershell.exe nor pwsh.exe found in PATH, PowerShell fallback cannot be used")
+}
+
+// RunPowerShellCommand is a helper function to run PowerShell commands with proper error handling
+func RunPowerShellCommand(command string) (string, error) {
+    // Find PowerShell executable
+    powershellExe, err := FindPowerShellExe()
+    if err != nil {
+        return "", err
+    }
+    cmd := exec.Command(powershellExe, "-Command", command)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        // Always return the output even when there's an error, so callers can inspect it
+        return string(output), fmt.Errorf("command failed: %v, output: %s", err, string(output))
+    }
+    return string(output), nil
+}
+
+// ParsePowerShellError attempts to parse common PowerShell error patterns and returns a more user-friendly error
+func ParsePowerShellError(cmdOutput string, cmdName string, entityType string, entityName string) error {
+    if cmdOutput == "" {
+        return fmt.Errorf("unknown %s error: no output received from PowerShell command", entityType)
+    }
+
+    // Common PowerShell error patterns
+    switch {
+    case strings.Contains(cmdOutput, "ObjectNotFound"):
+        return fmt.Errorf("%s not found: '%s'. Please verify it exists and you have permission to access it", entityType, entityName)
+        
+    case strings.Contains(cmdOutput, "Access is denied") || strings.Contains(cmdOutput, "AccessDenied"):
+        return fmt.Errorf("access denied. Please verify you have administrator privileges")
+        
+    case strings.Contains(cmdOutput, "The parameter is incorrect"):
+        return fmt.Errorf("incorrect parameter. This often happens with incompatible formats or configurations")
+    
+    case strings.Contains(cmdOutput, "Unable to find a default server with Active Directory"):
+        return fmt.Errorf("unable to access Active Directory. This may happen if you're not connected to a domain controller")
+    
+    case strings.Contains(cmdOutput, "The operation failed because of a cluster validation error"):
+        return fmt.Errorf("cluster validation error. This operation may require cluster administrative privileges")
+    
+    case strings.Contains(cmdOutput, "The operation failed because the process hosting the server process terminated unexpectedly"):
+        return fmt.Errorf("the Hyper-V service may have restarted. Please try again")
+    
+    default:
+        // If we can't identify the error, return the raw output
+        return fmt.Errorf("%s operation failed: %s", entityType, cmdOutput)
+    }
+}
+```
+
+These functions provide:
+
+1. Cross-platform PowerShell support (Windows PowerShell and PowerShell Core)
+2. Centralized error handling for PowerShell command execution
+3. Consistent output formatting for PowerShell operations
+4. A critical fallback mechanism when WMI services are unavailable
+5. Enhanced error handling with pattern-matching for specific PowerShell errors
+6. User-friendly error messages that provide actionable guidance
+7. Access to both error code and full PowerShell output for better diagnostics
+
+**IMPORTANT**: Always use `util.RunPowerShellCommand()` for PowerShell operations, not direct `exec.Command()` calls. This ensures consistent handling, proper error messages, and automatic executable detection even in non-standard configurations.
 
 ### Hyper-V Detection
 
@@ -208,9 +355,12 @@ compared to Windows Server:
 - Careful null checking before accessing any WMI objects
 - Clear logging with different levels (INFO, WARN, ERROR) to help diagnose issues
 - Alternative code paths for key operations when primary methods fail
-- PowerShell fallback for VHD operations as a last resort:
-  - Uses the `CreateVirtualHardDiskFallback` function in `vhdfileController.go` 
-  - Invokes `New-VHD` PowerShell cmdlet when WMI services are unavailable
+- PowerShell fallback for various operations when WMI services are unavailable:
+  - Uses the `util.FindPowerShellExe()` function to locate the appropriate PowerShell executable
+  - Works with both Windows PowerShell (powershell.exe) and PowerShell Core (pwsh.exe/pwsh)
+  - Provides consistent fallback behavior across all resources
+  - VHD operations specifically use the `CreateVirtualHardDiskFallback` function in `vhdfileController.go`
+  - Invokes native PowerShell cmdlets like `New-VHD` when WMI services are unavailable
   - Supports all VHD types: Fixed, Dynamic, and Differencing
   - Includes thorough input validation and error handling
   - Properly escapes file paths and handles various parameter combinations
@@ -219,16 +369,58 @@ compared to Windows Server:
 ## Approved Commands
 
 - `make`, `.\make.ps1`: All build and test targets
-- `git status`, `git diff`: Repository status operations
+  - `make lint`, `make format`, `make test`, `make build`, `make provider`
+  - `.\make.ps1 lint`, `.\make.ps1 build`, etc.
+- `git status`, `git diff`: Repository status operations (read-only)
 - `go test`, `go build`, `gofmt`, `golangci-lint`: Go tooling
 - `cd`, `ls`: Navigation commands
 
+## Important Restrictions
+
+- **NEVER RUN GIT COMMIT**: Do not attempt to create commits. Only the user should create commits.
+- **NEVER MODIFY .git DIRECTORY**: Do not attempt to directly modify the git repository.
+- **NEVER CREATE PULL REQUESTS**: Do not attempt to create or submit pull requests.
+
 ## Common Issues and Solutions
+
+- **IMPORTANT: ALWAYS USE THE MICROSOFT WMI TEST CODE AS A REFERENCE**
+  - When implementing any Hyper-V functionality, ALWAYS refer to Microsoft's WMI test code:
+  - <https://github.com/microsoft/wmi/blob/master/pkg/virtualization/core/service/virtualmachinemanagementservice_test.go>
+  - Use the existing helper methods like `vsms.AttachVirtualHardDisk()` and `vsms.AddVirtualNetworkAdapter()`
+
+- **IMPORTANT: ROBUST HYPER-V INTERACTIONS REQUIRE MULTIPLE FALLBACK APPROACHES**
+  - The codebase uses a multi-layered approach for reliability across different Windows environments:
+  
+  1. **PRIMARY: High-level WMI methods** from Microsoft's WMI library:
+     - First attempt uses existing helper methods like `vsms.AttachVirtualHardDisk()` and `vsms.AddVirtualNetworkAdapter()`
+     - These are the most reliable when available and should be the first approach
+     - Example: `_, _, err := vsms.AttachVirtualHardDisk(vm, *hd.Path, diskType)`
+  
+  2. **SECONDARY: Direct WMI API calls** for when high-level methods fail:
+     - Falls back to formatted WMI resource path strings and direct API calls
+     - Uses properly formatted resource settings arrays
+     - Example: `vmmsClient.AttachVirtualHardDiskDirectApi(vm, hdPath, controllerNumber, controllerLocation)`
+  
+  3. **FALLBACK: PowerShell cmdlets** for when WMI services are not available:
+     - Final fallback using `Add-VMHardDiskDrive`, `Add-VMNetworkAdapter`, etc.
+     - Use `util.RunPowerShellCommand()` for PowerShell operations
+     - Example: `addVirtualNetworkAdapterPowerShell(vm, adapterName, switchName)`
+     - Enhanced error handling with pattern-matching for common PowerShell errors
+     - User-friendly error messages based on specific error patterns
+     - Consistent error handling across all PowerShell operations
+
+- **AddResourceSettings common errors**: When direct WMI methods are needed:
+  - For direct API calls, use this system name format:
+    ```go
+    systemName := fmt.Sprintf("\\\\%s\\root\\virtualization\\v2:Msvm_ComputerSystem.CreationClassName=\"Msvm_ComputerSystem\",Name=\"%s\"", host.HostName, vm.InstanceID)
+    ```
+  - Ensure ResourceSubType matches ResourceType (31 → "Microsoft:Hyper-V:Virtual Hard Disk", 10 → "Microsoft:Hyper-V:Synthetic Ethernet Port")
+  - Always check return values from WMI method calls and handle errors properly
 
 - **TypeScript import compatibility**: Both import styles are supported:
   - Namespaced (recommended): `hyperv.machine.Machine`, `hyperv.virtualswitch.VirtualSwitch`
   - Direct (legacy): `hyperv.Machine`, `hyperv.VirtualSwitch`
-- **Error "Property does not exist on type"**: Check correct namespace in imports (machine, vhdfile, etc.)
+- **Error "Property does not exist on type"**: Check correct namespace in imports (machine, vhdfile, etc.). Example: use `hyperv.virtualswitch.VirtualSwitch` instead of `hyperv.VirtualSwitch`
 - **Property is required**: Check if property is marked as optional in the Go code
 - **Package.json issues**: Use `"main": "index"` not `"main": "index.js"`
 - **Resource ordering**: Create VMs before attaching network adapters to them
@@ -237,6 +429,7 @@ compared to Windows Server:
   - Embedded pattern: Include in `Machine` resource's `networkAdapters` array property
   - Reference pattern: Create standalone adapter (without vmName) and reference in Machine (see simple-all-four example)
 - **VhdFile differencing disk**: Requires parentPath but not sizeBytes with `diskType: "Differencing"`
+- **VhdFile block size**: Always specify `blockSize: 1048576` (1MB) for better compatibility. Errors like "The parameter is incorrect" (0x80070057) when creating VHDs often indicate block size compatibility issues
 - **Dynamic memory configuration**: Requires `dynamicMemory: true` plus `minimumMemory` and `maximumMemory` properties
 - **Auto start/stop behavior**: Configure with `autoStartAction` and `autoStopAction`:
   - `autoStartAction`: "Nothing", "StartIfRunning", or "Start"
@@ -267,8 +460,73 @@ compared to Windows Server:
   - Error messages are tailored based on the detected OS version
   - Most operations will use fallback methods when primary methods fail
   - Running as administrator is more critical on Windows 10/11 than Server editions
+  
+- **Azure Edition compatibility**:
+  - Azure Edition Windows Server has service limitations similar to Windows 10/11
+  - When both ImageManagementService and VirtualSystemManagementService are unavailable on Azure Edition, PowerShell fallback is used automatically
+  - A specific message with Azure Edition guidance is displayed in the Pulumi window
+  - All VHD operations will work via PowerShell fallback even when these services are unavailable
 - **Nil pointer dereference crashes**:
   - If you encounter these, ensure you're using the latest version with enhanced error handling
   - The provider now includes panic recovery and extensive null checks
   - Detailed logs will help identify which service is causing issues
   - The new code handles these issues gracefully with fallback methods
+
+- **"unknown type" errors in AddResourceSettings**:
+  - These errors occur when WMI expects specific parameter formats for method parameters
+  - The WMI API for AddResourceSettings expects two specific parameters:
+    1. First parameter: The VM path (from vm.GetPath(), not just VM name)
+    2. Second parameter: An array of resource settings objects
+  - Correct format example:
+
+    ```go
+    resourceSettings := []interface{}{
+        map[string]interface{}{
+            "ResourceType":       uint16(31), // 31 = Disk drive
+            "Path":               "C:\\path\\to\\disk.vhdx",
+            "ResourceSubType":    "Microsoft:Hyper-V:Synthetic SCSI Controller",
+            "ControllerNumber":   uint32(0),
+            "ControllerLocation": uint32(0),
+        },
+    }
+    vsms.InvokeMethod("AddResourceSettings", []interface{}{vmPath, resourceSettings})
+    ```
+
+  - Similar structure is needed for AddNetworkAdapter and other WMI methods
+  - Error handling for resource attachments should save the VM state for proper cleanup:
+    - When hard drive or network adapter attachment fails, still return the VM state
+    - This ensures `pulumi destroy` can properly clean up the VM even if a component failed to attach
+    - Use warning logs to indicate that the state is being saved despite the attachment failure
+  - Valid resource types include:
+    - 31 = Disk drive (used for hard drive resources)
+    - 10 = Network adapter
+
+- **Memory errors when starting VMs**:
+  - When starting VMs, Windows can return various memory-related errors:
+    - "Not enough memory in the system to start the virtual machine example-vm"
+    - "Not enough memory resources are available to complete this operation. (0x8007000E)"
+    - "could not initialize memory"
+  - The provider now handles these errors with specific guidance:
+    - Shows the memory amount that caused the problem
+    - Provides actionable suggestions to fix the issue
+    - Returns clear error messages to Pulumi users
+  - Resolution options typically include:
+    - Reducing memory allocation in the VM
+    - Closing other applications to free host memory
+    - Adding more RAM to the host system
+    - Using dynamic memory with lower minimum allocation
+
+- **SCSI controller issues for hard drives**:
+  - When attaching hard drives using PowerShell, common errors include:
+    - "The operation could not be completed because no available locations were found on the disk controller"
+    - Controller location conflicts when multiple hard drives use the same controller/location
+  - The provider implements robust error handling:
+    - Suggests using a different controller number or location
+    - Explains the error in user-friendly terms
+    - Shows the controller type, number, and location in the error message
+  - Best practices for SCSI controller configuration:
+    - Default controller type is "SCSI" (most flexible and performant)
+    - Default controller number is 0 (first controller)
+    - Controller locations should be unique (0, 1, 2, etc.) per controller
+    - Each controller supports up to 64 locations (0-63)
+    - When attaching multiple drives, specify unique locations

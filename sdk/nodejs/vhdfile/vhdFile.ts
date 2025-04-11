@@ -36,6 +36,7 @@ import * as utilities from "../utilities";
  * | `parentPath` | string | Path to parent VHD when creating differencing disks |
  * | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
  * | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+ * | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
  *
  * ## Implementation Details
  *
@@ -55,6 +56,7 @@ import * as utilities from "../utilities";
  * const baseVhd = new hyperv.VhdFile("base-vhd", {
  *     path: "c:\\vms\\base\\disk.vhdx",
  *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
  *     diskType: "Dynamic"
  * });
  * ```
@@ -65,6 +67,7 @@ import * as utilities from "../utilities";
  * const baseVhd = new hyperv.VhdFile("base-vhd", {
  *     path: "c:\\vms\\base\\disk.vhdx",
  *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
  *     diskType: "Dynamic"
  * });
  *
@@ -84,6 +87,7 @@ import * as utilities from "../utilities";
  * const baseVhd = new hyperv.VhdFile("base-vhd", {
  *     path: "c:\\vms\\base\\disk.vhdx",
  *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
  *     diskType: "Dynamic"
  * });
  *
@@ -137,7 +141,7 @@ export class VhdFile extends pulumi.CustomResource {
     }
 
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      */
     public readonly blockSize!: pulumi.Output<number | undefined>;
     /**
@@ -227,7 +231,7 @@ export class VhdFile extends pulumi.CustomResource {
  */
 export interface VhdFileArgs {
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      */
     blockSize?: pulumi.Input<number>;
     /**

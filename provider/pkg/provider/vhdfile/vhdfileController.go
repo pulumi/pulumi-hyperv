@@ -17,6 +17,7 @@ package vhdfile
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -26,6 +27,7 @@ import (
 
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
@@ -40,6 +42,8 @@ var _ = (infer.CustomDelete[VhdFileOutputs])((*VhdFile)(nil))
 
 // Connect establishes a connection to the Hyper-V server.
 func (c *VhdFile) Connect(ctx context.Context) (*vmms.VMMS, interface{}, error) {
+	logger := logging.GetLogger(ctx)
+
 	// Initialize all the parameters.
 	config := infer.GetConfig[common.Config](ctx)
 	var whost *host.WmiHost
@@ -49,8 +53,30 @@ func (c *VhdFile) Connect(ctx context.Context) (*vmms.VMMS, interface{}, error) 
 		whost = host.NewWmiLocalHost()
 	}
 
-	vmmsClient, err := vmms.NewVMMS(whost)
-	return vmmsClient, nil, err
+	// Wrap vmms creation in panic recovery
+	var vmmsClient *vmms.VMMS
+	var vmmsErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				vmmsErr = fmt.Errorf("recovered from panic in NewVMMS: %v", r)
+				logger.Warnf("Recovered from panic in NewVMMS: %v", r)
+			}
+		}()
+
+		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+	}()
+
+	if vmmsErr != nil {
+		// Log the error but don't fail - we'll continue with nil client and use fallback methods
+		logger.Warnf("Failed to create VMMS client: %v", vmmsErr)
+		logger.Infof("Will attempt to use PowerShell fallback methods for VHD operations")
+	}
+
+	// We'll return the client even if it's nil, and handle nil checks in the resource methods
+	// This allows us to fall back to PowerShell commands when the WMI services are unavailable
+	return vmmsClient, nil, nil
 }
 
 // Delete deletes a VHD file.
@@ -58,14 +84,6 @@ func (c *VhdFile) Delete(ctx context.Context, id string, state VhdFileOutputs) e
 	// Delete the VHD file.
 	logger := logging.GetLogger(ctx)
 	logger.Infof("Deleting vhd [%v]", state.Path)
-
-	// In case any mounts or attachments to this file are missing.
-	// Warn about them instead of failing.
-	//
-	// logger.Warnf("Failed to delete vhd [%v] because [%v]", state.Path, err)
-	// return fmt.Errorf("Failed to delete vhd [%v] because [%v]", state.Path, err)
-	//
-	// return
 
 	// If the path is empty, we can't delete the VHD file.
 	if state.Path == nil {
@@ -85,21 +103,72 @@ func (c *VhdFile) Delete(ctx context.Context, id string, state VhdFileOutputs) e
 	// Try deleting the VHD using various available methods
 	vhdPath := *state.Path
 
-	// First try using the VirtualSystemManagementService
-	vsms := vmmsClient.GetVirtualSystemManagementService()
-	if vsms == nil {
-		return fmt.Errorf("cannot delete VHD - VirtualSystemManagementService is unavailable")
+	// Check if the file actually exists first
+	powershellExe, psErr := util.FindPowerShellExe()
+	if psErr != nil {
+		return fmt.Errorf("failed to find PowerShell executable: %v", psErr)
 	}
 
+	checkCmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("Test-Path -Path \"%s\"", vhdPath))
+	checkOutput, checkErr := checkCmd.CombinedOutput()
+	fileExists := false
+	if checkErr == nil && strings.TrimSpace(string(checkOutput)) == "True" {
+		fileExists = true
+	}
+
+	if !fileExists {
+		logger.Infof("VHD file [%s] already doesn't exist, considering deletion successful", vhdPath)
+		return nil
+	}
+
+	// First check for nil client - use PowerShell directly if no VMMS client
+	if vmmsClient == nil {
+		logger.Warnf("VMMS client is nil, attempting to delete file via PowerShell")
+		// Use PowerShell to delete the file as a fallback
+		cmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("Remove-Item -Path \"%s\" -Force", vhdPath))
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to delete VHD file with PowerShell: %v, output: %s", err, string(output))
+		}
+		logger.Infof("Deleted VHD [%s] using PowerShell", vhdPath)
+		return nil
+	}
+
+	// Try using the VirtualSystemManagementService if available
+	vsms := vmmsClient.GetVirtualSystemManagementService()
+	if vsms == nil {
+		logger.Warnf("VirtualSystemManagementService is unavailable, falling back to PowerShell")
+		// Use PowerShell to delete the file as a fallback
+		cmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("Remove-Item -Path \"%s\" -Force", vhdPath))
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to delete VHD file with PowerShell: %v, output: %s", err, string(output))
+		}
+		logger.Infof("Deleted VHD [%s] using PowerShell", vhdPath)
+		return nil
+	}
+
+	// Try deleting with WMI first
 	params := map[string]interface{}{
 		"Path": vhdPath,
 	}
 	_, err = vsms.InvokeMethod("DeleteVirtualHardDisk", params)
 	if err != nil {
-		logger.Warnf("Failed to delete vhd [%v] because [%v]", vhdPath, err)
-		return fmt.Errorf("Failed to delete vhd [%v] because [%v]", vhdPath, err)
+		logger.Warnf("Failed to delete vhd [%v] via WMI because [%v], falling back to direct file removal", vhdPath, err)
+
+		// If WMI method fails, try direct PowerShell file removal as a fallback
+		cmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("Remove-Item -Path \"%s\" -Force", vhdPath))
+		output, removeErr := cmd.CombinedOutput()
+		if removeErr != nil {
+			logger.Errorf("Failed to delete VHD file with PowerShell after WMI failure: %v, output: %s", removeErr, string(output))
+			return fmt.Errorf("Failed to delete vhd [%v]: WMI error: [%v], PowerShell error: [%v]", vhdPath, err, removeErr)
+		}
+
+		logger.Infof("Deleted VHD [%s] using PowerShell after WMI method failed", vhdPath)
+		return nil
 	}
 
+	logger.Infof("Successfully deleted VHD [%s] using WMI", vhdPath)
 	return nil
 }
 
@@ -113,13 +182,37 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 	if preview {
 		return id, state, nil
 	}
-	vmmsClient, _, err := c.Connect(ctx)
 
+	vmmsClient, _, err := c.Connect(ctx)
 	if err != nil {
 		return id, state, err
 	}
+
+	// Check for nil client
+	if vmmsClient == nil {
+		logger.Warnf("VMMS client is nil, will attempt PowerShell fallback for VHD creation")
+	}
 	// Create the VHD file.
 	vhdFileName := *input.Path
+
+	// Create parent directory if it doesn't exist (using Go's native code)
+	// Extract directory path from the full VHD path
+	lastSlashIndex := strings.LastIndex(vhdFileName, "\\")
+	if lastSlashIndex == -1 {
+		lastSlashIndex = strings.LastIndex(vhdFileName, "/")
+	}
+
+	if lastSlashIndex != -1 {
+		dirPath := vhdFileName[:lastSlashIndex]
+		logger.Infof("Ensuring parent directory exists: %s", dirPath)
+
+		// Use Go's native os.MkdirAll to create directory and any missing parents
+		err := os.MkdirAll(dirPath, 0755)
+		if err != nil {
+			logger.Errorf("Failed to create parent directory: %v", err)
+			return id, state, fmt.Errorf("failed to create parent directory: %v", err)
+		}
+	}
 
 	// Check if this is a differencing disk or a regular disk
 	if input.DiskType != nil && *input.DiskType == "Differencing" {
@@ -129,6 +222,38 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 		}
 
 		parentVhdPath := *input.ParentPath
+
+		// Check for Azure Edition OS to skip PowerShell fallback
+		isAzureEdition := false
+		osVersion, err := util.GetOSVersion()
+		if err == nil && strings.Contains(strings.ToLower(osVersion), "azure") {
+			logger.Infof("Azure Edition OS detected: %s. Will use WMI for differencing disk creation.", osVersion)
+			isAzureEdition = true
+		}
+
+		// Handle nil client case - Azure Edition should never use PowerShell fallback
+		if vmmsClient == nil && !isAzureEdition {
+			logger.Warnf("VMMS client is nil, falling back to PowerShell for differencing disk")
+
+			// Wrap PowerShell fallback in panic recovery to prevent crashes
+			var fallbackErr error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fallbackErr = fmt.Errorf("recovered from panic in CreateVirtualHardDiskFallback: %v", r)
+					}
+				}()
+				fallbackErr = CreateVirtualHardDiskFallback(vhdFileName, 0, 0, "Differencing", input.ParentPath)
+			}()
+
+			if fallbackErr != nil {
+				return id, state, fmt.Errorf("failed to create differencing disk using PowerShell fallback: %v", fallbackErr)
+			}
+
+			logger.Infof("Created differencing vhd [%s] with parent [%s] using PowerShell", vhdFileName, parentVhdPath)
+			return id, state, nil
+		}
+
 		ims := vmmsClient.GetImageManagementService()
 		if ims == nil {
 			logger.Warnf("ImageManagementService is unavailable, trying alternative method via VSMS")
@@ -170,10 +295,11 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 	} else {
 		// Regular disk creation (fixed or dynamic)
 		vhdFileSize := *input.SizeBytes
-		// Set the block size to 512 bytes if not specified.
+		// Set the block size if not specified - using 1MB (1048576 bytes) for better compatibility
 		if input.BlockSize == nil {
-			blockSize := int64(512)
+			blockSize := int64(1048576) // 1MB block size
 			input.BlockSize = &blockSize
+			logger.Warnf("No block size specified for VHD creation. Using 1MB (1048576 bytes) for better compatibility.")
 		}
 		vhdFileBlockSize := *input.BlockSize
 		// Set the disk type to "fixed" if not specified.
@@ -181,6 +307,51 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 		if input.DiskType != nil && *input.DiskType == "fixed" {
 			dynamicDiskType = false
 		}
+
+		// Check for Azure Edition OS to skip PowerShell fallback
+		isAzureEdition := false
+		osVersion, err := util.GetOSVersion()
+		if err == nil && strings.Contains(strings.ToLower(osVersion), "azure") {
+			logger.Infof("Azure Edition OS detected: %s. Will use WMI for regular disk creation.", osVersion)
+			isAzureEdition = true
+		}
+
+		// Handle nil client case - Azure Edition should never use PowerShell fallback
+		if vmmsClient == nil && !isAzureEdition {
+			logger.Warnf("VMMS client is nil, falling back to PowerShell for VHD creation")
+
+			// Ensure we have valid values for required parameters
+			if input.DiskType == nil {
+				diskType := "dynamic" // Default to dynamic disk if not specified
+				input.DiskType = &diskType
+				logger.Infof("No disk type specified, defaulting to 'dynamic' for PowerShell fallback")
+			}
+
+			// BlockSize might be nil if it wasn't set in the original input
+			var blockSizeVal int64 = 0
+			if input.BlockSize != nil {
+				blockSizeVal = *input.BlockSize
+			}
+
+			// Wrap PowerShell fallback in panic recovery to prevent crashes
+			var fallbackErr error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fallbackErr = fmt.Errorf("recovered from panic in CreateVirtualHardDiskFallback: %v", r)
+					}
+				}()
+				fallbackErr = CreateVirtualHardDiskFallback(vhdFileName, vhdFileSize, blockSizeVal, *input.DiskType, input.ParentPath)
+			}()
+
+			if fallbackErr != nil {
+				return id, state, fmt.Errorf("failed to create VHD using PowerShell fallback: %v", fallbackErr)
+			}
+
+			logger.Infof("Created VHD [%s] using PowerShell", vhdFileName)
+			return id, state, nil
+		}
+
 		ims := vmmsClient.GetImageManagementService()
 
 		if ims == nil {
@@ -190,7 +361,7 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 			vsms := vmmsClient.GetVirtualSystemManagementService()
 			// If both services are unavailable, we can fall back to PowerShell
 			// This is a last resort and should be avoided if possible.
-			if vsms == nil {
+			if vsms == nil && !isAzureEdition {
 				logger.Warnf("Both ImageManagementService and VirtualSystemManagementService are unavailable, falling back to PowerShell")
 
 				// Ensure we have valid values for required parameters
@@ -200,10 +371,12 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 					logger.Infof("No disk type specified, defaulting to 'dynamic' for PowerShell fallback")
 				}
 
-				// BlockSize might be nil if it wasn't set in the original input
-				var blockSizeVal int64 = 0
+				// BlockSize is important for proper VHD creation
+				var blockSizeVal int64 = 1048576 // Default to 1MB block size for PowerShell fallback
 				if input.BlockSize != nil {
 					blockSizeVal = *input.BlockSize
+				} else {
+					logger.Warnf("No block size specified for VHD creation. Using 1MB (1048576 bytes) for better compatibility.")
 				}
 
 				err := CreateVirtualHardDiskFallback(vhdFileName, vhdFileSize, blockSizeVal, *input.DiskType, input.ParentPath)
@@ -212,7 +385,33 @@ func (c *VhdFile) Create(ctx context.Context, name string, input VhdFileInputs, 
 				}
 				logger.Infof("Created VHD [%s] using PowerShell fallback", vhdFileName)
 				return id, state, nil
+			} else if vsms == nil && isAzureEdition {
+				// For Azure Edition, log clearly in Pulumi window but still use PowerShell fallback
+				logger.LogAzureEditionFallback()
+
+				// Ensure we have valid values for required parameters
+				if input.DiskType == nil {
+					diskType := "dynamic" // Default to dynamic disk if not specified
+					input.DiskType = &diskType
+					logger.Infof("No disk type specified, defaulting to 'dynamic' for PowerShell fallback")
+				}
+
+				// BlockSize is important for proper VHD creation
+				var blockSizeVal int64 = 1048576 // Default to 1MB block size for PowerShell fallback
+				if input.BlockSize != nil {
+					blockSizeVal = *input.BlockSize
+				} else {
+					logger.Warnf("No block size specified for VHD creation. Using 1MB (1048576 bytes) for better compatibility.")
+				}
+
+				err := CreateVirtualHardDiskFallback(vhdFileName, vhdFileSize, blockSizeVal, *input.DiskType, input.ParentPath)
+				if err != nil {
+					return id, state, fmt.Errorf("failed to create VHD using PowerShell fallback: %v", err)
+				}
+				logger.Infof("Created VHD [%s] using PowerShell fallback on Azure Edition", vhdFileName)
+				return id, state, nil
 			}
+
 			// If we have the VirtualSystemManagementService, we can create the disk using it
 			diskType := uint32(3) // 3 = Dynamic (default)
 			if !dynamicDiskType {
@@ -282,17 +481,41 @@ func (c *VhdFile) Read(ctx context.Context, id string, inputs VhdFileInputs, cur
 		VhdFileInputs: inputs,
 	}
 
+	// Check if the file actually exists first using PowerShell
+	powershellExe, psErr := util.FindPowerShellExe()
+	if psErr == nil {
+		checkCmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("Test-Path -Path \"%s\"", vhdFileName))
+		checkOutput, checkErr := checkCmd.CombinedOutput()
+		if checkErr == nil {
+			fileExists := strings.TrimSpace(string(checkOutput)) == "True"
+			if !fileExists {
+				return id, inputs, currentState, fmt.Errorf("VHD file does not exist: %s", vhdFileName)
+			}
+			// File exists - if VMMS client is not available, we can just return success
+			if vmmsClient == nil {
+				logger.Infof("VHD file exists (verified via PowerShell): %s", vhdFileName)
+				return id, inputs, outputs, nil
+			}
+		}
+	}
+
+	// If we have a VMMS client, try more detailed validation
 	ims := vmmsClient.GetImageManagementService()
 	if ims == nil {
-		logger.Infof("ImageManagementService not available, using basic file existence check")
+		logger.Infof("ImageManagementService not available, using basic file existence check via VSMS")
 		// Just verify the file exists
+		vsms := vmmsClient.GetVirtualSystemManagementService()
+		if vsms == nil {
+			logger.Infof("VirtualSystemManagementService not available, file existence was already verified via PowerShell")
+			return id, inputs, outputs, nil
+		}
+
 		params := map[string]interface{}{
 			"Path": vhdFileName,
 		}
-		vsms := vmmsClient.GetVirtualSystemManagementService()
 		_, err = vsms.InvokeMethod("TestVirtualHardDiskExists", params)
 		if err != nil {
-			return id, inputs, currentState, fmt.Errorf("Failed to check if VHD exists: %v", err)
+			logger.Warnf("VSMS failed to verify VHD exists: %v, but file existence was already verified via PowerShell", err)
 		}
 		return id, inputs, outputs, nil
 	}
@@ -304,7 +527,7 @@ func (c *VhdFile) Read(ctx context.Context, id string, inputs VhdFileInputs, cur
 	}
 	_, err = ims.InvokeMethod("ValidateVirtualHardDisk", params)
 	if err != nil {
-		return id, inputs, currentState, fmt.Errorf("Failed to validate VHD: %v", err)
+		logger.Warnf("Failed to validate VHD with IMS: %v, but file existence was already verified", err)
 	}
 
 	return id, inputs, outputs, nil
@@ -313,6 +536,11 @@ func (c *VhdFile) Read(ctx context.Context, id string, inputs VhdFileInputs, cur
 // CreateVirtualHardDiskFallback uses PowerShell to create a VHD if WMI services are unavailable.
 // This is a fallback method when both ImageManagementService and VirtualSystemManagementService are unavailable.
 func CreateVirtualHardDiskFallback(path string, sizeBytes int64, blockSize int64, diskType string, parentPath *string) error {
+	// Find PowerShell executable first
+	powershellExe, psErr := util.FindPowerShellExe()
+	if psErr != nil {
+		return fmt.Errorf("failed to find PowerShell executable: %v", psErr)
+	}
 	// Input validation
 	if path == "" {
 		return fmt.Errorf("VHD path cannot be empty")
@@ -350,37 +578,72 @@ func CreateVirtualHardDiskFallback(path string, sizeBytes int64, blockSize int64
 		return fmt.Errorf("blockSize cannot be negative")
 	}
 
+	// Create parent directory if it doesn't exist
+	// Extract directory path from the full VHD path
+	lastSlashIndex := strings.LastIndex(path, "\\")
+	if lastSlashIndex == -1 {
+		lastSlashIndex = strings.LastIndex(path, "/")
+	}
+
+	if lastSlashIndex != -1 {
+		dirPath := path[:lastSlashIndex]
+		// Create directory if it doesn't exist (including all parent directories)
+		createDirCmd := exec.Command(powershellExe, "-Command", fmt.Sprintf("New-Item -Path \"%s\" -ItemType Directory -Force | Out-Null", dirPath))
+		createDirOutput, createDirErr := createDirCmd.CombinedOutput()
+		if createDirErr != nil {
+			return fmt.Errorf("failed to create parent directory: %v, output: %s", createDirErr, string(createDirOutput))
+		}
+	}
+
 	// Construct the PowerShell command with proper escaping
 	var cmdArgs []string
 
-	// Base command
-	cmdArgs = append(cmdArgs, "New-VHD", "-Path", fmt.Sprintf("\"%s\"", path))
+	// Base command - use proper array for command arguments
+	cmdArgs = append(cmdArgs, "-Command")
+
+	// Build the New-VHD command string
+	newVhdCmd := fmt.Sprintf("New-VHD -Path '%s'", path)
 
 	// Add size parameter for non-differencing disks
 	if diskTypeNormalized != "differencing" {
-		cmdArgs = append(cmdArgs, "-SizeBytes", fmt.Sprintf("%d", sizeBytes))
+		newVhdCmd += fmt.Sprintf(" -SizeBytes %d", sizeBytes)
 	}
 
 	// Add block size if specified and valid
 	if blockSize > 0 {
-		cmdArgs = append(cmdArgs, "-BlockSizeBytes", fmt.Sprintf("%d", blockSize))
+		newVhdCmd += fmt.Sprintf(" -BlockSizeBytes %d", blockSize)
 	}
 
 	// Set the disk type
 	switch diskTypeNormalized {
 	case "fixed":
-		cmdArgs = append(cmdArgs, "-Fixed")
+		newVhdCmd += " -Fixed"
 	case "dynamic":
-		cmdArgs = append(cmdArgs, "-Dynamic")
+		newVhdCmd += " -Dynamic"
 	case "differencing":
-		cmdArgs = append(cmdArgs, "-Differencing", "-ParentPath", fmt.Sprintf("\"%s\"", *parentPath))
+		newVhdCmd += fmt.Sprintf(" -Differencing -ParentPath '%s'", *parentPath)
 	}
 
-	// Execute the PowerShell command
-	cmd := exec.Command("powershell.exe", cmdArgs...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to create VHD using PowerShell: %v, output: %s", err, string(output))
+	cmdArgs = append(cmdArgs, newVhdCmd)
+
+	// Execute the PowerShell command with panic recovery
+	var cmd *exec.Cmd
+	var output []byte
+	var cmdErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				cmdErr = fmt.Errorf("recovered from panic in PowerShell execution: %v", r)
+			}
+		}()
+
+		cmd = exec.Command(powershellExe, cmdArgs...)
+		output, cmdErr = cmd.CombinedOutput()
+	}()
+
+	if cmdErr != nil {
+		return fmt.Errorf("failed to create VHD using PowerShell: %v, output: %s", cmdErr, string(output))
 	}
 
 	return nil

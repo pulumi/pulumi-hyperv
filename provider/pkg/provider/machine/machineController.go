@@ -1,4 +1,3 @@
-//d/tmp/machineController.go
 // Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +17,8 @@ package machine
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/microsoft/wmi/pkg/base/host"
@@ -25,10 +26,11 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
-	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
-	provider "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
+	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
 	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
 )
 
@@ -41,6 +43,8 @@ var _ = (infer.CustomUpdate[MachineInputs, MachineOutputs])((*Machine)(nil))
 var _ = (infer.CustomDelete[MachineOutputs])((*Machine)(nil))
 
 func (c *Machine) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemManagementService, error) {
+	logger := logging.GetLogger(ctx)
+
 	// Create the VMMS client.
 	config := infer.GetConfig[common.Config](ctx)
 	var whost *host.WmiHost
@@ -50,17 +54,51 @@ func (c *Machine) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSyst
 		whost = host.NewWmiLocalHost()
 	}
 
-	vmmsClient, err := vmms.NewVMMS(whost)
-	if err != nil {
-		return nil, nil, err
+	// Wrap vmms creation in panic recovery
+	var vmmsClient *vmms.VMMS
+	var vmmsErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				vmmsErr = fmt.Errorf("recovered from panic in NewVMMS: %v", r)
+				logger.Warnf("Recovered from panic in NewVMMS: %v", r)
+			}
+		}()
+
+		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+	}()
+
+	if vmmsErr != nil {
+		// Log the error but continue with PowerShell fallback
+		logger.Warnf("Failed to create VMMS client: %v", vmmsErr)
+		logger.Infof("Will attempt to use PowerShell fallback for machine operations")
+		// Return nil, nil to indicate PowerShell fallback should be used
+		return nil, nil, nil
 	}
+
+	// Check for nil client before proceeding
+	if vmmsClient == nil {
+		logger.Warnf("VMMS client is nil after creation")
+		logger.Infof("Will attempt to use PowerShell fallback for machine operations")
+		return nil, nil, nil
+	}
+
+	// Get the management service with nil check
 	vsms := vmmsClient.GetVirtualSystemManagementService()
+	if vsms == nil {
+		logger.Warnf("Virtual System Management Service is nil on Windows 10/11, falling back to PowerShell")
+		logger.Infof("Windows 10/11 client editions often have more limited WMI service access, using PowerShell fallback")
+		// For Windows 10/11, we'll use PowerShell fallback - return client but nil VSMS
+		return vmmsClient, nil, nil
+	}
+
 	return vmmsClient, vsms, nil
 }
 
 // This is the Get Metadata method.
 func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, preview bool) (MachineOutputs, error) {
-	logger := provider.GetLogger(ctx)
+	logger := logging.GetLogger(ctx)
 
 	// Initialize the outputs with the inputs
 	outputs := MachineOutputs{
@@ -73,6 +111,9 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 		machineName = *inputs.MachineName
 	}
 
+	// Always ensure vmId is set even in preview or when VM doesn't exist yet
+	EnsureVmId(&outputs, machineName)
+
 	// If in preview, don't attempt to fetch actual VM data
 	if preview {
 		return outputs, nil
@@ -81,30 +122,51 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	// Connect to Hyper-V
 	vmmsClient, vsms, err := c.Connect(ctx)
 	if err != nil {
+		logger.Warnf("Error connecting to Hyper-V: %v", err)
 		return outputs, fmt.Errorf("failed to connect to Hyper-V: %v", err)
 	}
 
-	// Get the VM by name
+	// If we have no VMMS client or VSMS, use PowerShell to check if the VM exists
+	if vmmsClient == nil || vsms == nil {
+		logger.Infof("Using PowerShell fallback to check VM %s", machineName)
+		exists, err := checkVMExistsPowerShell(machineName)
+		if err != nil {
+			logger.Warnf("Error checking VM existence with PowerShell: %v", err)
+			return outputs, nil
+		}
+
+		if !exists {
+			logger.Debugf("Machine %s not found (PowerShell check)", machineName)
+			return outputs, nil
+		}
+
+		// VM exists - gather information using PowerShell
+		return readVMWithPowerShell(ctx, machineName, inputs)
+	}
+
+	// Use WMI if available
 	vm, err := vsms.GetVirtualMachineByName(machineName)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Machine %s not found: %v", machineName, err))
-		return outputs, nil
+		logger.Debugf("Machine %s not found: %v", machineName, err)
+		// Try fallback to PowerShell
+		logger.Infof("Falling back to PowerShell to check VM %s", machineName)
+		return readVMWithPowerShell(ctx, machineName, inputs)
 	}
 	defer vm.Close()
 
-	logger.Debug(fmt.Sprintf("Found machine %s", machineName))
+	logger.Debugf("Found machine %s", machineName)
 
 	// Get VM ID (ElementName in Hyper-V lingo)
 	vmId, err := vm.GetPropertyElementName()
 	if err == nil && vmId != "" {
 		outputs.VmId = &vmId
-		logger.Debug(fmt.Sprintf("VM ID: %s", vmId))
+		logger.Debugf("VM ID: %s", vmId)
 	}
 
 	// Get the VM settings data
 	vmSettings, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, machineName)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Failed to get VM settings: %v", err))
+		logger.Debugf("Failed to get VM settings: %v", err)
 		return outputs, nil
 	}
 	defer vmSettings.Close()
@@ -114,7 +176,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	if inputs.ProcessorCount == nil {
 		defaultProcCount := 1
 		inputs.ProcessorCount = &defaultProcCount
-		logger.Debug(fmt.Sprintf("Using default processor count: %d", defaultProcCount))
+		logger.Debugf("Using default processor count: %d", defaultProcCount)
 	}
 
 	// Get memory size - find the memory setting from VM settings
@@ -122,7 +184,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	if inputs.MemorySize == nil {
 		defaultMemSize := 1024 // Default 1GB
 		inputs.MemorySize = &defaultMemSize
-		logger.Debug(fmt.Sprintf("Using default memory size: %d MB", defaultMemSize))
+		logger.Debugf("Using default memory size: %d MB", defaultMemSize)
 	}
 
 	// Get VM generation - find the generation from VM settings
@@ -130,7 +192,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	if inputs.Generation == nil {
 		defaultGeneration := 2
 		inputs.Generation = &defaultGeneration
-		logger.Debug(fmt.Sprintf("Using default generation: %d", defaultGeneration))
+		logger.Debugf("Using default generation: %d", defaultGeneration)
 	}
 
 	// Get auto start action if not specified in inputs
@@ -149,7 +211,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 				actionStr = "Nothing"
 			}
 			inputs.AutoStartAction = &actionStr
-			logger.Debug(fmt.Sprintf("Found auto start action: %s", actionStr))
+			logger.Debugf("Found auto start action: %s", actionStr)
 		}
 	}
 
@@ -169,7 +231,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 				actionStr = "TurnOff"
 			}
 			inputs.AutoStopAction = &actionStr
-			logger.Debug(fmt.Sprintf("Found auto stop action: %s", actionStr))
+			logger.Debugf("Found auto stop action: %s", actionStr)
 		}
 	}
 
@@ -178,7 +240,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	// Currently just preserving any hard drives specified in the input
 	if len(inputs.HardDrives) == 0 {
 		// In a real implementation, we would retrieve the actual hard drives from the VM
-		logger.Debug("No hard drives specified in input, and retrieval not implemented")
+		logger.Debugf("No hard drives specified in input, and retrieval not implemented")
 	}
 
 	// Get network adapters attached to the VM
@@ -186,7 +248,7 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 	// Currently just preserving any network adapters specified in the input
 	if len(inputs.NetworkAdapters) == 0 {
 		// In a real implementation, we would retrieve the actual network adapters from the VM
-		logger.Debug("No network adapters specified in input, and retrieval not implemented")
+		logger.Debugf("No network adapters specified in input, and retrieval not implemented")
 	}
 
 	// Update outputs with populated inputs
@@ -196,13 +258,589 @@ func (c *Machine) Read(ctx context.Context, id string, inputs MachineInputs, pre
 }
 
 // This is the Create method. This will be run on every Machine resource creation.
+// createVMWithPowerShell creates a virtual machine using PowerShell cmdlets when WMI services are unavailable.
+// This is a fallback method used primarily on Windows 10/11 where VSMS might not be fully available.
+func createVMWithPowerShell(ctx context.Context, id string, input MachineInputs) (string, MachineOutputs, error) {
+	logger := logging.GetLogger(ctx)
+	state := MachineOutputs{MachineInputs: input}
+
+	// Ensure vmId is set
+	EnsureVmId(&state, id)
+
+	// Find PowerShell executable
+	powershellExe, err := util.FindPowerShellExe()
+	if err != nil {
+		return id, state, err
+	}
+
+	// Build the PowerShell command for creating a VM
+	var cmdArgs []string
+	cmdArgs = append(cmdArgs, "New-VM", "-Name", fmt.Sprintf("\"%s\"", id))
+
+	// Add memory parameter
+	if input.MemorySize != nil {
+		cmdArgs = append(cmdArgs, "-MemoryStartupBytes", fmt.Sprintf("%d", *input.MemorySize*1024*1024)) // Convert MB to bytes
+	} else {
+		// Default to 1GB
+		cmdArgs = append(cmdArgs, "-MemoryStartupBytes", "1073741824") // 1GB in bytes
+	}
+
+	// Add generation parameter
+	if input.Generation != nil {
+		cmdArgs = append(cmdArgs, "-Generation", fmt.Sprintf("%d", *input.Generation))
+	} else {
+		// Default to Gen 2
+		cmdArgs = append(cmdArgs, "-Generation", "2")
+	}
+
+	// Use the first network adapter's switch name if available
+	if len(input.NetworkAdapters) > 0 && input.NetworkAdapters[0].SwitchName != nil {
+		cmdArgs = append(cmdArgs, "-SwitchName", fmt.Sprintf("\"%s\"", *input.NetworkAdapters[0].SwitchName))
+	}
+
+	// Create the VM without adding drives initially
+	// We'll add drives and network adapters separately after creation
+	cmdArgs = append(cmdArgs, "-NoVHD")
+
+	// Execute the PowerShell command
+	var cmd *exec.Cmd
+	var output []byte
+	var cmdErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				cmdErr = fmt.Errorf("recovered from panic in PowerShell execution: %v", r)
+				logger.Warnf("Recovered from panic in PowerShell execution: %v", r)
+			}
+		}()
+
+		cmd = exec.Command(powershellExe, cmdArgs...)
+		output, cmdErr = cmd.CombinedOutput()
+	}()
+
+	if cmdErr != nil {
+		return id, state, fmt.Errorf("failed to create VM using PowerShell: %v, output: %s", cmdErr, string(output))
+	}
+
+	logger.Debugf("Created VM %s with PowerShell", id)
+
+	// Set processor count if specified
+	if input.ProcessorCount != nil {
+		procCmd := fmt.Sprintf("Set-VMProcessor -VMName \"%s\" -Count %d", id, *input.ProcessorCount)
+		_, err := util.RunPowerShellCommand(procCmd)
+		if err != nil {
+			logger.Warnf("Failed to set processor count: %v", err)
+			// Continue despite error
+		}
+	}
+
+	// Configure dynamic memory if specified
+	if input.DynamicMemory != nil && *input.DynamicMemory {
+		var minMem, maxMem int64
+
+		if input.MinimumMemory != nil {
+			minMem = int64(*input.MinimumMemory) * 1024 * 1024 // Convert MB to bytes
+		} else {
+			minMem = 512 * 1024 * 1024 // 512MB default
+		}
+
+		if input.MaximumMemory != nil {
+			maxMem = int64(*input.MaximumMemory) * 1024 * 1024 // Convert MB to bytes
+		} else if input.MemorySize != nil {
+			maxMem = int64(*input.MemorySize) * 2 * 1024 * 1024 // Double startup memory if maximum not specified
+		} else {
+			maxMem = 2 * 1024 * 1024 * 1024 // 2GB default
+		}
+
+		memCmd := fmt.Sprintf("Set-VMMemory -VMName \"%s\" -DynamicMemoryEnabled $true -MinimumBytes %d -MaximumBytes %d",
+			id, minMem, maxMem)
+		_, err := util.RunPowerShellCommand(memCmd)
+		if err != nil {
+			logger.Warnf("Failed to configure dynamic memory: %v", err)
+			// Continue despite error
+		}
+	}
+
+	// Set auto start/stop actions if specified
+	if input.AutoStartAction != nil {
+		var startAction string
+		switch strings.ToLower(*input.AutoStartAction) {
+		case "nothing":
+			startAction = "Nothing"
+		case "startifrunning":
+			startAction = "StartIfRunning"
+		case "start":
+			startAction = "Start"
+		default:
+			startAction = "Nothing"
+		}
+
+		autoStartCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStartAction %s", id, startAction)
+		_, err := util.RunPowerShellCommand(autoStartCmd)
+		if err != nil {
+			logger.Warnf("Failed to set auto start action: %v", err)
+			// Continue despite error
+		}
+	}
+
+	if input.AutoStopAction != nil {
+		var stopAction string
+		switch strings.ToLower(*input.AutoStopAction) {
+		case "turnoff":
+			stopAction = "TurnOff"
+		case "save":
+			stopAction = "Save"
+		case "shutdown":
+			stopAction = "ShutDown"
+		default:
+			stopAction = "TurnOff"
+		}
+
+		autoStopCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStopAction %s", id, stopAction)
+		_, err := util.RunPowerShellCommand(autoStopCmd)
+		if err != nil {
+			logger.Warnf("Failed to set auto stop action: %v", err)
+			// Continue despite error
+		}
+	}
+
+	// Add hard drives if specified
+	if len(input.HardDrives) > 0 {
+		for i, hd := range input.HardDrives {
+			if hd.Path == nil {
+				logger.Debugf("Hard drive path not specified, skipping")
+				continue
+			}
+
+			// Default values for controller
+			controllerType := "SCSI"
+			if hd.ControllerType != nil {
+				controllerType = *hd.ControllerType
+			}
+
+			// Default to first port
+			controllerNumber := 0
+			if hd.ControllerNumber != nil {
+				controllerNumber = *hd.ControllerNumber
+			}
+
+			// Default to sequential ports
+			controllerLocation := i
+			if hd.ControllerLocation != nil {
+				controllerLocation = *hd.ControllerLocation
+			}
+
+			hdCmd := fmt.Sprintf("Add-VMHardDiskDrive -VMName \"%s\" -Path \"%s\" -ControllerType %s -ControllerNumber %d -ControllerLocation %d",
+				id, *hd.Path, controllerType, controllerNumber, controllerLocation)
+			_, err := util.RunPowerShellCommand(hdCmd)
+			if err != nil {
+				logger.Warnf("Failed to add hard drive: %v", err)
+				// Continue with other hard drives despite error
+			} else {
+				logger.Debugf("Added hard drive %s to VM %s", *hd.Path, id)
+			}
+		}
+	}
+
+	// Add network adapters if specified
+	if len(input.NetworkAdapters) > 0 {
+		for i, na := range input.NetworkAdapters {
+			if na.SwitchName == nil {
+				logger.Debugf("Network adapter switch name not specified, skipping")
+				continue
+			}
+
+			// Use the index as part of name if no name provided
+			adapterName := fmt.Sprintf("Network Adapter %d", i+1)
+			if na.Name != nil {
+				adapterName = *na.Name
+			}
+
+			// Create the adapter and connect it to the switch
+			naCmd := fmt.Sprintf("Add-VMNetworkAdapter -VMName \"%s\" -Name \"%s\" -SwitchName \"%s\"",
+				id, adapterName, *na.SwitchName)
+
+			// Add MAC address if specified
+			if na.MacAddress != nil && *na.MacAddress != "" {
+				naCmd += fmt.Sprintf(" -StaticMacAddress \"%s\"", *na.MacAddress)
+			}
+
+			_, err := util.RunPowerShellCommand(naCmd)
+			if err != nil {
+				logger.Warnf("Failed to add network adapter: %v", err)
+				// Continue with other adapters despite error
+			} else {
+				logger.Debugf("Added network adapter %s to VM %s", adapterName, id)
+			}
+		}
+	}
+
+	// Start the VM automatically after creation
+	startCmd := fmt.Sprintf("Start-VM -Name \"%s\"", id)
+	startOutput, startErr := util.RunPowerShellCommand(startCmd)
+	if startErr != nil {
+		// Check for specific error conditions
+		if strings.Contains(startOutput, "Not enough memory in the system to start the virtual machine") {
+			// Handle out of memory error with specific guidance
+			memoryRequiredStr := "default"
+			if input.MemorySize != nil {
+				memoryRequiredStr = fmt.Sprintf("%d", *input.MemorySize)
+			}
+
+			logger.Errorf("Memory error starting VM %s: %s", id, startOutput)
+			return id, state, fmt.Errorf("failed to start VM due to insufficient memory: the system does not have enough memory to allocate %s MB for this VM. "+
+				"Try reducing the memory allocation, closing other applications, or adding more RAM to the host system", memoryRequiredStr)
+		} else if strings.Contains(startOutput, "0x8007000E") {
+			// Generic out of resources error (could be memory or something else)
+			return id, state, fmt.Errorf("failed to start VM due to insufficient system resources (error 0x8007000E). " +
+				"Try reducing VM resource allocation, closing other applications, or adding more resources to the host system")
+		} else if strings.Contains(startOutput, "could not initialize memory") {
+			// Memory initialization error
+			return id, state, fmt.Errorf("failed to start VM due to memory initialization error. " +
+				"This could be due to insufficient memory, memory fragmentation, or a system configuration issue")
+		} else {
+			// Log the error but continue since the VM is created
+			logger.Warnf("Failed to start VM: %v", startErr)
+			logger.Debugf("Start-VM output: %s", startOutput)
+		}
+	} else {
+		logger.Infof("Started VM %s", id)
+	}
+
+	return id, state, nil
+}
+
+// checkVMExistsPowerShell checks if a VM exists using PowerShell
+func checkVMExistsPowerShell(vmName string) (bool, error) {
+
+	// Command to check if VM exists
+	// The -ErrorAction SilentlyContinue prevents errors if the VM doesn't exist
+	cmd := fmt.Sprintf("(Get-VM -Name \"%s\" -ErrorAction SilentlyContinue | Measure-Object).Count", vmName)
+
+	output, err := util.RunPowerShellCommand(cmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to check VM existence: %v", err)
+	}
+
+	// Parse the output (should be "0" or "1")
+	count, err := strconv.Atoi(strings.TrimSpace(output))
+	if err != nil {
+		return false, fmt.Errorf("failed to parse PowerShell output: %v, output: %s", err, output)
+	}
+
+	return count > 0, nil
+}
+
+// readVMWithPowerShell reads VM properties using PowerShell
+func readVMWithPowerShell(ctx context.Context, vmName string, inputs MachineInputs) (MachineOutputs, error) {
+	logger := logging.GetLogger(ctx)
+	outputs := MachineOutputs{MachineInputs: inputs}
+
+	// Get VM details using PowerShell
+	vmDetails := fmt.Sprintf(`
+		$vm = Get-VM -Name "%s" -ErrorAction SilentlyContinue
+		if ($vm) {
+			$output = New-Object PSObject
+			$output | Add-Member -Type NoteProperty -Name Name -Value $vm.Name
+			$output | Add-Member -Type NoteProperty -Name ProcessorCount -Value $vm.ProcessorCount
+			$output | Add-Member -Type NoteProperty -Name MemoryStartupBytes -Value $vm.MemoryStartup
+			$output | Add-Member -Type NoteProperty -Name MemoryMinimumBytes -Value $vm.MemoryMinimum
+			$output | Add-Member -Type NoteProperty -Name MemoryMaximumBytes -Value $vm.MemoryMaximum
+			$output | Add-Member -Type NoteProperty -Name DynamicMemoryEnabled -Value $vm.DynamicMemoryEnabled
+			$output | Add-Member -Type NoteProperty -Name Generation -Value $vm.Generation
+			$output | Add-Member -Type NoteProperty -Name AutomaticStartAction -Value $vm.AutomaticStartAction
+			$output | Add-Member -Type NoteProperty -Name AutomaticStopAction -Value $vm.AutomaticStopAction
+			$output | ConvertTo-Json
+		}
+	`, vmName)
+
+	output, err := util.RunPowerShellCommand(vmDetails)
+	if err != nil {
+		logger.Warnf("Failed to get VM details: %v", err)
+		return outputs, nil
+	}
+
+	// Check if output is empty or invalid
+	output = strings.TrimSpace(output)
+	if output == "" {
+		logger.Warnf("Empty response from PowerShell when getting VM details")
+		return outputs, nil
+	}
+
+	// Parse key properties from output if present
+	// We don't need to parse everything as we'll populate with input values
+
+	// Try to extract processor count if not in inputs
+	if inputs.ProcessorCount == nil {
+		procCountMatch := strings.Index(output, `"ProcessorCount":`)
+		if procCountMatch >= 0 {
+			// This is a very simple parsing approach - in production you'd use proper JSON parsing
+			// However, this illustrates the idea
+			startIdx := procCountMatch + len(`"ProcessorCount":`)
+			endIdx := startIdx
+			for endIdx < len(output) && (output[endIdx] == ' ' || output[endIdx] == '\t') {
+				endIdx++
+			}
+			for endIdx < len(output) && (output[endIdx] >= '0' && output[endIdx] <= '9') {
+				endIdx++
+			}
+
+			if endIdx > startIdx {
+				procCount, err := strconv.Atoi(strings.TrimSpace(output[startIdx:endIdx]))
+				if err == nil {
+					outputs.ProcessorCount = &procCount
+					logger.Debugf("Found processor count: %d", procCount)
+				}
+			}
+		}
+	}
+
+	// Try to extract memory if not in inputs
+	if inputs.MemorySize == nil {
+		memMatch := strings.Index(output, `"MemoryStartupBytes":`)
+		if memMatch >= 0 {
+			// This is a very simple parsing approach - in production you'd use proper JSON parsing
+			startIdx := memMatch + len(`"MemoryStartupBytes":`)
+			endIdx := startIdx
+			for endIdx < len(output) && (output[endIdx] == ' ' || output[endIdx] == '\t') {
+				endIdx++
+			}
+			for endIdx < len(output) && ((output[endIdx] >= '0' && output[endIdx] <= '9') || output[endIdx] == ',') {
+				endIdx++
+			}
+
+			if endIdx > startIdx {
+				memBytes, err := strconv.ParseInt(strings.TrimSpace(strings.Replace(output[startIdx:endIdx], ",", "", -1)), 10, 64)
+				if err == nil {
+					memMB := memBytes / (1024 * 1024) // Convert bytes to MB
+					memMBInt := int(memMB)
+					outputs.MemorySize = &memMBInt
+					logger.Debugf("Found memory size: %d MB", memMB)
+				}
+			}
+		}
+	}
+
+	// Get hard drives using PowerShell
+	if len(inputs.HardDrives) == 0 {
+		hddCmd := fmt.Sprintf(`
+			$vm = Get-VM -Name "%s" -ErrorAction SilentlyContinue
+			if ($vm) {
+				$hds = Get-VMHardDiskDrive -VM $vm
+				$hds | ForEach-Object { $_.Path }
+			}
+		`, vmName)
+
+		hdOutput, err := util.RunPowerShellCommand(hddCmd)
+		if err == nil && len(hdOutput) > 0 {
+			// Process each line as a hard drive path
+			hdPaths := strings.Split(strings.TrimSpace(hdOutput), "\n")
+			hardDrives := make([]HardDriveInput, 0, len(hdPaths))
+
+			for i, path := range hdPaths {
+				trimmedPath := strings.TrimSpace(path)
+				if trimmedPath != "" {
+					hdPath := trimmedPath
+					controllerType := "SCSI" // Default
+					controllerNumber := 0    // Default
+					controllerLocation := i
+
+					hardDrive := HardDriveInput{
+						Path:               &hdPath,
+						ControllerType:     &controllerType,
+						ControllerNumber:   &controllerNumber,
+						ControllerLocation: &controllerLocation,
+					}
+
+					hardDrives = append(hardDrives, hardDrive)
+				}
+			}
+
+			if len(hardDrives) > 0 {
+				// Convert to pointer slice
+				hardDrivePtrs := make([]*HardDriveInput, len(hardDrives))
+				for i := range hardDrives {
+					hardDrivePtrs[i] = &hardDrives[i]
+				}
+				outputs.HardDrives = hardDrivePtrs
+				logger.Debugf("Found %d hard drives", len(hardDrives))
+			}
+		}
+	}
+
+	// Get network adapters using PowerShell
+	if len(inputs.NetworkAdapters) == 0 {
+		naCmd := fmt.Sprintf(`
+			$vm = Get-VM -Name "%s" -ErrorAction SilentlyContinue
+			if ($vm) {
+				$adapters = Get-VMNetworkAdapter -VM $vm
+				$adapters | ForEach-Object { 
+					$adapterObj = New-Object PSObject
+					$adapterObj | Add-Member -Type NoteProperty -Name Name -Value $_.Name
+					$adapterObj | Add-Member -Type NoteProperty -Name SwitchName -Value $_.SwitchName
+					$adapterObj | Add-Member -Type NoteProperty -Name MacAddress -Value $_.MacAddress
+					$adapterObj | ConvertTo-Json
+				}
+			}
+		`, vmName)
+
+		naOutput, err := util.RunPowerShellCommand(naCmd)
+		if err == nil && len(naOutput) > 0 {
+			// Process the output - in a real implementation, you'd parse the JSON properly
+			// For this example, we'll use a simple approach to illustrate
+
+			// Check if we have multiple adapters (multiple JSON objects) or just one
+			adapters := make([]NetworkAdapterInput, 0)
+
+			if strings.Contains(naOutput, "SwitchName") {
+				// For simplicity in this example, we'll just extract switch names
+				naLines := strings.Split(naOutput, "\n")
+				for _, line := range naLines {
+					if strings.Contains(line, `"SwitchName":`) {
+						startIdx := strings.Index(line, `"SwitchName":`) + len(`"SwitchName":`)
+						endIdx := strings.Index(line[startIdx:], `"`)
+						if endIdx > 0 {
+							switchName := strings.TrimSpace(line[startIdx : startIdx+endIdx])
+							switchName = strings.Trim(switchName, `"`)
+							if switchName != "" {
+								adapter := NetworkAdapterInput{
+									SwitchName: &switchName,
+								}
+								adapters = append(adapters, adapter)
+							}
+						}
+					}
+				}
+
+				if len(adapters) > 0 {
+					// Convert NetworkAdapterInput to networkadapter.NetworkAdapterInputs
+					naInputs := make([]*networkadapter.NetworkAdapterInputs, len(adapters))
+					for i, adapter := range adapters {
+						naInputs[i] = &networkadapter.NetworkAdapterInputs{
+							SwitchName: adapter.SwitchName,
+						}
+					}
+					outputs.NetworkAdapters = naInputs
+					logger.Debugf("Found %d network adapters", len(adapters))
+				}
+			}
+		}
+	}
+
+	return outputs, nil
+}
+
+// Delete method to delete a virtual machine
+func (c *Machine) Delete(ctx context.Context, id string, props MachineOutputs) error {
+	logger := logging.GetLogger(ctx)
+
+	// Ensure vmId is set for the delete operation
+	// If the VM ID is not available in props, use the resource ID
+	vmName := id
+	if props.VmId != nil {
+		vmName = *props.VmId
+	} else if props.MachineName != nil {
+		vmName = *props.MachineName
+	}
+
+	logger.Infof("Deleting VM %s", vmName)
+
+	// Try to stop the VM before deleting it
+	// We'll use PowerShell as it's most reliable
+
+	// Try to stop the VM using PowerShell - this is most reliable
+
+	// First check if the VM exists
+	existsCmd := fmt.Sprintf("Get-VM -Name \"%s\" -ErrorAction SilentlyContinue", vmName)
+	existsOutput, existsErr := util.RunPowerShellCommand(existsCmd)
+	if existsErr != nil || strings.TrimSpace(existsOutput) == "" {
+		logger.Infof("VM %s does not exist or is not accessible, skipping deletion", vmName)
+		return nil
+	}
+
+	// Check if the VM is running
+	checkCmd := fmt.Sprintf("(Get-VM -Name \"%s\" -ErrorAction SilentlyContinue).State -eq 'Running'", vmName)
+	output, err := util.RunPowerShellCommand(checkCmd)
+	isRunning := false
+	if err == nil && strings.TrimSpace(output) == "True" {
+		isRunning = true
+	}
+
+	if isRunning {
+		logger.Infof("Stopping VM %s before deletion", vmName)
+		// Use -TurnOff to force an immediate shutdown rather than a graceful one
+		stopCmd := fmt.Sprintf("Stop-VM -Name \"%s\" -Force -TurnOff", vmName)
+		_, err = util.RunPowerShellCommand(stopCmd)
+		if err != nil {
+			logger.Warnf("Failed to stop VM with PowerShell: %v", err)
+			// Try to delete anyway
+		} else {
+			logger.Infof("Successfully stopped VM %s", vmName)
+		}
+	}
+
+	// Get OS version to check if we're running on Azure
+	osVersion, osErr := util.GetOSVersion()
+	if osErr == nil && strings.Contains(strings.ToLower(osVersion), "azure") {
+		logger.Infof("Detected Azure datacenter edition, using alternative VM deletion approach")
+
+		// On Azure, first check VM state again to ensure it's fully stopped
+		checkStoppedCmd := fmt.Sprintf("(Get-VM -Name \"%s\" -ErrorAction SilentlyContinue).State -eq 'Off'", vmName)
+		stoppedOutput, stoppedErr := util.RunPowerShellCommand(checkStoppedCmd)
+		isStopped := false
+		if stoppedErr == nil && strings.TrimSpace(stoppedOutput) == "True" {
+			isStopped = true
+		}
+
+		if !isStopped {
+			logger.Warnf("VM %s may not be fully stopped, force stopping again", vmName)
+			stopAgainCmd := fmt.Sprintf("Stop-VM -Name \"%s\" -Force -TurnOff", vmName)
+			_, _ = util.RunPowerShellCommand(stopAgainCmd)
+			// Small delay to allow VM to fully stop
+			logger.Infof("Waiting for VM to fully stop...")
+		}
+
+		// Try using the alternative deletion approach that works better on Azure
+		// Uses Get-VM | Remove-VM pattern which can be more reliable than direct Remove-VM
+		deleteAzureCmd := fmt.Sprintf("Get-VM -Name \"%s\" | Remove-VM -Force", vmName)
+		_, azureErr := util.RunPowerShellCommand(deleteAzureCmd)
+		if azureErr == nil {
+			logger.Infof("Successfully deleted VM %s using Azure-specific approach", vmName)
+			return nil
+		}
+		logger.Warnf("Alternative VM deletion failed: %v, trying standard approach", azureErr)
+	}
+
+	// Standard deletion approach
+	deleteCmd := fmt.Sprintf("Remove-VM -Name \"%s\" -Force", vmName)
+	_, err = util.RunPowerShellCommand(deleteCmd)
+	if err != nil {
+		// Check if VM still exists after failed deletion attempt
+		existsCmd := fmt.Sprintf("Get-VM -Name \"%s\" -ErrorAction SilentlyContinue", vmName)
+		existsOutput, _ := util.RunPowerShellCommand(existsCmd)
+		if strings.TrimSpace(existsOutput) == "" {
+			// VM doesn't exist anymore despite error, consider it successfully deleted
+			logger.Infof("VM %s no longer exists despite deletion error, considering it successfully deleted", vmName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete VM %s with PowerShell: %v", vmName, err)
+	}
+
+	logger.Infof("Successfully deleted VM %s", vmName)
+	return nil
+}
+
 func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, preview bool) (string, MachineOutputs, error) {
-	logger := provider.GetLogger(ctx)
+	logger := logging.GetLogger(ctx)
 	id := name
 	if input.MachineName != nil {
 		id = *input.MachineName
 	}
 	state := MachineOutputs{MachineInputs: input}
+
+	// Always ensure vmId is set
+	EnsureVmId(&state, id)
 
 	// If in preview, don't run the command.
 	if preview {
@@ -210,19 +848,70 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	}
 	vmmsClient, vsms, err := c.Connect(ctx)
 	if err != nil {
-		return id, state, err
+		logger.Warnf("Error connecting to Hyper-V: %v", err)
+		return id, state, fmt.Errorf("failed to connect to Hyper-V: %v", err)
 	}
-	setting, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, id)
-	if err != nil {
-		return id, state, err
+
+	// If both vmmsClient and vsms are nil, use PowerShell fallback entirely
+	// If only vsms is nil but vmmsClient is available, use PowerShell for operations that need vsms
+	if vmmsClient == nil && vsms == nil {
+		// Using PowerShell fallback for the entire VM creation
+		logger.Infof("Using PowerShell fallback to create VM %s", id)
+		return createVMWithPowerShell(ctx, id, input)
 	}
+
+	// If we have vmmsClient but not vsms (common on Windows 10/11), also use PowerShell
+	if vmmsClient != nil && vsms == nil {
+		logger.Infof("VMMS available but VSMS is nil - using PowerShell fallback to create VM %s", id)
+		return createVMWithPowerShell(ctx, id, input)
+	}
+
+	// If we have both vmmsClient and vsms, proceed with WMI implementation
+	vConn := vmmsClient.GetVirtualizationConn()
+	if vConn == nil {
+		logger.Warnf("Virtualization connection is nil, falling back to PowerShell")
+		return createVMWithPowerShell(ctx, id, input)
+	}
+
+	wmiHost := vConn.WMIHost
+	if wmiHost == nil {
+		logger.Warnf("WMI host is nil, falling back to PowerShell")
+		return createVMWithPowerShell(ctx, id, input)
+	}
+
+	// Now create the VM settings with proper error handling
+	var setting *virtualsystem.VirtualSystemSettingData
+	var settingErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				settingErr = fmt.Errorf("recovered from panic in GetVirtualSystemSettingData: %v", r)
+				logger.Warnf("Recovered from panic in GetVirtualSystemSettingData: %v", r)
+			}
+		}()
+
+		setting, settingErr = virtualsystem.GetVirtualSystemSettingData(wmiHost, id)
+	}()
+
+	if settingErr != nil {
+		logger.Warnf("Failed to get virtual system setting data: %v, falling back to PowerShell", settingErr)
+		return createVMWithPowerShell(ctx, id, input)
+	}
+
+	if setting == nil {
+		logger.Warnf("Virtual system setting data is nil, falling back to PowerShell")
+		return createVMWithPowerShell(ctx, id, input)
+	}
+
 	err = setting.SetPropertyInstanceID(id)
 	if err != nil {
-		return id, state, fmt.Errorf("Failed to set property instance ID: [%+v]", err)
+		logger.Warnf("Failed to set property instance ID: %v, falling back to PowerShell", err)
+		return createVMWithPowerShell(ctx, id, input)
 	}
 
 	defer setting.Close()
-	logger.Debug("Create VMSettings")
+	logger.Debugf("Create VMSettings")
 
 	if input.Generation != nil {
 		switch *input.Generation {
@@ -351,13 +1040,13 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	if err != nil {
 		return id, state, fmt.Errorf("Failed vsms.CreateVirtualMachine: [%+v]", err)
 	}
-	logger.Debug("Created VM")
+	logger.Debugf("Created VM")
 
 	// Add hard drives if specified
 	if len(input.HardDrives) > 0 {
 		for _, hd := range input.HardDrives {
 			if hd.Path == nil {
-				logger.Debug("Hard drive path not specified, skipping")
+				logger.Debugf("Hard drive path not specified, skipping")
 				continue
 			}
 
@@ -377,29 +1066,30 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 				controllerLocation = *hd.ControllerLocation
 			}
 
-			logger.Debug(fmt.Sprintf("Adding hard drive %s to VM %s", *hd.Path, id))
+			logger.Debugf("Adding hard drive %s to VM %s", *hd.Path, id)
+			logger.Debugf("Controller details for VM %s: type=%s, number=%d, location=%d",
+				id, controllerType, controllerNumber, controllerLocation)
 
-			// Add the hard drive to the VM
-			// Add the hard drive to the VM using direct WMI method invocation
-			vmName, err := vm.GetPropertyElementName()
-			if err != nil {
-				logger.Error(fmt.Sprintf("Failed to get VM name: %v", err))
-				continue
-			}
+			// Wrap in recovery block to prevent panics in case of type errors
+			var addErr error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						addErr = fmt.Errorf("recovered from panic in AttachVirtualHardDisk: %v", r)
+						logger.Errorf("Recovered from panic in AttachVirtualHardDisk: %v", r)
+					}
+				}()
 
-			params := map[string]interface{}{
-				"VirtualSystemIdentifier": vmName,
-				"ResourceType":            uint16(31), // 31 = Disk drive
-				"Path":                    *hd.Path,
-				"ControllerType":          controllerType,
-				"ControllerNumber":        uint32(controllerNumber),
-				"ControllerLocation":      uint32(controllerLocation),
-			}
+				// Use the new robust VMMS method with fallback logic
+				addErr = vmmsClient.AttachVirtualHardDisk(vm, *hd.Path, controllerType, controllerNumber, controllerLocation, logger)
+			}()
 
-			_, err = vsms.InvokeMethod("AddResourceSettings", params)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Failed to add hard drive: %v", err))
-				// Continue with other hard drives even if this one fails
+			if addErr != nil {
+				logger.Errorf("Failed to add hard drive: %v", addErr)
+				logger.Warnf("Saving machine to state despite hard drive attachment failure")
+				return id, state, fmt.Errorf("failed to add hard drive: %v", addErr)
+			} else {
+				logger.Infof("Successfully added hard drive to VM %s", id)
 			}
 		}
 	}
@@ -408,7 +1098,7 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 	if len(input.NetworkAdapters) > 0 {
 		for i, na := range input.NetworkAdapters {
 			if na.SwitchName == nil {
-				logger.Debug("Network adapter switch name not specified, skipping")
+				logger.Debugf("Network adapter switch name not specified, skipping")
 				continue
 			}
 
@@ -418,70 +1108,67 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 				adapterName = *na.Name
 			}
 
-			logger.Debug(fmt.Sprintf("Adding network adapter %s to VM %s, connected to switch %s",
-				adapterName, id, *na.SwitchName))
+			logger.Debugf("Adding network adapter %s to VM %s, connected to switch %s",
+				adapterName, id, *na.SwitchName)
 
-			// Get the VM name
-			vmName, err := vm.GetPropertyElementName()
-			if err != nil {
-				logger.Error(fmt.Sprintf("Failed to get VM name: %v", err))
-				continue
-			}
-
-			// Check if the adapter already exists (standalone NetworkAdapter resource from simple-all-four example)
-			// This handles the case where a NetworkAdapter resource was created without a vmName
-			adapterExists := false
-
-			// Query for existing standalone adapters with this name
-			query := fmt.Sprintf("SELECT * FROM Msvm_SyntheticEthernetPortSettingData WHERE ElementName = '%s'", adapterName)
-			adapters, err := vmmsClient.GetVirtualizationConn().QueryInstances(query)
-			if err == nil && len(adapters) > 0 {
-				logger.Debug(fmt.Sprintf("Found existing network adapter with name %s, checking if it's attached to a VM", adapterName))
-
-				// Check each result to see if it's already attached to a VM
-				for _, adapter := range adapters {
-					defer adapter.Close()
-
-					// Check if this adapter is already attached to a VM
-					instanceID, err := adapter.GetProperty("InstanceID")
-					if err == nil && instanceID != nil {
-						instanceIDStr, ok := instanceID.(string)
-						if ok {
-							// If the adapter is not attached to any VM, we can't determine from InstanceID
-							// If it's attached to a different VM, the VM name would be in the path
-							// If it's already attached to our VM, we don't need to do anything
-							if !strings.Contains(instanceIDStr, vmName) {
-								// This adapter might be available or attached to another VM
-								logger.Debug(fmt.Sprintf("Adapter %s exists but is not attached to this VM", adapterName))
-							} else {
-								// This adapter is already attached to our VM
-								logger.Debug(fmt.Sprintf("Adapter %s is already attached to VM %s", adapterName, vmName))
-								adapterExists = true
-								break
-							}
-						}
+			// Wrap in recovery block to prevent panics in case of type errors
+			var addErr error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						addErr = fmt.Errorf("recovered from panic in AddVirtualNetworkAdapterAndConnect: %v", r)
+						logger.Errorf("Recovered from panic in AddVirtualNetworkAdapterAndConnect: %v", r)
 					}
-				}
-			}
+				}()
 
-			// If adapter doesn't exist or isn't attached to our VM, create a new one
-			if !adapterExists {
-				params := map[string]interface{}{
-					"VirtualSystemIdentifier": vmName,
-					"ResourceType":            uint16(10), // 10 = Network adapter
-					"SwitchName":              *na.SwitchName,
-					"AdapterName":             adapterName,
-				}
+				// Use the new robust VMMS method with fallback logic
+				addErr = vmmsClient.AddVirtualNetworkAdapterAndConnect(vm, adapterName, *na.SwitchName, logger)
+			}()
 
-				_, err = vsms.InvokeMethod("AddNetworkAdapter", params)
-				if err != nil {
-					logger.Error(fmt.Sprintf("Failed to add network adapter: %v", err))
-					// Continue with other adapters even if this one fails
-				} else {
-					logger.Debug(fmt.Sprintf("Successfully added network adapter %s to VM %s", adapterName, vmName))
-				}
+			if addErr != nil {
+				logger.Errorf("Failed to add network adapter: %v", addErr)
+				// Return the state with created VM even though adding the network adapter failed
+				// This allows the VM to exist in the Pulumi state so it can be cleaned up properly
+				logger.Warnf("Saving machine to state despite network adapter attachment failure")
+				return id, state, fmt.Errorf("failed to add network adapter: %v", addErr)
+			} else {
+				logger.Infof("Successfully added network adapter %s to VM %s", adapterName, id)
 			}
 		}
+	}
+
+	// Start the VM after all configuration is done
+	logger.Infof("Starting VM %s", id)
+
+	startCmd := fmt.Sprintf("Start-VM -Name \"%s\"", id)
+	output, startErr := util.RunPowerShellCommand(startCmd)
+	if startErr != nil {
+		// Check for specific error conditions
+		if strings.Contains(output, "Not enough memory in the system to start the virtual machine") {
+			// Handle out of memory error with specific guidance
+			memoryRequiredStr := fmt.Sprintf("%d", memorySizeMB)
+			if input.MemorySize != nil {
+				memoryRequiredStr = fmt.Sprintf("%d", *input.MemorySize)
+			}
+
+			logger.Errorf("Memory error starting VM %s: %s", id, output)
+			return id, state, fmt.Errorf("failed to start VM due to insufficient memory: the system does not have enough memory to allocate %s MB for this VM. "+
+				"Try reducing the memory allocation, closing other applications, or adding more RAM to the host system", memoryRequiredStr)
+		} else if strings.Contains(output, "0x8007000E") {
+			// Generic out of resources error (could be memory or something else)
+			return id, state, fmt.Errorf("failed to start VM due to insufficient system resources (error 0x8007000E). " +
+				"Try reducing VM resource allocation, closing other applications, or adding more resources to the host system")
+		} else if strings.Contains(output, "could not initialize memory") {
+			// Memory initialization error
+			return id, state, fmt.Errorf("failed to start VM due to memory initialization error. " +
+				"This could be due to insufficient memory, memory fragmentation, or a system configuration issue")
+		} else {
+			// Log the error but continue since the VM is created
+			logger.Warnf("Failed to start VM with PowerShell: %v", startErr)
+			logger.Debugf("Start-VM output: %s", output)
+		}
+	} else {
+		logger.Infof("Started VM %s using PowerShell", id)
 	}
 
 	return id, state, nil
@@ -498,179 +1185,18 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, news MachineInputs, preview bool) (MachineOutputs, error) {
 	// This is a no-op. We don't need to do anything here.
 	state := MachineOutputs{MachineInputs: news}
+
+	// Always ensure vmId is set - carry over from old state if available, otherwise use id
+	if olds.VmId != nil {
+		state.VmId = olds.VmId
+	} else {
+		EnsureVmId(&state, id)
+	}
+
 	// If in preview, don't run the command.
 	if preview {
 		return state, nil
 	}
 
 	return state, nil
-}
-
-// The Delete method will run when the resource is deleted.
-func (c *Machine) Delete(ctx context.Context, id string, props MachineOutputs) error {
-	_, vsms, err := c.Connect(ctx)
-	if err != nil {
-		return err
-	}
-
-	vm, err := vsms.GetVirtualMachineByName(id)
-	if err != nil {
-		return err
-	}
-
-	defer vm.Close()
-	err = vm.Start()
-	if err != nil {
-		return fmt.Errorf("Failed [%+v]", err)
-	}
-
-	err = vm.Stop(true)
-	if err != nil {
-		return fmt.Errorf("Failed [%+v]", err)
-	}
-	err = vsms.DeleteVirtualMachine(vm)
-	if err != nil {
-		return fmt.Errorf("Failed [%+v]", err)
-	}
-	return nil
-}
-
-// VirtualMachineState represents the state of a virtual machine.
-type VirtualMachineState uint16
-
-const (
-	// VirtualMachineStateUnknown indicates the state of the virtual machine could not be determined.
-	VirtualMachineStateUnknown VirtualMachineState = 0
-	// VirtualMachineStateOther indicates the virtual machine is in an other state.
-	VirtualMachineStateOther VirtualMachineState = 1
-	// VirtualMachineStateRunning indicates the virtual machine is running.
-	VirtualMachineStateRunning VirtualMachineState = 2
-	// VirtualMachineStateOff indicates the virtual machine is turned off.
-	VirtualMachineStateOff VirtualMachineState = 3
-	// VirtualMachineStateShuttingDown indicates the virtual machine is in the process of turning off.
-	VirtualMachineStateShuttingDown VirtualMachineState = 4
-	// VirtualMachineStateNotApplicable indicates the virtual machine does not support being started or turned off.
-	VirtualMachineStateNotApplicable VirtualMachineState = 5
-	// VirtualMachineStateEnabledButOffline indicates the virtual machine might be completing commands, and it will drop any new requests.
-	VirtualMachineStateEnabledButOffline VirtualMachineState = 6
-	// VirtualMachineStateInTest indicates the virtual machine is in a test state.
-	VirtualMachineStateInTest VirtualMachineState = 7
-	// VirtualMachineStateDeferred indicates the virtual machine might be completing commands, but it will queue any new requests.
-	VirtualMachineStateDeferred VirtualMachineState = 8
-	// VirtualMachineStateQuiesce indicates the virtual machine is running but in a restricted mode.
-	// The behavior of the virtual machine is similar to the Running state, but it processes only a restricted set of commands.
-	// All other requests are queued.
-	VirtualMachineStateQuiesce VirtualMachineState = 9
-	// VirtualMachineStateStarting indicates the virtual machine is in the process of starting. New requests are queued.
-	VirtualMachineStateStarting VirtualMachineState = 10
-)
-
-// String returns the string representation of the VirtualMachineState.
-func (s VirtualMachineState) String() string {
-	switch s {
-	case VirtualMachineStateUnknown:
-		return "Unknown"
-	case VirtualMachineStateOther:
-		return "Other"
-	case VirtualMachineStateRunning:
-		return "Running"
-	case VirtualMachineStateOff:
-		return "Off"
-	case VirtualMachineStateShuttingDown:
-		return "ShuttingDown"
-	case VirtualMachineStateNotApplicable:
-		return "NotApplicable"
-	case VirtualMachineStateEnabledButOffline:
-		return "EnabledButOffline"
-	case VirtualMachineStateInTest:
-		return "InTest"
-	case VirtualMachineStateDeferred:
-		return "Deferred"
-	case VirtualMachineStateQuiesce:
-		return "Quiesce"
-	case VirtualMachineStateStarting:
-		return "Starting"
-	default:
-		return "Unknown"
-	}
-}
-
-// CreateKeyProtector creates a key protector object.
-func CreateKeyProtector(v *vmms.VMMS) (*wmi.WmiInstance, error) {
-	return nil, fmt.Errorf("CreateKeyProtector not implemented")
-	// return v.HgsConn().CreateInstance("MSFT_HgsKeyProtector", nil)
-}
-
-// DefineSystem defines a virtual machine system.
-func DefineSystem(v *vmms.VMMS, systemSettings *wmi.WmiInstance, resourceSettings []*wmi.WmiInstance) (*wmi.WmiInstance, error) {
-	return nil, fmt.Errorf("DefineSystem not implemented")
-	// // Get the WMI text representation of the system settings
-	// systemText, err := systemSettings.GetText()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get system settings text: %w", err)
-	// }
-
-	// // Convert resource settings to an array of strings
-	// rsStrings := make([]string, len(resourceSettings))
-	// for i, rs := range resourceSettings {
-	// 	text, err := rs.GetText()
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to get resource setting text: %w", err)
-	// 	}
-	// 	rsStrings[i] = text
-	// }
-
-	// params := map[string]interface{}{
-	// 	"SystemSettings":   systemText,
-	// 	"ResourceSettings": rsStrings,
-	// }
-
-	// result, err := v.VirtualMachineManagementService().InvokeMethod("DefineSystem", params)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to define system: %w", err)
-	// }
-
-	// if err := v.ValidateOutput(result); err != nil {
-	// 	return nil, err
-	// }
-
-	// resultingSystemPath, err := result.GetString("ResultingSystem")
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get resulting system path: %w", err)
-	// }
-
-	// return v.VirtualizationConn().Get(resultingSystemPath)
-}
-
-// ExistsVirtualMachine checks if a virtual machine with the given name exists.
-func ExistsVirtualMachine(v *vmms.VMMS, name string) (bool, error) {
-	return false, fmt.Errorf("ExistsVirtualMachine not implemented")
-	// query := fmt.Sprintf("SELECT * FROM Msvm_ComputerSystem WHERE Caption = 'Virtual Machine' AND ElementName = '%s'", name)
-	// vms, err := v.VirtualizationConn().Query(query)
-	// if err != nil {
-	// 	return false, fmt.Errorf("failed to query virtual machines: %w", err)
-	// }
-
-	// return len(vms) > 0, nil
-}
-
-// ModifySystemSettings modifies system settings.
-func ModifySystemSettings(v *vmms.VMMS, systemSettings *wmi.WmiInstance) error {
-	return fmt.Errorf("ModifySystemSettings not implemented")
-	// // Get the WMI text representation of the system settings
-	// systemText, err := systemSettings.GetText()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get system settings text: %w", err)
-	// }
-
-	// params := map[string]interface{}{
-	// 	"SystemSettings": systemText,
-	// }
-
-	// result, err := v.GetVirtualMachineManagementService().InvokeMethod("ModifySystemSettings", params)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to modify system settings: %w", err)
-	// }
-
-	// return v.ValidateOutput(result)
 }

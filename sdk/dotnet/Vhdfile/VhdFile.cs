@@ -41,6 +41,7 @@ namespace Pulumi.Hyperv.Vhdfile
     /// | `parentPath` | string | Path to parent VHD when creating differencing disks |
     /// | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
     /// | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+    /// | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
     /// 
     /// ## Implementation Details
     /// 
@@ -66,7 +67,7 @@ namespace Pulumi.Hyperv.Vhdfile
     public partial class VhdFile : global::Pulumi.CustomResource
     {
         /// <summary>
-        /// Block size of the VHD file in bytes
+        /// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         /// </summary>
         [Output("blockSize")]
         public Output<int?> BlockSize { get; private set; } = null!;
@@ -177,7 +178,7 @@ namespace Pulumi.Hyperv.Vhdfile
     public sealed class VhdFileArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
-        /// Block size of the VHD file in bytes
+        /// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         /// </summary>
         [Input("blockSize")]
         public Input<int>? BlockSize { get; set; }
