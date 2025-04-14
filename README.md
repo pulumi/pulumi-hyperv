@@ -6,6 +6,8 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-hyperv-provider/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv-provider/sdk/go)
 [![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-hyperv-provider/blob/master/LICENSE)
 
+# ⚠️⚠️⚠️ EXPERIMENTAL: ABSOLUTELY DOES NOT WORK BETWEEN COMMITS AND HAS NO SUPPORT ⚠️⚠️⚠️
+
 # Pulumi Hyper-V Provider (preview)
 
 The Pulumi Hyper-V Provider enables you to manage Microsoft Hyper-V resources like virtual machines, virtual switches, and other virtualization components as part of your Pulumi Infrastructure as Code.
