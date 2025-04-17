@@ -271,7 +271,7 @@ dism /Online /Enable-Feature /All /FeatureName:Microsoft-Hyper-V
 ##### Method 2: Using PowerShell (Administrator)
 
 ```powershell
-Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -Restart
+pwsh setup-datacenter-server.ps1
 ```
 
 #### Prerequisites
@@ -291,7 +291,8 @@ Get-ComputerInfo -Property "HyperVRequirementVirtualizationFirmwareEnabled", "Hy
 
 #### Windows 10/11 Additional Configuration
 
-Windows 10/11 client systems may require additional configuration for the Hyper-V provider to work properly. The provider now includes enhanced compatibility features specifically for Windows 10/11:
+Windows 10/11 client systems may require additional configuration for the Hyper-V provider to work properly.
+The provider now includes enhanced compatibility features specifically for Windows 10/11:
 
 1. **Run as Administrator**: Always run Pulumi commands with administrator privileges
 (right-click command prompt/PowerShell and select "Run as administrator")
@@ -322,7 +323,8 @@ Windows 10/11 client systems may require additional configuration for the Hyper-
 
 The provider now includes robust handling for common Windows 10/11 service limitations:
 
-* **Host Guardian Service (HGS)**: HGS connection is now optional - the provider logs a warning but continues if it can't connect
+* **Host Guardian Service (HGS)**: HGS connection is now optional - the provider logs a warning but continues
+if it can't connect
 * **Image Management Service**: Multiple fallbacks when this service is unavailable:
   * First tries VirtualSystemManagementService for VHD operations
   * Falls back to PowerShell commands (`New-VHD`) if needed
@@ -338,7 +340,8 @@ The provider has been significantly hardened with:
 * **Detailed Error Logs**: More descriptive error messages with troubleshooting guidance
 * **Graceful Degradation**: Services continue with limited functionality when certain components are unavailable
 
-If you see warnings about unavailable services, they are likely expected on Windows 10/11 systems and can generally be ignored - the provider will attempt alternative methods to complete operations.
+If you see warnings about unavailable services, they are likely expected on Windows 10/11 systems and can generally be
+ignored - the provider will attempt alternative methods to complete operations.
 
 ### Software Dependencies
 
@@ -349,28 +352,3 @@ If you see warnings about unavailable services, they are likely expected on Wind
 
 Please refer to [Contributing to Pulumi](https://github.com/pulumi/pulumi/blob/master/CONTRIBUTING.md) for installation
 guidance.
-
-### Building locally
-
-Run the following commands to install Go modules, generate all SDKs, and build the provider:
-
-```bash
-
-make ensure
-make build
-make install
-```
-
-Add the `bin` folder to your `$PATH` or copy the `bin/pulumi-resource-hyperv` file to another location in your `$PATH`.
-
-### Running an example
-
-Navigate to the simple example and run Pulumi:
-
-```bash
-
-cd examples/simple-all-four
-yarn link @pulumi/hyperv
-yarn install
-pulumi up
-```
