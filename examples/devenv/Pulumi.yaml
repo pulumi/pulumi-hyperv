@@ -1,7 +1,7 @@
 name: hyperv-devenv-example
 description: A Pulumi program demonstrating a complete virtual development environment with Hyper-V
 runtime: nodejs
-# plugins:
-#   providers:
-#     - name: hyperv
-#       path: C:\Github\Go\src\github.com\pulumi\pulumi-hyperv-provider\bin\
+plugins:
+  providers:
+    - name: hyperv
+      path: C:\Github\Go\src\github.com\pulumi\pulumi-hyperv-provider\bin\

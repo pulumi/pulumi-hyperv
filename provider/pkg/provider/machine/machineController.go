@@ -1183,7 +1183,10 @@ func (c *Machine) Create(ctx context.Context, name string, input MachineInputs, 
 
 // The Update method will be run on every update.
 func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, news MachineInputs, preview bool) (MachineOutputs, error) {
-	// This is a no-op. We don't need to do anything here.
+	logger := logging.GetLogger(ctx)
+	logger.Infof("Updating VM %s", id)
+
+	// Initialize the output state with the new inputs
 	state := MachineOutputs{MachineInputs: news}
 
 	// Always ensure vmId is set - carry over from old state if available, otherwise use id
@@ -1198,5 +1201,809 @@ func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, ne
 		return state, nil
 	}
 
+	// Get the VM name from id, olds, or news
+	vmName := id
+	if olds.MachineName != nil {
+		vmName = *olds.MachineName
+	} else if news.MachineName != nil {
+		vmName = *news.MachineName
+	}
+	logger.Infof("Using VM name: %s", vmName)
+
+	// Check if the VM exists
+	exists, err := checkVMExistsPowerShell(vmName)
+	if err != nil {
+		logger.Errorf("Error checking if VM exists: %v", err)
+		return state, fmt.Errorf("failed to check if VM exists: %v", err)
+	}
+	if !exists {
+		logger.Errorf("VM %s does not exist", vmName)
+		return state, fmt.Errorf("VM %s does not exist", vmName)
+	}
+
+	// Connect to Hyper-V
+	vmmsClient, vsms, err := c.Connect(ctx)
+	if err != nil {
+		logger.Warnf("Error connecting to Hyper-V: %v", err)
+		// Fall back to PowerShell completely
+		logger.Infof("Using PowerShell fallback for VM update")
+		return updateVMWithPowerShell(ctx, vmName, olds, news)
+	}
+
+	// Check if we need to stop the VM to make changes
+	// Always check if VM is running with PowerShell as it's most reliable
+	needsRestart := false
+	wasRunning, err := isVMRunningPowerShell(vmName)
+	if err != nil {
+		logger.Warnf("Error checking if VM is running: %v", err)
+		// Continue anyway, we'll handle errors later
+	}
+
+	// Determine if we need to stop the VM based on properties being changed
+	needsVMStopped := false
+
+	// Check changes that require the VM to be stopped
+	if (olds.ProcessorCount != nil && news.ProcessorCount != nil && *olds.ProcessorCount != *news.ProcessorCount) ||
+		(olds.MemorySize != nil && news.MemorySize != nil && *olds.MemorySize != *news.MemorySize) ||
+		((olds.DynamicMemory == nil || !*olds.DynamicMemory) && news.DynamicMemory != nil && *news.DynamicMemory) ||
+		(olds.DynamicMemory != nil && *olds.DynamicMemory && news.DynamicMemory != nil && !*news.DynamicMemory) ||
+		// Changes in minimum or maximum memory for dynamic memory
+		((olds.MinimumMemory == nil && news.MinimumMemory != nil) ||
+			(olds.MinimumMemory != nil && news.MinimumMemory != nil && *olds.MinimumMemory != *news.MinimumMemory)) ||
+		((olds.MaximumMemory == nil && news.MaximumMemory != nil) ||
+			(olds.MaximumMemory != nil && news.MaximumMemory != nil && *olds.MaximumMemory != *news.MaximumMemory)) {
+		needsVMStopped = true
+		logger.Infof("VM update requires stopping the VM because processor, memory, or dynamic memory settings are changing")
+	}
+
+	// Network adapters or hard drives changes also require VM to be stopped
+	if len(olds.NetworkAdapters) != len(news.NetworkAdapters) || len(olds.HardDrives) != len(news.HardDrives) {
+		needsVMStopped = true
+		logger.Infof("VM update requires stopping the VM because network adapters or hard drives are changing")
+	}
+
+	// If VM needs to be stopped and is running, stop it
+	if needsVMStopped && wasRunning {
+		logger.Infof("Stopping VM %s before updating", vmName)
+		stopErr := stopVMPowerShell(vmName)
+		if stopErr != nil {
+			logger.Errorf("Failed to stop VM %s: %v", vmName, stopErr)
+			return state, fmt.Errorf("failed to stop VM %s before update: %v", vmName, stopErr)
+		}
+		needsRestart = true
+		logger.Infof("VM %s stopped successfully", vmName)
+	}
+
+	// If we don't have VMMS client or VSMS, use PowerShell for everything
+	if vmmsClient == nil || vsms == nil {
+		logger.Infof("Using PowerShell fallback for VM update because VMMS or VSMS is nil")
+		result, err := updateVMWithPowerShell(ctx, vmName, olds, news)
+
+		// Start the VM if we stopped it and update was successful
+		if err == nil && needsRestart {
+			logger.Infof("Restarting VM %s after update", vmName)
+			startErr := startVMPowerShell(vmName)
+			if startErr != nil {
+				logger.Warnf("Failed to restart VM %s after update: %v", vmName, startErr)
+				// We'll warn but not fail the update since the changes were applied
+			}
+		}
+
+		return result, err
+	}
+
+	// Use WMI when available
+	vm, err := vsms.GetVirtualMachineByName(vmName)
+	if err != nil {
+		logger.Warnf("Failed to get VM %s using WMI: %v", vmName, err)
+		logger.Infof("Falling back to PowerShell for VM update")
+		result, err := updateVMWithPowerShell(ctx, vmName, olds, news)
+
+		// Start the VM if we stopped it and update was successful
+		if err == nil && needsRestart {
+			logger.Infof("Restarting VM %s after update", vmName)
+			startErr := startVMPowerShell(vmName)
+			if startErr != nil {
+				logger.Warnf("Failed to restart VM %s after update: %v", vmName, startErr)
+				// We'll warn but not fail the update since the changes were applied
+			}
+		}
+
+		return result, err
+	}
+	defer vm.Close()
+
+	// Get VM settings data
+	vmSettings, err := virtualsystem.GetVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, vmName)
+	if err != nil {
+		logger.Warnf("Failed to get VM settings: %v", err)
+		logger.Infof("Falling back to PowerShell for VM update")
+		result, err := updateVMWithPowerShell(ctx, vmName, olds, news)
+
+		// Start the VM if we stopped it and update was successful
+		if err == nil && needsRestart {
+			logger.Infof("Restarting VM %s after update", vmName)
+			startErr := startVMPowerShell(vmName)
+			if startErr != nil {
+				logger.Warnf("Failed to restart VM %s after update: %v", vmName, startErr)
+				// We'll warn but not fail the update since the changes were applied
+			}
+		}
+
+		return result, err
+	}
+	defer vmSettings.Close()
+
+	// Update processor count if changed
+	if news.ProcessorCount != nil && (olds.ProcessorCount == nil || *olds.ProcessorCount != *news.ProcessorCount) {
+		logger.Infof("Updating processor count from %v to %d", olds.ProcessorCount, *news.ProcessorCount)
+
+		// Try WMI first
+		processorSettings, err := processor.GetProcessorSettingDataFromVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, vmSettings)
+		if err != nil || processorSettings == nil {
+			logger.Warnf("Failed to get processor settings: %v", err)
+			// Fallback to PowerShell for this setting
+			procCmd := fmt.Sprintf("Set-VMProcessor -VMName \"%s\" -Count %d", vmName, *news.ProcessorCount)
+			_, psErr := util.RunPowerShellCommand(procCmd)
+			if psErr != nil {
+				logger.Warnf("Failed to update processor count: %v", psErr)
+				// Continue with other updates despite error
+			} else {
+				logger.Infof("Updated processor count to %d using PowerShell", *news.ProcessorCount)
+			}
+		} else {
+			defer processorSettings.Close()
+			err = processorSettings.SetCPUCount(uint64(*news.ProcessorCount))
+			if err != nil {
+				logger.Warnf("Failed to set CPU count: %v", err)
+				// Fallback to PowerShell
+				procCmd := fmt.Sprintf("Set-VMProcessor -VMName \"%s\" -Count %d", vmName, *news.ProcessorCount)
+				_, psErr := util.RunPowerShellCommand(procCmd)
+				if psErr != nil {
+					logger.Warnf("Failed to update processor count with PowerShell fallback: %v", psErr)
+					// Continue with other updates despite error
+				} else {
+					logger.Infof("Updated processor count to %d using PowerShell fallback", *news.ProcessorCount)
+				}
+			} else {
+				logger.Infof("Updated processor count to %d using WMI", *news.ProcessorCount)
+			}
+		}
+	}
+
+	// Update memory settings if changed
+	memoryChanged := false
+	if news.MemorySize != nil && (olds.MemorySize == nil || *olds.MemorySize != *news.MemorySize) {
+		memoryChanged = true
+	}
+
+	dynamicMemoryChanged := false
+	if (news.DynamicMemory != nil && olds.DynamicMemory == nil) ||
+		(news.DynamicMemory != nil && olds.DynamicMemory != nil && *news.DynamicMemory != *olds.DynamicMemory) {
+		dynamicMemoryChanged = true
+	}
+
+	minMemoryChanged := false
+	if news.MinimumMemory != nil && (olds.MinimumMemory == nil || *olds.MinimumMemory != *news.MinimumMemory) {
+		minMemoryChanged = true
+	}
+
+	maxMemoryChanged := false
+	if news.MaximumMemory != nil && (olds.MaximumMemory == nil || *olds.MaximumMemory != *news.MaximumMemory) {
+		maxMemoryChanged = true
+	}
+
+	if memoryChanged || dynamicMemoryChanged || minMemoryChanged || maxMemoryChanged {
+		logger.Infof("Updating memory settings for VM %s", vmName)
+
+		// Try WMI first
+		memorySettings, err := memory.GetMemorySettingDataFromVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, vmSettings)
+		if err != nil || memorySettings == nil {
+			logger.Warnf("Failed to get memory settings: %v", err)
+			// Fallback to PowerShell for all memory settings
+			updateMemoryWithPowerShell(ctx, vmName, news)
+		} else {
+			defer memorySettings.Close()
+
+			// Update memory size if changed
+			if memoryChanged {
+				err = memorySettings.SetSizeMB(uint64(*news.MemorySize))
+				if err != nil {
+					logger.Warnf("Failed to set memory size: %v", err)
+					// Will fall back to PowerShell below
+				} else {
+					logger.Infof("Updated memory size to %d MB using WMI", *news.MemorySize)
+				}
+			}
+
+			// Update dynamic memory settings if changed
+			if dynamicMemoryChanged {
+				err = memorySettings.SetPropertyDynamicMemoryEnabled(*news.DynamicMemory)
+				if err != nil {
+					logger.Warnf("Failed to set dynamic memory enabled: %v", err)
+					// Will fall back to PowerShell below
+				} else {
+					logger.Infof("Updated dynamic memory to %v using WMI", *news.DynamicMemory)
+				}
+			}
+
+			// Update minimum memory if changed
+			if minMemoryChanged && news.MinimumMemory != nil {
+				err = memorySettings.SetProperty("MinimumBytes", uint64(*news.MinimumMemory)*1024*1024) // Convert MB to bytes
+				if err != nil {
+					logger.Warnf("Failed to set minimum memory: %v", err)
+					// Will fall back to PowerShell below
+				} else {
+					logger.Infof("Updated minimum memory to %d MB using WMI", *news.MinimumMemory)
+				}
+			}
+
+			// Update maximum memory if changed
+			if maxMemoryChanged && news.MaximumMemory != nil {
+				err = memorySettings.SetProperty("MaximumBytes", uint64(*news.MaximumMemory)*1024*1024) // Convert MB to bytes
+				if err != nil {
+					logger.Warnf("Failed to set maximum memory: %v", err)
+					// Will fall back to PowerShell below
+				} else {
+					logger.Infof("Updated maximum memory to %d MB using WMI", *news.MaximumMemory)
+				}
+			}
+
+			// If any memory update failed, use PowerShell as fallback
+			if err != nil {
+				logger.Infof("Using PowerShell fallback for memory settings")
+				updateMemoryWithPowerShell(ctx, vmName, news)
+			}
+		}
+	}
+
+	// Update auto start action if changed
+	if news.AutoStartAction != nil && (olds.AutoStartAction == nil || *olds.AutoStartAction != *news.AutoStartAction) {
+		logger.Infof("Updating auto start action from %v to %s", olds.AutoStartAction, *news.AutoStartAction)
+
+		// Try WMI first
+		var autoStartValue uint16
+		switch *news.AutoStartAction {
+		case "Nothing":
+			autoStartValue = 0
+		case "StartIfRunning":
+			autoStartValue = 1
+		case "Start":
+			autoStartValue = 2
+		default:
+			logger.Errorf("Invalid auto start action: %s, setting Nothing", *news.AutoStartAction)
+			autoStartValue = 0
+		}
+
+		err = vmSettings.SetProperty("AutoStartAction", autoStartValue)
+		if err != nil {
+			logger.Warnf("Failed to set auto start action: %v", err)
+			// Fallback to PowerShell
+			autoStartCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStartAction %s", vmName, *news.AutoStartAction)
+			_, psErr := util.RunPowerShellCommand(autoStartCmd)
+			if psErr != nil {
+				logger.Warnf("Failed to update auto start action: %v", psErr)
+				// Continue with other updates despite error
+			} else {
+				logger.Infof("Updated auto start action to %s using PowerShell", *news.AutoStartAction)
+			}
+		} else {
+			logger.Infof("Updated auto start action to %s using WMI", *news.AutoStartAction)
+		}
+	}
+
+	// Update auto stop action if changed
+	if news.AutoStopAction != nil && (olds.AutoStopAction == nil || *olds.AutoStopAction != *news.AutoStopAction) {
+		logger.Infof("Updating auto stop action from %v to %s", olds.AutoStopAction, *news.AutoStopAction)
+
+		// Try WMI first
+		var autoStopValue uint16
+		switch *news.AutoStopAction {
+		case "TurnOff":
+			autoStopValue = 0
+		case "Save":
+			autoStopValue = 1
+		case "ShutDown":
+			autoStopValue = 2
+		default:
+			logger.Errorf("Invalid auto stop action: %s, setting TurnOff", *news.AutoStopAction)
+			autoStopValue = 0
+		}
+
+		err = vmSettings.SetProperty("AutoStopAction", autoStopValue)
+		if err != nil {
+			logger.Warnf("Failed to set auto stop action: %v", err)
+			// Fallback to PowerShell
+			autoStopCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStopAction %s", vmName, *news.AutoStopAction)
+			_, psErr := util.RunPowerShellCommand(autoStopCmd)
+			if psErr != nil {
+				logger.Warnf("Failed to update auto stop action: %v", psErr)
+				// Continue with other updates despite error
+			} else {
+				logger.Infof("Updated auto stop action to %s using PowerShell", *news.AutoStopAction)
+			}
+		} else {
+			logger.Infof("Updated auto stop action to %s using WMI", *news.AutoStopAction)
+		}
+	}
+
+	// Update hard drives if changed
+	if !compareHardDrives(olds.HardDrives, news.HardDrives) {
+		logger.Infof("Updating hard drives for VM %s", vmName)
+
+		// First remove all existing hard drives using PowerShell (more reliable)
+		removeHDCmd := fmt.Sprintf("Get-VMHardDiskDrive -VMName \"%s\" | Remove-VMHardDiskDrive", vmName)
+		_, removeErr := util.RunPowerShellCommand(removeHDCmd)
+		if removeErr != nil {
+			logger.Warnf("Failed to remove existing hard drives: %v", removeErr)
+			// Try to continue anyway
+		}
+
+		// Add all new hard drives
+		for i, hd := range news.HardDrives {
+			if hd.Path == nil {
+				logger.Debugf("Hard drive path not specified, skipping")
+				continue
+			}
+
+			// Default values for controller
+			controllerType := "SCSI"
+			if hd.ControllerType != nil {
+				controllerType = *hd.ControllerType
+			}
+
+			controllerNumber := 0
+			if hd.ControllerNumber != nil {
+				controllerNumber = *hd.ControllerNumber
+			}
+
+			// Default to sequential ports
+			controllerLocation := i
+			if hd.ControllerLocation != nil {
+				controllerLocation = *hd.ControllerLocation
+			}
+
+			// Use PowerShell to add hard drive (more reliable)
+			hdCmd := fmt.Sprintf("Add-VMHardDiskDrive -VMName \"%s\" -Path \"%s\" -ControllerType %s -ControllerNumber %d -ControllerLocation %d",
+				vmName, *hd.Path, controllerType, controllerNumber, controllerLocation)
+			_, err := util.RunPowerShellCommand(hdCmd)
+			if err != nil {
+				logger.Warnf("Failed to add hard drive: %v", err)
+				// Continue with other hard drives despite error
+			} else {
+				logger.Debugf("Added hard drive %s to VM %s", *hd.Path, vmName)
+			}
+		}
+	}
+
+	// Update network adapters if changed
+	if !compareNetworkAdapters(olds.NetworkAdapters, news.NetworkAdapters) {
+		logger.Infof("Updating network adapters for VM %s", vmName)
+
+		// First remove all existing network adapters using PowerShell (more reliable)
+		removeNACmd := fmt.Sprintf("Get-VMNetworkAdapter -VMName \"%s\" | Remove-VMNetworkAdapter", vmName)
+		_, removeErr := util.RunPowerShellCommand(removeNACmd)
+		if removeErr != nil {
+			logger.Warnf("Failed to remove existing network adapters: %v", removeErr)
+			// Try to continue anyway
+		}
+
+		// Add all new network adapters
+		for i, na := range news.NetworkAdapters {
+			if na.SwitchName == nil {
+				logger.Debugf("Network adapter switch name not specified, skipping")
+				continue
+			}
+
+			// Use the index as part of name if no name provided
+			adapterName := fmt.Sprintf("Network Adapter %d", i+1)
+			if na.Name != nil {
+				adapterName = *na.Name
+			}
+
+			// Create the adapter and connect it to the switch
+			naCmd := fmt.Sprintf("Add-VMNetworkAdapter -VMName \"%s\" -Name \"%s\" -SwitchName \"%s\"",
+				vmName, adapterName, *na.SwitchName)
+
+			// Add MAC address if specified
+			if na.MacAddress != nil && *na.MacAddress != "" {
+				naCmd += fmt.Sprintf(" -StaticMacAddress \"%s\"", *na.MacAddress)
+			}
+
+			_, err := util.RunPowerShellCommand(naCmd)
+			if err != nil {
+				logger.Warnf("Failed to add network adapter: %v", err)
+				// Continue with other adapters despite error
+			} else {
+				logger.Debugf("Added network adapter %s to VM %s", adapterName, vmName)
+			}
+		}
+	}
+
+	// Start the VM if we stopped it
+	if needsRestart {
+		logger.Infof("Restarting VM %s after update", vmName)
+		startErr := startVMPowerShell(vmName)
+		if startErr != nil {
+			logger.Warnf("Failed to restart VM %s after update: %v", vmName, startErr)
+			// We'll warn but not fail the update since the changes were applied
+		}
+	}
+
 	return state, nil
+}
+
+// Helper functions for the Update method
+
+// updateVMWithPowerShell updates a virtual machine using PowerShell cmdlets
+func updateVMWithPowerShell(ctx context.Context, vmName string, olds MachineOutputs, news MachineInputs) (MachineOutputs, error) {
+	logger := logging.GetLogger(ctx)
+	state := MachineOutputs{MachineInputs: news}
+
+	// Always ensure vmId is set - carry over from old state if available
+	if olds.VmId != nil {
+		state.VmId = olds.VmId
+	} else {
+		EnsureVmId(&state, vmName)
+	}
+
+	// Update processor count if changed
+	if news.ProcessorCount != nil && (olds.ProcessorCount == nil || *olds.ProcessorCount != *news.ProcessorCount) {
+		logger.Infof("Updating processor count from %v to %d", olds.ProcessorCount, *news.ProcessorCount)
+		procCmd := fmt.Sprintf("Set-VMProcessor -VMName \"%s\" -Count %d", vmName, *news.ProcessorCount)
+		_, err := util.RunPowerShellCommand(procCmd)
+		if err != nil {
+			logger.Warnf("Failed to update processor count: %v", err)
+			// Continue with other updates despite error
+		}
+	}
+
+	// Update memory settings
+	updateMemoryWithPowerShell(ctx, vmName, news)
+
+	// Update auto start action if changed
+	if news.AutoStartAction != nil && (olds.AutoStartAction == nil || *olds.AutoStartAction != *news.AutoStartAction) {
+		logger.Infof("Updating auto start action from %v to %s", olds.AutoStartAction, *news.AutoStartAction)
+		autoStartCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStartAction %s", vmName, *news.AutoStartAction)
+		_, err := util.RunPowerShellCommand(autoStartCmd)
+		if err != nil {
+			logger.Warnf("Failed to update auto start action: %v", err)
+			// Continue with other updates despite error
+		}
+	}
+
+	// Update auto stop action if changed
+	if news.AutoStopAction != nil && (olds.AutoStopAction == nil || *olds.AutoStopAction != *news.AutoStopAction) {
+		logger.Infof("Updating auto stop action from %v to %s", olds.AutoStopAction, *news.AutoStopAction)
+		autoStopCmd := fmt.Sprintf("Set-VM -VMName \"%s\" -AutomaticStopAction %s", vmName, *news.AutoStopAction)
+		_, err := util.RunPowerShellCommand(autoStopCmd)
+		if err != nil {
+			logger.Warnf("Failed to update auto stop action: %v", err)
+			// Continue with other updates despite error
+		}
+	}
+
+	// Update hard drives if changed
+	if !compareHardDrives(olds.HardDrives, news.HardDrives) {
+		logger.Infof("Updating hard drives for VM %s", vmName)
+
+		// First remove all existing hard drives
+		removeHDCmd := fmt.Sprintf("Get-VMHardDiskDrive -VMName \"%s\" | Remove-VMHardDiskDrive", vmName)
+		_, removeErr := util.RunPowerShellCommand(removeHDCmd)
+		if removeErr != nil {
+			logger.Warnf("Failed to remove existing hard drives: %v", removeErr)
+			// Try to continue anyway
+		}
+
+		// Add all new hard drives
+		for i, hd := range news.HardDrives {
+			if hd.Path == nil {
+				logger.Debugf("Hard drive path not specified, skipping")
+				continue
+			}
+
+			// Default values for controller
+			controllerType := "SCSI"
+			if hd.ControllerType != nil {
+				controllerType = *hd.ControllerType
+			}
+
+			controllerNumber := 0
+			if hd.ControllerNumber != nil {
+				controllerNumber = *hd.ControllerNumber
+			}
+
+			// Default to sequential ports
+			controllerLocation := i
+			if hd.ControllerLocation != nil {
+				controllerLocation = *hd.ControllerLocation
+			}
+
+			hdCmd := fmt.Sprintf("Add-VMHardDiskDrive -VMName \"%s\" -Path \"%s\" -ControllerType %s -ControllerNumber %d -ControllerLocation %d",
+				vmName, *hd.Path, controllerType, controllerNumber, controllerLocation)
+			_, err := util.RunPowerShellCommand(hdCmd)
+			if err != nil {
+				logger.Warnf("Failed to add hard drive: %v", err)
+				// Continue with other hard drives despite error
+			} else {
+				logger.Debugf("Added hard drive %s to VM %s", *hd.Path, vmName)
+			}
+		}
+	}
+
+	// Update network adapters if changed
+	if !compareNetworkAdapters(olds.NetworkAdapters, news.NetworkAdapters) {
+		logger.Infof("Updating network adapters for VM %s", vmName)
+
+		// First remove all existing network adapters
+		removeNACmd := fmt.Sprintf("Get-VMNetworkAdapter -VMName \"%s\" | Remove-VMNetworkAdapter", vmName)
+		_, removeErr := util.RunPowerShellCommand(removeNACmd)
+		if removeErr != nil {
+			logger.Warnf("Failed to remove existing network adapters: %v", removeErr)
+			// Try to continue anyway
+		}
+
+		// Add all new network adapters
+		for i, na := range news.NetworkAdapters {
+			if na.SwitchName == nil {
+				logger.Debugf("Network adapter switch name not specified, skipping")
+				continue
+			}
+
+			// Use the index as part of name if no name provided
+			adapterName := fmt.Sprintf("Network Adapter %d", i+1)
+			if na.Name != nil {
+				adapterName = *na.Name
+			}
+
+			// Create the adapter and connect it to the switch
+			naCmd := fmt.Sprintf("Add-VMNetworkAdapter -VMName \"%s\" -Name \"%s\" -SwitchName \"%s\"",
+				vmName, adapterName, *na.SwitchName)
+
+			// Add MAC address if specified
+			if na.MacAddress != nil && *na.MacAddress != "" {
+				naCmd += fmt.Sprintf(" -StaticMacAddress \"%s\"", *na.MacAddress)
+			}
+
+			_, err := util.RunPowerShellCommand(naCmd)
+			if err != nil {
+				logger.Warnf("Failed to add network adapter: %v", err)
+				// Continue with other adapters despite error
+			} else {
+				logger.Debugf("Added network adapter %s to VM %s", adapterName, vmName)
+			}
+		}
+	}
+
+	return state, nil
+}
+
+// updateMemoryWithPowerShell updates memory settings using PowerShell
+func updateMemoryWithPowerShell(ctx context.Context, vmName string, news MachineInputs) {
+	logger := logging.GetLogger(ctx)
+
+	// Set dynamic memory if specified
+	if news.DynamicMemory != nil {
+		var memCmd string
+
+		if *news.DynamicMemory {
+			// Enable dynamic memory
+			var minMem, maxMem int64
+
+			if news.MinimumMemory != nil {
+				minMem = int64(*news.MinimumMemory) * 1024 * 1024 // Convert MB to bytes
+			} else {
+				minMem = 512 * 1024 * 1024 // 512MB default
+			}
+
+			if news.MaximumMemory != nil {
+				maxMem = int64(*news.MaximumMemory) * 1024 * 1024 // Convert MB to bytes
+			} else if news.MemorySize != nil {
+				maxMem = int64(*news.MemorySize) * 2 * 1024 * 1024 // Double startup memory if maximum not specified
+			} else {
+				maxMem = 2 * 1024 * 1024 * 1024 // 2GB default
+			}
+
+			var startupMem int64
+			if news.MemorySize != nil {
+				startupMem = int64(*news.MemorySize) * 1024 * 1024 // Convert MB to bytes
+			} else {
+				startupMem = 1024 * 1024 * 1024 // 1GB default
+			}
+
+			memCmd = fmt.Sprintf("Set-VMMemory -VMName \"%s\" -DynamicMemoryEnabled $true -MinimumBytes %d -MaximumBytes %d -StartupBytes %d",
+				vmName, minMem, maxMem, startupMem)
+		} else {
+			// Disable dynamic memory and set static memory
+			var memorySize int64
+			if news.MemorySize != nil {
+				memorySize = int64(*news.MemorySize) * 1024 * 1024 // Convert MB to bytes
+			} else {
+				memorySize = 1024 * 1024 * 1024 // 1GB default
+			}
+
+			memCmd = fmt.Sprintf("Set-VMMemory -VMName \"%s\" -DynamicMemoryEnabled $false -StartupBytes %d",
+				vmName, memorySize)
+		}
+
+		_, err := util.RunPowerShellCommand(memCmd)
+		if err != nil {
+			logger.Warnf("Failed to update memory settings: %v", err)
+			// Continue despite error
+		} else {
+			logger.Infof("Updated memory settings for VM %s", vmName)
+		}
+	} else if news.MemorySize != nil {
+		// Just update memory size without changing dynamic memory setting
+		memorySize := int64(*news.MemorySize) * 1024 * 1024 // Convert MB to bytes
+		memCmd := fmt.Sprintf("Set-VMMemory -VMName \"%s\" -StartupBytes %d", vmName, memorySize)
+
+		_, err := util.RunPowerShellCommand(memCmd)
+		if err != nil {
+			logger.Warnf("Failed to update memory size: %v", err)
+			// Continue despite error
+		} else {
+			logger.Infof("Updated memory size to %d MB for VM %s", *news.MemorySize, vmName)
+		}
+	}
+}
+
+// compareHardDrives compares two slices of hard drives to see if they're different
+func compareHardDrives(olds []*HardDriveInput, news []*HardDriveInput) bool {
+	if len(olds) != len(news) {
+		return false
+	}
+
+	// Create maps for comparison
+	oldMap := make(map[string]bool)
+	newMap := make(map[string]bool)
+
+	for _, hd := range olds {
+		if hd.Path != nil {
+			oldMap[*hd.Path] = true
+		}
+	}
+
+	for _, hd := range news {
+		if hd.Path != nil {
+			newMap[*hd.Path] = true
+			// Check if this path exists in old hard drives
+			if !oldMap[*hd.Path] {
+				return false
+			}
+		}
+	}
+
+	// Check if all old paths are in new hard drives
+	for _, hd := range olds {
+		if hd.Path != nil {
+			if !newMap[*hd.Path] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// compareNetworkAdapters compares two slices of network adapters to see if they're different
+func compareNetworkAdapters(olds []*networkadapter.NetworkAdapterInputs, news []*networkadapter.NetworkAdapterInputs) bool {
+	if len(olds) != len(news) {
+		return false
+	}
+
+	// Create maps for comparison
+	oldMap := make(map[string]bool)
+	newMap := make(map[string]bool)
+
+	for _, na := range olds {
+		if na.SwitchName != nil {
+			key := *na.SwitchName
+			if na.Name != nil {
+				key = *na.Name + ":" + key
+			}
+			oldMap[key] = true
+		}
+	}
+
+	for _, na := range news {
+		if na.SwitchName != nil {
+			key := *na.SwitchName
+			if na.Name != nil {
+				key = *na.Name + ":" + key
+			}
+			newMap[key] = true
+			// Check if this combination exists in old adapters
+			if !oldMap[key] {
+				return false
+			}
+		}
+	}
+
+	// Check if all old adapters are in new adapters
+	for _, na := range olds {
+		if na.SwitchName != nil {
+			key := *na.SwitchName
+			if na.Name != nil {
+				key = *na.Name + ":" + key
+			}
+			if !newMap[key] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// isVMRunningPowerShell checks if a VM is running using PowerShell
+func isVMRunningPowerShell(vmName string) (bool, error) {
+	checkCmd := fmt.Sprintf("(Get-VM -Name \"%s\" -ErrorAction SilentlyContinue).State -eq 'Running'", vmName)
+	output, err := util.RunPowerShellCommand(checkCmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to check VM state: %v", err)
+	}
+
+	return strings.TrimSpace(output) == "True", nil
+}
+
+// stopVMPowerShell stops a VM using PowerShell
+func stopVMPowerShell(vmName string) error {
+	// Check if the VM is running first
+	isRunning, err := isVMRunningPowerShell(vmName)
+	if err != nil {
+		return fmt.Errorf("failed to check if VM is running: %v", err)
+	}
+
+	if !isRunning {
+		return nil // VM is already stopped
+	}
+
+	stopCmd := fmt.Sprintf("Stop-VM -Name \"%s\" -Force", vmName)
+	_, err = util.RunPowerShellCommand(stopCmd)
+	if err != nil {
+		return fmt.Errorf("failed to stop VM: %v", err)
+	}
+
+	// Verify the VM is stopped
+	isStillRunning, verifyErr := isVMRunningPowerShell(vmName)
+	if verifyErr != nil {
+		return fmt.Errorf("failed to verify VM stopped state: %v", verifyErr)
+	}
+
+	if isStillRunning {
+		return fmt.Errorf("VM did not stop after Stop-VM command")
+	}
+
+	return nil
+}
+
+// startVMPowerShell starts a VM using PowerShell
+func startVMPowerShell(vmName string) error {
+	// Check if the VM is already running
+	isRunning, err := isVMRunningPowerShell(vmName)
+	if err != nil {
+		return fmt.Errorf("failed to check if VM is running: %v", err)
+	}
+
+	if isRunning {
+		return nil // VM is already running
+	}
+
+	startCmd := fmt.Sprintf("Start-VM -Name \"%s\"", vmName)
+	output, err := util.RunPowerShellCommand(startCmd)
+	if err != nil {
+		// Check for specific error conditions
+		if strings.Contains(output, "Not enough memory in the system to start the virtual machine") {
+			return fmt.Errorf("failed to start VM due to insufficient memory: %v", err)
+		} else if strings.Contains(output, "0x8007000E") {
+			return fmt.Errorf("failed to start VM due to insufficient system resources (error 0x8007000E)")
+		} else if strings.Contains(output, "could not initialize memory") {
+			return fmt.Errorf("failed to start VM due to memory initialization error")
+		}
+
+		return fmt.Errorf("failed to start VM: %v", err)
+	}
+
+	return nil
 }
