@@ -36,3 +36,4 @@ package-lock.json
 sdk/python/venv
 *.sln
 coverage.txt
+**/wmi-actions.log

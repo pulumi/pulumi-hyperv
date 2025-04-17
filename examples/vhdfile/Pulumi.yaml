@@ -1,3 +1,0 @@
-name: hyperv-vhdfile-example
-runtime: nodejs
-description: A simple example of using the Pulumi HyperV provider to create virtual hard disk files

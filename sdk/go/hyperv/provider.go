@@ -7,7 +7,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv/internal"
+	"github.com/pulumi/pulumi-hyperv/provider/go/hyperv/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 

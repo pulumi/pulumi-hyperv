@@ -10,7 +10,7 @@ The Pulumi Hyper-V provider is available as a package in all Pulumi languages:
 
 * JavaScript/TypeScript: [`@pulumi/hyperv`](https://www.npmjs.com/package/@pulumi/hyperv)
 * Python: [`pulumi-hyperv`](https://pypi.org/project/pulumi-hyperv/)
-* Go: [`github.com/pulumi/pulumi-hyperv-provider/sdk/go/hyperv`](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv-provider/sdk/go/hyperv)
+* Go: [`github.com/pulumi/pulumi-hyperv/sdk/go/hyperv`](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv/sdk/go/hyperv)
 * .NET: [`Pulumi.Hyperv`](https://www.nuget.org/packages/Pulumi.Hyperv)
 * Java: [`com.pulumi/hyperv`](https://central.sonatype.com/artifact/com.pulumi/hyperv)
 

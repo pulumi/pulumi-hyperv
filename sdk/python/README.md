@@ -1,12 +1,12 @@
 # Pulumi Hyper-V Provider (preview)
 
-[![Actions Status](https://github.com/pulumi/pulumi-hyperv-provider/workflows/master/badge.svg)](https://github.com/pulumi/pulumi-hyperv-provider/actions)
+[![Actions Status](https://github.com/pulumi/pulumi-hyperv/workflows/master/badge.svg)](https://github.com/pulumi/pulumi-hyperv/actions)
 [![Slack](http://www.pulumi.com/images/docs/badges/slack.svg)](https://slack.pulumi.com)
 [![NPM version](https://badge.fury.io/js/%40pulumi%2Fhyperv.svg)](https://www.npmjs.com/package/@pulumi/hyperv)
 [![Python version](https://badge.fury.io/py/pulumi-hyperv.svg)](https://pypi.org/project/pulumi-hyperv)
 [![NuGet version](https://badge.fury.io/nu/pulumi.hyperv.svg)](https://badge.fury.io/nu/pulumi.hyperv)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-hyperv-provider/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv-provider/sdk/go)
-[![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-hyperv-provider/blob/master/LICENSE)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-hyperv/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv/sdk/go)
+[![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-hyperv/blob/master/LICENSE)
 
 The Pulumi Hyper-V Provider enables you to manage Microsoft Hyper-V resources like virtual machines, virtual switches,
 and other virtualization components as part of your Pulumi Infrastructure as Code.
@@ -27,7 +27,7 @@ You can use the Hyper-V provider from a Pulumi program written in any Pulumi lan
 Python, and YAML.
 You'll need to [install and configure the Pulumi CLI](https://pulumi.com/docs/get-started/install) if you haven't already.
 
-> **NOTE**: The Hyper-V provider is in preview. The API design may change ahead of general availability based on [user feedback](https://github.com/pulumi/pulumi-hyperv-provider/issues).
+> **NOTE**: The Hyper-V provider is in preview. The API design may change ahead of general availability based on [user feedback](https://github.com/pulumi/pulumi-hyperv/issues).
 
 ## Features
 

@@ -18,12 +18,12 @@ import (
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-go-provider/middleware/schema"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/machine"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vhdfile"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/virtualswitch"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/machine"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/networkadapter"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vhdfile"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/virtualswitch"
 )
 
 const (
@@ -48,9 +48,9 @@ func NewProvider() p.Provider {
 			},
 			Homepage:   "https://pulumi.com",
 			License:    "Apache-2.0",
-			Repository: "https://github.com/pulumi/pulumi-hyperv-provider",
+			Repository: "https://github.com/pulumi/pulumi-hyperv",
 			Publisher:  "Pulumi",
-			LogoURL:    "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
+			LogoURL:    "https://raw.githubusercontent.com/pulumi/pulumi-hyperv/master/assets/logo.svg",
 			// This contains language specific details for generating the provider's SDKs
 			LanguageMap: map[string]any{
 				"csharp": map[string]any{
@@ -62,7 +62,7 @@ func NewProvider() p.Provider {
 				"go": map[string]any{
 					"respectSchemaVersion":           true,
 					"generateResourceContainerTypes": true,
-					"importBasePath":                 "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
+					"importBasePath":                 "github.com/pulumi/pulumi-hyperv/provider/go/hyperv",
 				},
 				"nodejs": map[string]any{
 					"respectSchemaVersion": true,

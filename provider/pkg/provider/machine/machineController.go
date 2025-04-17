@@ -27,11 +27,11 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/networkadapter"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // The following statements are not required. They are type assertions to indicate to Go that Machine implements the following interfaces.
@@ -1339,7 +1339,7 @@ func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, ne
 		logger.Infof("Updating processor count from %v to %d", olds.ProcessorCount, *news.ProcessorCount)
 
 		// Try WMI first
-		processorSettings, err := processor.GetProcessorSettingDataFromVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, vmSettings)
+		processorSettings, err := processor.GetDefaultProcessorSettingData(vmmsClient.GetVirtualizationConn().WMIHost)
 		if err != nil || processorSettings == nil {
 			logger.Warnf("Failed to get processor settings: %v", err)
 			// Fallback to PowerShell for this setting
@@ -1397,7 +1397,7 @@ func (c *Machine) Update(ctx context.Context, id string, olds MachineOutputs, ne
 		logger.Infof("Updating memory settings for VM %s", vmName)
 
 		// Try WMI first
-		memorySettings, err := memory.GetMemorySettingDataFromVirtualSystemSettingData(vmmsClient.GetVirtualizationConn().WMIHost, vmSettings)
+		memorySettings, err := memory.GetDefaultMemorySettingData(vmmsClient.GetVirtualizationConn().WMIHost)
 		if err != nil || memorySettings == nil {
 			logger.Warnf("Failed to get memory settings: %v", err)
 			// Fallback to PowerShell for all memory settings

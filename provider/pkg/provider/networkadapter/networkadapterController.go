@@ -25,8 +25,8 @@ import (
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	provider "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // Type assertions to indicate that NetworkAdapter implements the required interfaces.

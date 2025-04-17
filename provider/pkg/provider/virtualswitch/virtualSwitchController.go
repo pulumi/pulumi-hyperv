@@ -25,10 +25,10 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // The following statements are type assertions to indicate to Go that VirtualSwitch implements the interfaces.

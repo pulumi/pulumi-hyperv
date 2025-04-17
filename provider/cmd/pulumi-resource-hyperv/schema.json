@@ -10,8 +10,8 @@
   ],
   "homepage": "https://pulumi.com",
   "license": "Apache-2.0",
-  "repository": "https://github.com/pulumi/pulumi-hyperv-provider",
-  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
+  "repository": "https://github.com/pulumi/pulumi-hyperv",
+  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv/master/assets/logo.svg",
   "publisher": "Pulumi",
   "meta": {
     "moduleFormat": "(.*)"
@@ -25,7 +25,7 @@
     },
     "go": {
       "generateResourceContainerTypes": true,
-      "importBasePath": "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
+      "importBasePath": "github.com/pulumi/pulumi-hyperv/provider/go/hyperv",
       "respectSchemaVersion": true
     },
     "java": {

@@ -25,7 +25,7 @@ func TestTsExamples(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			p := pulumitest.NewPulumiTest(t, test.directoryName,
-				opttest.LocalProviderPath("pulumi-hyperv-provider", filepath.Join(getCwd(t), "..", "bin")),
+				opttest.LocalProviderPath("pulumi-hyperv", filepath.Join(getCwd(t), "..", "bin")),
 				opttest.YarnLink("@pulumi/hyperv"),
 			)
 			if test.additionalConfig != nil {

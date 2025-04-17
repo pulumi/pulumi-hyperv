@@ -25,10 +25,10 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/storage/disk"
 	"github.com/pulumi/pulumi-go-provider/infer"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // VhdFileController implements the controller methods for VhdFile.

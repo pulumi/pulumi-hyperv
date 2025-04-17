@@ -10,7 +10,7 @@
     text = "Apache-2.0"
   [project.urls]
     Homepage = "https://pulumi.com"
-    Repository = "https://github.com/pulumi/pulumi-hyperv-provider"
+    Repository = "https://github.com/pulumi/pulumi-hyperv"
 
 [build-system]
   requires = ["setuptools>=61.0"]

@@ -13,8 +13,8 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	"github.com/microsoft/wmi/pkg/virtualization/network/virtualswitch"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/logging"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/logging"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util"
 )
 
 // VMMS represents the Hyper-V Virtual Machine Management Service.

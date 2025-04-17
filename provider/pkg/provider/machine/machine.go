@@ -18,8 +18,8 @@ import (
 	_ "embed"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/networkadapter"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/networkadapter"
 )
 
 //go:embed machine.md

@@ -7,7 +7,7 @@
     <Description>The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://pulumi.com</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/pulumi/pulumi-hyperv-provider</RepositoryUrl>
+    <RepositoryUrl>https://github.com/pulumi/pulumi-hyperv</RepositoryUrl>
     <PackageIcon>logo.png</PackageIcon>
     <Version>1.0.0-alpha.0+dev</Version>
 
