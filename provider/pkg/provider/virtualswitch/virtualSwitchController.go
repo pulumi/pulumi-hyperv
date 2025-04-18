@@ -60,7 +60,7 @@ func (c *VirtualSwitch) Connect(ctx context.Context) (*vmms.VMMS, *service.Virtu
 			}
 		}()
 
-		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+		vmmsClient, vmmsErr = vmms.NewVMMS(ctx, whost)
 	}()
 
 	if vmmsErr != nil {

@@ -62,6 +62,7 @@ VHD operations are particularly robust with multiple fallback mechanisms:
 3. **PowerShell Fallback**: Uses the `New-VHD` PowerShell cmdlet as a last resort
 
 The provider supports all VHD types with comprehensive input validation:
+
 * **Fixed**: Pre-allocated storage, better performance
 * **Dynamic**: Expands as needed, more efficient storage usage
 * **Differencing**: Child disks that store changes relative to a parent VHD

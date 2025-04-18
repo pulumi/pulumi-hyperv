@@ -2,6 +2,7 @@
 package vmms
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -25,18 +26,22 @@ type VMMS struct {
 	securityService     *securitysvc.SecurityService
 	imageManagementSvc  *imsvc.ImageManagementService
 	vmManagementService *vmmsvc.VirtualSystemManagementService
+	logger              logging.Logger
 }
 
 // NewVMMS creates a new VMMS instance.
-func NewVMMS(host *host.WmiHost) (*VMMS, error) {
+func NewVMMS(ctx context.Context, host *host.WmiHost) (*VMMS, error) {
+	logger := logging.GetLogger(ctx)
+
 	// Check if host is nil
 	if host == nil {
-		log.Printf("[ERROR] WMI host is nil")
+		logger.Errorf("WMI host is nil")
 		return nil, fmt.Errorf("WMI host is nil")
 	}
 
 	vmms := &VMMS{
-		host: host,
+		host:   host,
+		logger: logger,
 	}
 
 	// Each session manager operation is wrapped in panic recovery
@@ -46,7 +51,7 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[ERROR] Recovered from panic in NewWmiSessionManager: %v", r)
+				logger.Errorf("Recovered from panic in NewWmiSessionManager: %v", r)
 				smErr = fmt.Errorf("panic in NewWmiSessionManager: %v", r)
 			}
 		}()
@@ -76,7 +81,7 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[ERROR] Recovered from panic in GetLocalSession: %v", r)
+				logger.Errorf("Recovered from panic in GetLocalSession: %v", r)
 				virtConnErr = fmt.Errorf("panic in GetLocalSession: %v", r)
 			}
 		}()
@@ -86,7 +91,7 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 			// Try to connect, but handle errors gracefully
 			_, connectErr := virtConn.Connect()
 			if connectErr != nil {
-				log.Printf("[ERROR] Could not connect session: %v", connectErr)
+				logger.Errorf("Could not connect session: %v", connectErr)
 				virtConnErr = fmt.Errorf("failed to connect to virtualization namespace: %w", connectErr)
 
 				// Close and dispose if connection failed but session was created
@@ -98,12 +103,12 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	}()
 
 	if virtConnErr != nil {
-		log.Printf("[ERROR] Failed to create virtualization connection: %v", virtConnErr)
+		logger.Errorf("Failed to create virtualization connection: %v", virtConnErr)
 		return nil, fmt.Errorf("failed to create virtualization connection: %w", virtConnErr)
 	}
 
 	if virtConn == nil {
-		log.Printf("[ERROR] Virtualization connection is nil")
+		logger.Errorf("Virtualization connection is nil")
 		return nil, fmt.Errorf("virtualization connection is nil after creation")
 	}
 
@@ -120,27 +125,27 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[WARN] Recovered from panic in HGS connection setup: %v", r)
-				log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
+				logger.Warnf("Recovered from panic in HGS connection setup: %v", r)
+				logger.Infof("Continuing without HGS support (required only for advanced security features)")
 			}
 		}()
 
 		hgsConn, err := sm.GetLocalSession("root\\Microsoft\\Windows\\Hgs")
 		if err != nil {
-			log.Printf("[WARN] HGS connection not available: %v", err)
-			log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
+			logger.Warnf("HGS connection not available: %v", err)
+			logger.Infof("Continuing without HGS support (required only for advanced security features)")
 			return
 		}
 
 		if hgsConn == nil {
-			log.Printf("[WARN] HGS session is nil")
+			logger.Warnf("HGS session is nil")
 			return
 		}
 
 		_, err = hgsConn.Connect()
 		if err != nil {
-			log.Printf("[WARN] Could not connect to HGS session: %v", err)
-			log.Printf("[INFO] Continuing without HGS support (required only for advanced security features)")
+			logger.Warnf("Could not connect to HGS session: %v", err)
+			logger.Infof("Continuing without HGS support (required only for advanced security features)")
 			hgsConn.Close()
 			hgsConn.Dispose()
 			return
@@ -157,26 +162,26 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		// Skip if virtualization connection is not available
 		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
-			log.Printf("[WARN] Virtualization connection or WMI host is nil, skipping SecurityService")
+			logger.Warnf("Virtualization connection or WMI host is nil, skipping SecurityService")
 			return
 		}
 
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[WARN] Recovered from panic in GetSecurityService: %v", r)
-				log.Printf("[INFO] Continuing without security service (needed only for advanced security features)")
+				logger.Warnf("Recovered from panic in GetSecurityService: %v", r)
+				logger.Infof("Continuing without security service (needed only for advanced security features)")
 			}
 		}()
 
 		ss, err := securitysvc.GetSecurityService(vmms.virtualizationConn.WMIHost)
 		if err != nil {
-			log.Printf("[WARN] Could not get security service: %v", err)
-			log.Printf("[INFO] Continuing without security service (needed only for advanced security features)")
+			logger.Warnf("Could not get security service: %v", err)
+			logger.Infof("Continuing without security service (needed only for advanced security features)")
 			return
 		}
 
 		if ss == nil {
-			log.Printf("[WARN] Security service is nil")
+			logger.Warnf("Security service is nil")
 			return
 		}
 
@@ -187,26 +192,26 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		// Skip if virtualization connection is not available
 		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
-			log.Printf("[WARN] Virtualization connection or WMI host is nil, skipping ImageManagementService")
+			logger.Warnf("Virtualization connection or WMI host is nil, skipping ImageManagementService")
 			return
 		}
 
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[WARN] Recovered from panic in GetImageManagementService: %v", r)
-				log.Printf("[INFO] Continuing without image management service")
+				logger.Warnf("Recovered from panic in GetImageManagementService: %v", r)
+				logger.Infof("Continuing without image management service")
 			}
 		}()
 
 		ims, err := imsvc.GetImageManagementService(vmms.virtualizationConn.WMIHost)
 		if err != nil {
-			log.Printf("[WARN] Could not get image management service: %v", err)
-			log.Printf("[INFO] Continuing without image management service (needed for some disk operations)")
+			logger.Warnf("Could not get image management service: %v", err)
+			logger.Infof("Continuing without image management service (needed for some disk operations)")
 			return
 		}
 
 		if ims == nil {
-			log.Printf("[WARN] Image management service is nil")
+			logger.Warnf("Image management service is nil")
 			return
 		}
 
@@ -221,7 +226,7 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[ERROR] Recovered from panic in GetVirtualSystemManagementService: %v", r)
+				logger.Errorf("Recovered from panic in GetVirtualSystemManagementService: %v", r)
 				if err, ok := r.(error); ok {
 					vsmsErr = err
 				} else {
@@ -232,22 +237,22 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 
 		// Skip if virtualization connection is not available
 		if vmms.virtualizationConn == nil || vmms.virtualizationConn.WMIHost == nil {
-			log.Printf("[ERROR] Virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
+			logger.Errorf("Virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
 			vsmsErr = fmt.Errorf("virtualization connection or WMI host is nil, cannot get VirtualSystemManagementService")
 			return
 		}
 
 		vmmSvc, err := vmmsvc.GetVirtualSystemManagementService(vmms.virtualizationConn.WMIHost)
 		if err != nil {
-			log.Printf("[ERROR] Failed to get virtual system management service: %v", err)
-			log.Printf("[WARN] Continuing without VSMS - some operations will not be available")
+			logger.Errorf("Failed to get virtual system management service: %v", err)
+			logger.Warnf("Continuing without VSMS - some operations will not be available")
 			vsmsErr = fmt.Errorf("failed to get virtual system management service: %w", err)
 			return
 		}
 
 		if vmmSvc == nil {
-			log.Printf("[ERROR] Virtual system management service is nil")
-			log.Printf("[WARN] Continuing without VSMS - some operations will not be available")
+			logger.Errorf("Virtual system management service is nil")
+			logger.Warnf("Continuing without VSMS - some operations will not be available")
 			vsmsErr = fmt.Errorf("virtual system management service is nil")
 			return
 		}
@@ -257,8 +262,8 @@ func NewVMMS(host *host.WmiHost) (*VMMS, error) {
 
 	// Log the warning but return the VMMS object anyway so controllers can handle this case
 	if vsmsErr != nil {
-		log.Printf("[WARN] Failed to initialize VirtualSystemManagementService: %v", vsmsErr)
-		log.Printf("[WARN] Continuing with limited functionality - some operations may fail")
+		logger.Warnf("Failed to initialize VirtualSystemManagementService: %v", vsmsErr)
+		logger.Warnf("Continuing with limited functionality - some operations may fail")
 	}
 
 	// Return VMMS instance even with limited functionality
@@ -292,11 +297,11 @@ func (v *VMMS) GetSecurityService() *securitysvc.SecurityService {
 // Callers must check for nil before using the returned service.
 func (v *VMMS) GetImageManagementService() *imsvc.ImageManagementService {
 	if v == nil {
-		log.Printf("[ERROR] VMMS object is nil when trying to get ImageManagementService")
+		v.logger.Errorf("VMMS object is nil when trying to get ImageManagementService")
 		return nil
 	}
 	if v.imageManagementSvc == nil {
-		log.Printf("[WARN] ImageManagementService is not initialized")
+		v.logger.Warnf("ImageManagementService is not initialized")
 		return nil
 	}
 	return v.imageManagementSvc
@@ -306,7 +311,7 @@ func (v *VMMS) GetImageManagementService() *imsvc.ImageManagementService {
 func (v *VMMS) GetVirtualSystemManagementService() *vmmsvc.VirtualSystemManagementService {
 	// Add nil check to prevent panics when the service couldn't be initialized
 	if v == nil {
-		log.Printf("[ERROR] VMMS object is nil when trying to get VirtualSystemManagementService")
+		v.logger.Errorf("VMMS object is nil when trying to get VirtualSystemManagementService")
 		return nil
 	}
 	return v.vmManagementService

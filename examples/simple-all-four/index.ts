@@ -25,8 +25,8 @@ const nic = new hyperv.networkadapter.NetworkAdapter("example-nic", {
 const vm = new hyperv.machine.Machine("example-vm", {
     machineName: "example-vm",
     generation: 2,
-    processorCount: 2,
-    memorySize: 4096, // 4GB
+    processorCount: 1,
+    memorySize: 2048, // 4GB
     networkAdapters: [{
         name: nic.name,
         switchName: nic.switchName
