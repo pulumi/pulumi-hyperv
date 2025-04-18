@@ -66,7 +66,7 @@ func (c *Machine) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSyst
 			}
 		}()
 
-		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+		vmmsClient, vmmsErr = vmms.NewVMMS(ctx, whost)
 	}()
 
 	if vmmsErr != nil {

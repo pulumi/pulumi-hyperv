@@ -65,7 +65,7 @@ func (c *VhdFile) Connect(ctx context.Context) (*vmms.VMMS, interface{}, error) 
 			}
 		}()
 
-		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+		vmmsClient, vmmsErr = vmms.NewVMMS(ctx, whost)
 	}()
 
 	if vmmsErr != nil {

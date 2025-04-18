@@ -58,7 +58,7 @@ func (c *NetworkAdapter) Connect(ctx context.Context) (*vmms.VMMS, *service.Virt
 			}
 		}()
 
-		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+		vmmsClient, vmmsErr = vmms.NewVMMS(ctx, whost)
 	}()
 
 	if vmmsErr != nil {

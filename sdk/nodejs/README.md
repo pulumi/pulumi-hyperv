@@ -8,6 +8,8 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/pulumi/pulumi-hyperv/sdk/go)](https://pkg.go.dev/github.com/pulumi/pulumi-hyperv/sdk/go)
 [![License](https://img.shields.io/npm/l/%40pulumi%2Fpulumi.svg)](https://github.com/pulumi/pulumi-hyperv/blob/master/LICENSE)
 
+# ⚠️⚠️⚠️ EXPERIMENTAL: ABSOLUTELY DOES NOT WORK BETWEEN COMMITS AND HAS NO SUPPORT ⚠️⚠️⚠️
+
 The Pulumi Hyper-V Provider enables you to manage Microsoft Hyper-V resources like virtual machines, virtual switches,
 and other virtualization components as part of your Pulumi Infrastructure as Code.
 
@@ -60,6 +62,7 @@ VHD operations are particularly robust with multiple fallback mechanisms:
 3. **PowerShell Fallback**: Uses the `New-VHD` PowerShell cmdlet as a last resort
 
 The provider supports all VHD types with comprehensive input validation:
+
 * **Fixed**: Pre-allocated storage, better performance
 * **Dynamic**: Expands as needed, more efficient storage usage
 * **Differencing**: Child disks that store changes relative to a parent VHD
