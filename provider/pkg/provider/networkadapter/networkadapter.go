@@ -18,7 +18,7 @@ import (
 	_ "embed"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
 )
 
 //go:embed networkadapter.md
@@ -44,7 +44,7 @@ func (c *NetworkAdapter) Annotate(a infer.Annotator) {
 type NetworkAdapterInputs struct {
 	common.ResourceInputs
 	Name            *string `pulumi:"name"`
-	VMName          *string `pulumi:"vmName"`
+	VMName          *string `pulumi:"vmName,optional"`
 	SwitchName      *string `pulumi:"switchName"`
 	MacAddress      *string `pulumi:"macAddress,optional"`
 	VlanId          *int    `pulumi:"vlanId,optional"`

@@ -90,6 +90,12 @@ namespace Pulumi.Hyperv.Virtualswitch
         public Output<string?> NetAdapterName { get; private set; } = null!;
 
         /// <summary>
+        /// Notes or description for the virtual switch
+        /// </summary>
+        [Output("notes")]
+        public Output<string?> Notes { get; private set; } = null!;
+
+        /// <summary>
         /// Type of switch: 'External', 'Internal', or 'Private'
         /// </summary>
         [Output("switchType")]
@@ -193,6 +199,12 @@ namespace Pulumi.Hyperv.Virtualswitch
         /// </summary>
         [Input("netAdapterName")]
         public Input<string>? NetAdapterName { get; set; }
+
+        /// <summary>
+        /// Notes or description for the virtual switch
+        /// </summary>
+        [Input("notes")]
+        public Input<string>? Notes { get; set; }
 
         /// <summary>
         /// Type of switch: 'External', 'Internal', or 'Private'

@@ -7,7 +7,8 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv/internal"
+	"github.com/pulumi/pulumi-hyperv/provider/go/hyperv/internal"
+	"github.com/pulumi/pulumi-hyperv/provider/go/hyperv/networkadapter"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -21,10 +22,13 @@ import (
 //
 // - Create and delete Hyper-V virtual machines
 // - Configure VM hardware properties including:
-//   - Memory allocation
+//   - Memory allocation (static or dynamic with min/max)
 //   - Processor count
 //   - VM generation (Gen 1 or Gen 2)
+//   - Auto start/stop actions
 //
+// - Attach hard drives with custom controller configuration
+// - Configure network adapters with virtual switch connections
 // - Unique VM identification with automatic ID generation
 //
 // ## Implementation Details
@@ -44,9 +48,13 @@ import (
 // 2. **Configure VM Settings**:
 //   - Sets the virtual machine generation (defaults to Generation 2)
 //   - Configures memory settings (defaults to 1024 MB)
+//   - Sets dynamic memory with min/max values if requested
 //   - Sets processor count (defaults to 1 vCPU)
+//   - Configures auto start/stop actions
 //
 // 3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+// 4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+// 5. **Configure Network Adapters**: Adds any specified network adapters to the VM
 //
 // ### Virtual Machine Read
 //
@@ -55,9 +63,10 @@ import (
 // 2. Getting the VM by name
 // 3. Retrieving VM properties including:
 //   - VM ID
-//   - Memory settings
+//   - Memory settings (including dynamic memory configuration)
 //   - Processor configuration
 //   - Generation
+//   - Auto start/stop actions
 //
 // ### Virtual Machine Update
 //
@@ -80,15 +89,32 @@ import (
 // | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
 // | `processorCount` | int | Number of processors to allocate | 1 |
 // | `memorySize` | int | Memory size in MB | 1024 |
+// | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+// | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+// | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+// | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+// | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+// | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+// | `hardDrives` | array | Hard drives to attach to the VM | [] |
 // | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
 //
-// ## Future Extensions
+// ### Network Adapter Properties
 //
-// The code includes scaffolding for future enhancements including:
-// - Network adapter configuration
-// - Hard drive attachments
-// - Key protector for secure boot
-// - Additional system settings
+// | Property | Type | Description | Default |
+// |----------|------|-------------|---------|
+// | `name` | string | Name of the network adapter | "Network Adapter" |
+// | `switchName` | string | Name of the virtual switch to connect to | (required) |
+//
+// ### Hard Drive Properties
+//
+// | Property | Type | Description | Default |
+// |----------|------|-------------|---------|
+// | `path` | string | Path to the VHD/VHDX file | (required) |
+// | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+// | `controllerNumber` | int | Controller number | 0 |
+// | `controllerLocation` | int | Controller location | 0 |
+//
+// ## Usage Examples
 //
 // ## Related Documentation
 //
@@ -97,18 +123,32 @@ import (
 type Machine struct {
 	pulumi.CustomResourceState
 
+	// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+	AutoStartAction pulumi.StringPtrOutput `pulumi:"autoStartAction"`
+	// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+	AutoStopAction pulumi.StringPtrOutput `pulumi:"autoStopAction"`
 	// The command to run on create.
 	Create pulumi.StringPtrOutput `pulumi:"create"`
 	// The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrOutput `pulumi:"delete"`
+	// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+	DynamicMemory pulumi.BoolPtrOutput `pulumi:"dynamicMemory"`
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation pulumi.IntPtrOutput `pulumi:"generation"`
+	// Hard drives to attach to the Virtual Machine.
+	HardDrives HardDriveInputArrayOutput `pulumi:"hardDrives"`
 	// Name of the Virtual Machine
 	MachineName pulumi.StringPtrOutput `pulumi:"machineName"`
+	// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+	MaximumMemory pulumi.IntPtrOutput `pulumi:"maximumMemory"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize pulumi.IntPtrOutput `pulumi:"memorySize"`
+	// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+	MinimumMemory pulumi.IntPtrOutput `pulumi:"minimumMemory"`
+	// Network adapters to attach to the Virtual Machine.
+	NetworkAdapters networkadapter.NetworkAdapterInputsArrayOutput `pulumi:"networkAdapters"`
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
 	ProcessorCount pulumi.IntPtrOutput `pulumi:"processorCount"`
 	// Trigger a resource replacement on changes to any of these values. The
@@ -121,7 +161,7 @@ type Machine struct {
 	// are set to the stdout and stderr properties of the Command resource from previous
 	// create or update steps.
 	Update pulumi.StringPtrOutput `pulumi:"update"`
-	VmId   pulumi.StringOutput    `pulumi:"vmId"`
+	VmId   pulumi.StringPtrOutput `pulumi:"vmId"`
 }
 
 // NewMachine registers a new resource with the given unique name, arguments, and options.
@@ -132,6 +172,7 @@ func NewMachine(ctx *pulumi.Context,
 	}
 
 	replaceOnChanges := pulumi.ReplaceOnChanges([]string{
+		"networkAdapters[*].triggers[*]",
 		"triggers[*]",
 	})
 	opts = append(opts, replaceOnChanges)
@@ -168,18 +209,32 @@ func (MachineState) ElementType() reflect.Type {
 }
 
 type machineArgs struct {
+	// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+	AutoStartAction *string `pulumi:"autoStartAction"`
+	// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+	AutoStopAction *string `pulumi:"autoStopAction"`
 	// The command to run on create.
 	Create *string `pulumi:"create"`
 	// The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete *string `pulumi:"delete"`
+	// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+	DynamicMemory *bool `pulumi:"dynamicMemory"`
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation *int `pulumi:"generation"`
+	// Hard drives to attach to the Virtual Machine.
+	HardDrives []HardDriveInput `pulumi:"hardDrives"`
 	// Name of the Virtual Machine
 	MachineName *string `pulumi:"machineName"`
+	// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+	MaximumMemory *int `pulumi:"maximumMemory"`
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize *int `pulumi:"memorySize"`
+	// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+	MinimumMemory *int `pulumi:"minimumMemory"`
+	// Network adapters to attach to the Virtual Machine.
+	NetworkAdapters []networkadapter.NetworkAdapterInputs `pulumi:"networkAdapters"`
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
 	ProcessorCount *int `pulumi:"processorCount"`
 	// Trigger a resource replacement on changes to any of these values. The
@@ -196,18 +251,32 @@ type machineArgs struct {
 
 // The set of arguments for constructing a Machine resource.
 type MachineArgs struct {
+	// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+	AutoStartAction pulumi.StringPtrInput
+	// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+	AutoStopAction pulumi.StringPtrInput
 	// The command to run on create.
 	Create pulumi.StringPtrInput
 	// The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrInput
+	// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+	DynamicMemory pulumi.BoolPtrInput
 	// Generation of the Virtual Machine. Defaults to 2.
 	Generation pulumi.IntPtrInput
+	// Hard drives to attach to the Virtual Machine.
+	HardDrives HardDriveInputArrayInput
 	// Name of the Virtual Machine
 	MachineName pulumi.StringPtrInput
+	// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+	MaximumMemory pulumi.IntPtrInput
 	// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 	MemorySize pulumi.IntPtrInput
+	// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+	MinimumMemory pulumi.IntPtrInput
+	// Network adapters to attach to the Virtual Machine.
+	NetworkAdapters networkadapter.NetworkAdapterInputsArrayInput
 	// Number of processors to allocate to the Virtual Machine. Defaults to 1.
 	ProcessorCount pulumi.IntPtrInput
 	// Trigger a resource replacement on changes to any of these values. The
@@ -309,6 +378,16 @@ func (o MachineOutput) ToMachineOutputWithContext(ctx context.Context) MachineOu
 	return o
 }
 
+// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+func (o MachineOutput) AutoStartAction() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.AutoStartAction }).(pulumi.StringPtrOutput)
+}
+
+// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+func (o MachineOutput) AutoStopAction() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.AutoStopAction }).(pulumi.StringPtrOutput)
+}
+
 // The command to run on create.
 func (o MachineOutput) Create() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.Create }).(pulumi.StringPtrOutput)
@@ -321,9 +400,19 @@ func (o MachineOutput) Delete() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.Delete }).(pulumi.StringPtrOutput)
 }
 
+// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+func (o MachineOutput) DynamicMemory() pulumi.BoolPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.BoolPtrOutput { return v.DynamicMemory }).(pulumi.BoolPtrOutput)
+}
+
 // Generation of the Virtual Machine. Defaults to 2.
 func (o MachineOutput) Generation() pulumi.IntPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.IntPtrOutput { return v.Generation }).(pulumi.IntPtrOutput)
+}
+
+// Hard drives to attach to the Virtual Machine.
+func (o MachineOutput) HardDrives() HardDriveInputArrayOutput {
+	return o.ApplyT(func(v *Machine) HardDriveInputArrayOutput { return v.HardDrives }).(HardDriveInputArrayOutput)
 }
 
 // Name of the Virtual Machine
@@ -331,9 +420,24 @@ func (o MachineOutput) MachineName() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.MachineName }).(pulumi.StringPtrOutput)
 }
 
+// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+func (o MachineOutput) MaximumMemory() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.IntPtrOutput { return v.MaximumMemory }).(pulumi.IntPtrOutput)
+}
+
 // Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
 func (o MachineOutput) MemorySize() pulumi.IntPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.IntPtrOutput { return v.MemorySize }).(pulumi.IntPtrOutput)
+}
+
+// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+func (o MachineOutput) MinimumMemory() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.IntPtrOutput { return v.MinimumMemory }).(pulumi.IntPtrOutput)
+}
+
+// Network adapters to attach to the Virtual Machine.
+func (o MachineOutput) NetworkAdapters() networkadapter.NetworkAdapterInputsArrayOutput {
+	return o.ApplyT(func(v *Machine) networkadapter.NetworkAdapterInputsArrayOutput { return v.NetworkAdapters }).(networkadapter.NetworkAdapterInputsArrayOutput)
 }
 
 // Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -357,8 +461,8 @@ func (o MachineOutput) Update() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.Update }).(pulumi.StringPtrOutput)
 }
 
-func (o MachineOutput) VmId() pulumi.StringOutput {
-	return o.ApplyT(func(v *Machine) pulumi.StringOutput { return v.VmId }).(pulumi.StringOutput)
+func (o MachineOutput) VmId() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Machine) pulumi.StringPtrOutput { return v.VmId }).(pulumi.StringPtrOutput)
 }
 
 type MachineArrayOutput struct{ *pulumi.OutputState }

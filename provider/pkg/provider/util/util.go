@@ -17,10 +17,14 @@ package util
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
+	"log"
+	"os/exec"
+	"strings"
 	"sync"
 
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/util/testutil"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/util/testutil"
 
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/diag"
@@ -68,4 +72,29 @@ func (w *ConcurrentWriter) Write(bs []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.Writer.Write(bs)
+}
+
+// GetOSVersion returns the Windows version string, with Azure edition detection
+// Returns a string like "Windows 10", "Windows 11", "Windows Server 2022", etc.
+// For Azure editions, returns the full string like "Windows Server 2022-datacenter-azure-edition"
+func GetOSVersion() (string, error) {
+	// Find PowerShell executable first
+	powershellExe, err := FindPowerShellExe()
+	if err != nil {
+		return "", fmt.Errorf("failed to find PowerShell executable: %v", err)
+	}
+
+	// Run PowerShell command to get OS version info
+	cmd := exec.Command(powershellExe, "-Command",
+		"(Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' -Name ProductName).ProductName")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to get OS version: %v, output: %s", err, string(output))
+	}
+
+	version := strings.TrimSpace(string(output))
+	log.Printf("[INFO] Detected OS version: %s", version)
+
+	return version, nil
 }

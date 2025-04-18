@@ -20,9 +20,12 @@ namespace Pulumi.Hyperv.Machine
     /// 
     /// - Create and delete Hyper-V virtual machines
     /// - Configure VM hardware properties including:
-    ///   - Memory allocation
+    ///   - Memory allocation (static or dynamic with min/max)
     ///   - Processor count
     ///   - VM generation (Gen 1 or Gen 2)
+    ///   - Auto start/stop actions
+    /// - Attach hard drives with custom controller configuration
+    /// - Configure network adapters with virtual switch connections
     /// - Unique VM identification with automatic ID generation
     /// 
     /// ## Implementation Details
@@ -42,8 +45,12 @@ namespace Pulumi.Hyperv.Machine
     /// 2. **Configure VM Settings**:
     ///    - Sets the virtual machine generation (defaults to Generation 2)
     ///    - Configures memory settings (defaults to 1024 MB)
+    ///    - Sets dynamic memory with min/max values if requested
     ///    - Sets processor count (defaults to 1 vCPU)
+    ///    - Configures auto start/stop actions
     /// 3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings
+    /// 4. **Attach Hard Drives**: Attaches any specified hard drives to the VM
+    /// 5. **Configure Network Adapters**: Adds any specified network adapters to the VM
     /// 
     /// ### Virtual Machine Read
     /// 
@@ -52,9 +59,10 @@ namespace Pulumi.Hyperv.Machine
     /// 2. Getting the VM by name
     /// 3. Retrieving VM properties including:
     ///    - VM ID
-    ///    - Memory settings
+    ///    - Memory settings (including dynamic memory configuration)
     ///    - Processor configuration
     ///    - Generation
+    ///    - Auto start/stop actions
     /// 
     /// ### Virtual Machine Update
     /// 
@@ -77,15 +85,32 @@ namespace Pulumi.Hyperv.Machine
     /// | `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |
     /// | `processorCount` | int | Number of processors to allocate | 1 |
     /// | `memorySize` | int | Memory size in MB | 1024 |
+    /// | `dynamicMemory` | bool | Enable dynamic memory for the VM | false |
+    /// | `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |
+    /// | `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |
+    /// | `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |
+    /// | `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |
+    /// | `networkAdapters` | array | Network adapters to attach to the VM | [] |
+    /// | `hardDrives` | array | Hard drives to attach to the VM | [] |
     /// | `triggers` | array | Values that trigger resource replacement when changed | (optional) |
     /// 
-    /// ## Future Extensions
+    /// ### Network Adapter Properties
     /// 
-    /// The code includes scaffolding for future enhancements including:
-    /// - Network adapter configuration
-    /// - Hard drive attachments
-    /// - Key protector for secure boot
-    /// - Additional system settings
+    /// | Property | Type | Description | Default |
+    /// |----------|------|-------------|---------|
+    /// | `name` | string | Name of the network adapter | "Network Adapter" |
+    /// | `switchName` | string | Name of the virtual switch to connect to | (required) |
+    /// 
+    /// ### Hard Drive Properties
+    /// 
+    /// | Property | Type | Description | Default |
+    /// |----------|------|-------------|---------|
+    /// | `path` | string | Path to the VHD/VHDX file | (required) |
+    /// | `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |
+    /// | `controllerNumber` | int | Controller number | 0 |
+    /// | `controllerLocation` | int | Controller location | 0 |
+    /// 
+    /// ## Usage Examples
     /// 
     /// ## Related Documentation
     /// 
@@ -95,6 +120,18 @@ namespace Pulumi.Hyperv.Machine
     [HypervResourceType("hyperv:machine:Machine")]
     public partial class Machine : global::Pulumi.CustomResource
     {
+        /// <summary>
+        /// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        /// </summary>
+        [Output("autoStartAction")]
+        public Output<string?> AutoStartAction { get; private set; } = null!;
+
+        /// <summary>
+        /// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+        /// </summary>
+        [Output("autoStopAction")]
+        public Output<string?> AutoStopAction { get; private set; } = null!;
+
         /// <summary>
         /// The command to run on create.
         /// </summary>
@@ -110,10 +147,22 @@ namespace Pulumi.Hyperv.Machine
         public Output<string?> Delete { get; private set; } = null!;
 
         /// <summary>
+        /// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+        /// </summary>
+        [Output("dynamicMemory")]
+        public Output<bool?> DynamicMemory { get; private set; } = null!;
+
+        /// <summary>
         /// Generation of the Virtual Machine. Defaults to 2.
         /// </summary>
         [Output("generation")]
         public Output<int?> Generation { get; private set; } = null!;
+
+        /// <summary>
+        /// Hard drives to attach to the Virtual Machine.
+        /// </summary>
+        [Output("hardDrives")]
+        public Output<ImmutableArray<Outputs.HardDriveInput>> HardDrives { get; private set; } = null!;
 
         /// <summary>
         /// Name of the Virtual Machine
@@ -122,10 +171,28 @@ namespace Pulumi.Hyperv.Machine
         public Output<string?> MachineName { get; private set; } = null!;
 
         /// <summary>
+        /// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+        /// </summary>
+        [Output("maximumMemory")]
+        public Output<int?> MaximumMemory { get; private set; } = null!;
+
+        /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         /// </summary>
         [Output("memorySize")]
         public Output<int?> MemorySize { get; private set; } = null!;
+
+        /// <summary>
+        /// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        /// </summary>
+        [Output("minimumMemory")]
+        public Output<int?> MinimumMemory { get; private set; } = null!;
+
+        /// <summary>
+        /// Network adapters to attach to the Virtual Machine.
+        /// </summary>
+        [Output("networkAdapters")]
+        public Output<ImmutableArray<Pulumi.Hyperv.Networkadapter.Outputs.NetworkAdapterInputs>> NetworkAdapters { get; private set; } = null!;
 
         /// <summary>
         /// Number of processors to allocate to the Virtual Machine. Defaults to 1.
@@ -152,7 +219,7 @@ namespace Pulumi.Hyperv.Machine
         public Output<string?> Update { get; private set; } = null!;
 
         [Output("vmId")]
-        public Output<string> VmId { get; private set; } = null!;
+        public Output<string?> VmId { get; private set; } = null!;
 
 
         /// <summary>
@@ -179,6 +246,7 @@ namespace Pulumi.Hyperv.Machine
                 Version = Utilities.Version,
                 ReplaceOnChanges =
                 {
+                    "networkAdapters[*].triggers[*]",
                     "triggers[*]",
                 },
             };
@@ -204,6 +272,18 @@ namespace Pulumi.Hyperv.Machine
     public sealed class MachineArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
+        /// The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing.
+        /// </summary>
+        [Input("autoStartAction")]
+        public Input<string>? AutoStartAction { get; set; }
+
+        /// <summary>
+        /// The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff.
+        /// </summary>
+        [Input("autoStopAction")]
+        public Input<string>? AutoStopAction { get; set; }
+
+        /// <summary>
         /// The command to run on create.
         /// </summary>
         [Input("create")]
@@ -218,10 +298,28 @@ namespace Pulumi.Hyperv.Machine
         public Input<string>? Delete { get; set; }
 
         /// <summary>
+        /// Whether to enable dynamic memory for the Virtual Machine. Defaults to false.
+        /// </summary>
+        [Input("dynamicMemory")]
+        public Input<bool>? DynamicMemory { get; set; }
+
+        /// <summary>
         /// Generation of the Virtual Machine. Defaults to 2.
         /// </summary>
         [Input("generation")]
         public Input<int>? Generation { get; set; }
+
+        [Input("hardDrives")]
+        private InputList<Inputs.HardDriveInputArgs>? _hardDrives;
+
+        /// <summary>
+        /// Hard drives to attach to the Virtual Machine.
+        /// </summary>
+        public InputList<Inputs.HardDriveInputArgs> HardDrives
+        {
+            get => _hardDrives ?? (_hardDrives = new InputList<Inputs.HardDriveInputArgs>());
+            set => _hardDrives = value;
+        }
 
         /// <summary>
         /// Name of the Virtual Machine
@@ -230,10 +328,34 @@ namespace Pulumi.Hyperv.Machine
         public Input<string>? MachineName { get; set; }
 
         /// <summary>
+        /// Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory.
+        /// </summary>
+        [Input("maximumMemory")]
+        public Input<int>? MaximumMemory { get; set; }
+
+        /// <summary>
         /// Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024.
         /// </summary>
         [Input("memorySize")]
         public Input<int>? MemorySize { get; set; }
+
+        /// <summary>
+        /// Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory.
+        /// </summary>
+        [Input("minimumMemory")]
+        public Input<int>? MinimumMemory { get; set; }
+
+        [Input("networkAdapters")]
+        private InputList<Pulumi.Hyperv.Networkadapter.Inputs.NetworkAdapterInputsArgs>? _networkAdapters;
+
+        /// <summary>
+        /// Network adapters to attach to the Virtual Machine.
+        /// </summary>
+        public InputList<Pulumi.Hyperv.Networkadapter.Inputs.NetworkAdapterInputsArgs> NetworkAdapters
+        {
+            get => _networkAdapters ?? (_networkAdapters = new InputList<Pulumi.Hyperv.Networkadapter.Inputs.NetworkAdapterInputsArgs>());
+            set => _networkAdapters = value;
+        }
 
         /// <summary>
         /// Number of processors to allocate to the Virtual Machine. Defaults to 1.

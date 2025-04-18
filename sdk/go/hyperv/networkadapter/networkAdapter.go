@@ -8,7 +8,7 @@ import (
 	"reflect"
 
 	"errors"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv/internal"
+	"github.com/pulumi/pulumi-hyperv/provider/go/hyperv/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -17,6 +17,12 @@ import (
 // The Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.
 //
 // ## Example Usage
+//
+// ### Standalone Network Adapter
+//
+// ### Using the NetworkAdapters Property in Machine Resource
+//
+// You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
 //
 // ## Input Properties
 //
@@ -93,7 +99,7 @@ type NetworkAdapter struct {
 	// VLAN ID for the network adapter. If not specified, no VLAN tagging is used.
 	VlanId pulumi.IntPtrOutput `pulumi:"vlanId"`
 	// Name of the virtual machine to attach the network adapter to
-	VmName pulumi.StringOutput `pulumi:"vmName"`
+	VmName pulumi.StringPtrOutput `pulumi:"vmName"`
 	// VMQ weight for the network adapter. A value of 0 disables VMQ.
 	VmqWeight pulumi.IntPtrOutput `pulumi:"vmqWeight"`
 }
@@ -110,9 +116,6 @@ func NewNetworkAdapter(ctx *pulumi.Context,
 	}
 	if args.SwitchName == nil {
 		return nil, errors.New("invalid value for required argument 'SwitchName'")
-	}
-	if args.VmName == nil {
-		return nil, errors.New("invalid value for required argument 'VmName'")
 	}
 	replaceOnChanges := pulumi.ReplaceOnChanges([]string{
 		"triggers[*]",
@@ -186,7 +189,7 @@ type networkAdapterArgs struct {
 	// VLAN ID for the network adapter. If not specified, no VLAN tagging is used.
 	VlanId *int `pulumi:"vlanId"`
 	// Name of the virtual machine to attach the network adapter to
-	VmName string `pulumi:"vmName"`
+	VmName *string `pulumi:"vmName"`
 	// VMQ weight for the network adapter. A value of 0 disables VMQ.
 	VmqWeight *int `pulumi:"vmqWeight"`
 }
@@ -228,7 +231,7 @@ type NetworkAdapterArgs struct {
 	// VLAN ID for the network adapter. If not specified, no VLAN tagging is used.
 	VlanId pulumi.IntPtrInput
 	// Name of the virtual machine to attach the network adapter to
-	VmName pulumi.StringInput
+	VmName pulumi.StringPtrInput
 	// VMQ weight for the network adapter. A value of 0 disables VMQ.
 	VmqWeight pulumi.IntPtrInput
 }
@@ -399,8 +402,8 @@ func (o NetworkAdapterOutput) VlanId() pulumi.IntPtrOutput {
 }
 
 // Name of the virtual machine to attach the network adapter to
-func (o NetworkAdapterOutput) VmName() pulumi.StringOutput {
-	return o.ApplyT(func(v *NetworkAdapter) pulumi.StringOutput { return v.VmName }).(pulumi.StringOutput)
+func (o NetworkAdapterOutput) VmName() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *NetworkAdapter) pulumi.StringPtrOutput { return v.VmName }).(pulumi.StringPtrOutput)
 }
 
 // VMQ weight for the network adapter. A value of 0 disables VMQ.

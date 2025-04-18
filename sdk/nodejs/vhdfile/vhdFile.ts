@@ -36,6 +36,7 @@ import * as utilities from "../utilities";
  * | `parentPath` | string | Path to parent VHD when creating differencing disks |
  * | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
  * | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+ * | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
  *
  * ## Implementation Details
  *
@@ -49,13 +50,66 @@ import * as utilities from "../utilities";
  *
  * VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
  *
+ * ### Creating a Base VHD
+ *
+ * ```typescript
+ * const baseVhd = new hyperv.VhdFile("base-vhd", {
+ *     path: "c:\\vms\\base\\disk.vhdx",
+ *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
+ *     diskType: "Dynamic"
+ * });
+ * ```
+ *
  * ### Creating a Differencing Disk
  *
  * ```typescript
  * const baseVhd = new hyperv.VhdFile("base-vhd", {
  *     path: "c:\\vms\\base\\disk.vhdx",
  *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
  *     diskType: "Dynamic"
+ * });
+ *
+ * const diffVhd = new hyperv.VhdFile("diff-vhd", {
+ *     path: "c:\\vms\\vm1\\disk.vhdx",
+ *     parentPath: baseVhd.path,
+ *     diskType: "Differencing"
+ * });
+ * ```
+ *
+ * ### Using with Machine Resource
+ *
+ * The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
+ *
+ * ```typescript
+ * // Create a base VHD
+ * const baseVhd = new hyperv.VhdFile("base-vhd", {
+ *     path: "c:\\vms\\base\\disk.vhdx",
+ *     sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB
+ *     blockSize: 1048576, // 1MB block size (recommended)
+ *     diskType: "Dynamic"
+ * });
+ *
+ * // Create a differencing disk based on the base VHD
+ * const vmDisk = new hyperv.VhdFile("vm-disk", {
+ *     path: "c:\\vms\\vm1\\disk.vhdx",
+ *     parentPath: baseVhd.path,
+ *     diskType: "Differencing"
+ * });
+ *
+ * // Create a VM and attach the differencing disk
+ * const vm = new hyperv.Machine("example-vm", {
+ *     machineName: "example-vm",
+ *     generation: 2,
+ *     processorCount: 2,
+ *     memorySize: 2048,
+ *     hardDrives: [{
+ *         path: vmDisk.path,
+ *         controllerType: "SCSI",
+ *         controllerNumber: 0,
+ *         controllerLocation: 0
+ *     }]
  * });
  * ```
  */
@@ -87,7 +141,7 @@ export class VhdFile extends pulumi.CustomResource {
     }
 
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      */
     public readonly blockSize!: pulumi.Output<number | undefined>;
     /**
@@ -101,9 +155,13 @@ export class VhdFile extends pulumi.CustomResource {
      */
     public readonly delete!: pulumi.Output<string | undefined>;
     /**
-     * Type of the VHD file (fixed or dynamic)
+     * Type of the VHD file (Fixed, Dynamic, or Differencing)
      */
-    public readonly diskType!: pulumi.Output<string>;
+    public readonly diskType!: pulumi.Output<string | undefined>;
+    /**
+     * Path to the parent VHD file when creating a differencing disk
+     */
+    public readonly parentPath!: pulumi.Output<string | undefined>;
     /**
      * Path to the VHD file
      */
@@ -111,7 +169,7 @@ export class VhdFile extends pulumi.CustomResource {
     /**
      * Size of the VHD file in bytes
      */
-    public readonly sizeBytes!: pulumi.Output<number>;
+    public readonly sizeBytes!: pulumi.Output<number | undefined>;
     /**
      * Trigger a resource replacement on changes to any of these values. The
      * trigger values can be of any type. If a value is different in the current update compared to the
@@ -138,19 +196,14 @@ export class VhdFile extends pulumi.CustomResource {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
-            if ((!args || args.diskType === undefined) && !opts.urn) {
-                throw new Error("Missing required property 'diskType'");
-            }
             if ((!args || args.path === undefined) && !opts.urn) {
                 throw new Error("Missing required property 'path'");
-            }
-            if ((!args || args.sizeBytes === undefined) && !opts.urn) {
-                throw new Error("Missing required property 'sizeBytes'");
             }
             resourceInputs["blockSize"] = args ? args.blockSize : undefined;
             resourceInputs["create"] = args ? args.create : undefined;
             resourceInputs["delete"] = args ? args.delete : undefined;
             resourceInputs["diskType"] = args ? args.diskType : undefined;
+            resourceInputs["parentPath"] = args ? args.parentPath : undefined;
             resourceInputs["path"] = args ? args.path : undefined;
             resourceInputs["sizeBytes"] = args ? args.sizeBytes : undefined;
             resourceInputs["triggers"] = args ? args.triggers : undefined;
@@ -160,6 +213,7 @@ export class VhdFile extends pulumi.CustomResource {
             resourceInputs["create"] = undefined /*out*/;
             resourceInputs["delete"] = undefined /*out*/;
             resourceInputs["diskType"] = undefined /*out*/;
+            resourceInputs["parentPath"] = undefined /*out*/;
             resourceInputs["path"] = undefined /*out*/;
             resourceInputs["sizeBytes"] = undefined /*out*/;
             resourceInputs["triggers"] = undefined /*out*/;
@@ -177,7 +231,7 @@ export class VhdFile extends pulumi.CustomResource {
  */
 export interface VhdFileArgs {
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      */
     blockSize?: pulumi.Input<number>;
     /**
@@ -191,9 +245,13 @@ export interface VhdFileArgs {
      */
     delete?: pulumi.Input<string>;
     /**
-     * Type of the VHD file (fixed or dynamic)
+     * Type of the VHD file (Fixed, Dynamic, or Differencing)
      */
-    diskType: pulumi.Input<string>;
+    diskType?: pulumi.Input<string>;
+    /**
+     * Path to the parent VHD file when creating a differencing disk
+     */
+    parentPath?: pulumi.Input<string>;
     /**
      * Path to the VHD file
      */
@@ -201,7 +259,7 @@ export interface VhdFileArgs {
     /**
      * Size of the VHD file in bytes
      */
-    sizeBytes: pulumi.Input<number>;
+    sizeBytes?: pulumi.Input<number>;
     /**
      * Trigger a resource replacement on changes to any of these values. The
      * trigger values can be of any type. If a value is different in the current update compared to the

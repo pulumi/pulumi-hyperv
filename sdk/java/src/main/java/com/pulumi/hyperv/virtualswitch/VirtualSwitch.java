@@ -139,6 +139,20 @@ public class VirtualSwitch extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.netAdapterName);
     }
     /**
+     * Notes or description for the virtual switch
+     * 
+     */
+    @Export(name="notes", refs={String.class}, tree="[0]")
+    private Output</* @Nullable */ String> notes;
+
+    /**
+     * @return Notes or description for the virtual switch
+     * 
+     */
+    public Output<Optional<String>> notes() {
+        return Codegen.optional(this.notes);
+    }
+    /**
      * Type of switch: &#39;External&#39;, &#39;Internal&#39;, or &#39;Private&#39;
      * 
      */

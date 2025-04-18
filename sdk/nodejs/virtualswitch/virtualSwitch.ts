@@ -115,6 +115,10 @@ export class VirtualSwitch extends pulumi.CustomResource {
      */
     public readonly netAdapterName!: pulumi.Output<string | undefined>;
     /**
+     * Notes or description for the virtual switch
+     */
+    public readonly notes!: pulumi.Output<string | undefined>;
+    /**
      * Type of switch: 'External', 'Internal', or 'Private'
      */
     public readonly switchType!: pulumi.Output<string>;
@@ -155,6 +159,7 @@ export class VirtualSwitch extends pulumi.CustomResource {
             resourceInputs["delete"] = args ? args.delete : undefined;
             resourceInputs["name"] = args ? args.name : undefined;
             resourceInputs["netAdapterName"] = args ? args.netAdapterName : undefined;
+            resourceInputs["notes"] = args ? args.notes : undefined;
             resourceInputs["switchType"] = args ? args.switchType : undefined;
             resourceInputs["triggers"] = args ? args.triggers : undefined;
             resourceInputs["update"] = args ? args.update : undefined;
@@ -164,6 +169,7 @@ export class VirtualSwitch extends pulumi.CustomResource {
             resourceInputs["delete"] = undefined /*out*/;
             resourceInputs["name"] = undefined /*out*/;
             resourceInputs["netAdapterName"] = undefined /*out*/;
+            resourceInputs["notes"] = undefined /*out*/;
             resourceInputs["switchType"] = undefined /*out*/;
             resourceInputs["triggers"] = undefined /*out*/;
             resourceInputs["update"] = undefined /*out*/;
@@ -201,6 +207,10 @@ export interface VirtualSwitchArgs {
      * Name of the physical network adapter to bind to (External switches)
      */
     netAdapterName?: pulumi.Input<string>;
+    /**
+     * Notes or description for the virtual switch
+     */
+    notes?: pulumi.Input<string>;
     /**
      * Type of switch: 'External', 'Internal', or 'Private'
      */

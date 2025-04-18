@@ -16,6 +16,12 @@ namespace Pulumi.Hyperv.Networkadapter
     /// 
     /// ## Example Usage
     /// 
+    /// ### Standalone Network Adapter
+    /// 
+    /// ### Using the NetworkAdapters Property in Machine Resource
+    /// 
+    /// You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
+    /// 
     /// ## Input Properties
     /// 
     /// | Property         | Type     | Required | Description |
@@ -151,7 +157,7 @@ namespace Pulumi.Hyperv.Networkadapter
         /// Name of the virtual machine to attach the network adapter to
         /// </summary>
         [Output("vmName")]
-        public Output<string> VmName { get; private set; } = null!;
+        public Output<string?> VmName { get; private set; } = null!;
 
         /// <summary>
         /// VMQ weight for the network adapter. A value of 0 disables VMQ.
@@ -303,8 +309,8 @@ namespace Pulumi.Hyperv.Networkadapter
         /// <summary>
         /// Name of the virtual machine to attach the network adapter to
         /// </summary>
-        [Input("vmName", required: true)]
-        public Input<string> VmName { get; set; } = null!;
+        [Input("vmName")]
+        public Input<string>? VmName { get; set; }
 
         /// <summary>
         /// VMQ weight for the network adapter. A value of 0 disables VMQ.

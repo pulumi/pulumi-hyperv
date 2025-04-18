@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance" // Updated import path
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // Resource types

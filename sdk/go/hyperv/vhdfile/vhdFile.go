@@ -8,7 +8,7 @@ import (
 	"reflect"
 
 	"errors"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv/internal"
+	"github.com/pulumi/pulumi-hyperv/provider/go/hyperv/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -43,6 +43,7 @@ import (
 // | `parentPath` | string | Path to parent VHD when creating differencing disks |
 // | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
 // | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+// | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 //
 // ## Implementation Details
 //
@@ -56,11 +57,17 @@ import (
 //
 // VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
 //
+// ### Creating a Base VHD
+//
 // ### Creating a Differencing Disk
+//
+// ### Using with Machine Resource
+//
+// The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
 type VhdFile struct {
 	pulumi.CustomResourceState
 
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize pulumi.IntPtrOutput `pulumi:"blockSize"`
 	// The command to run on create.
 	Create pulumi.StringPtrOutput `pulumi:"create"`
@@ -68,12 +75,14 @@ type VhdFile struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrOutput `pulumi:"delete"`
-	// Type of the VHD file (fixed or dynamic)
-	DiskType pulumi.StringOutput `pulumi:"diskType"`
+	// Type of the VHD file (Fixed, Dynamic, or Differencing)
+	DiskType pulumi.StringPtrOutput `pulumi:"diskType"`
+	// Path to the parent VHD file when creating a differencing disk
+	ParentPath pulumi.StringPtrOutput `pulumi:"parentPath"`
 	// Path to the VHD file
 	Path pulumi.StringOutput `pulumi:"path"`
 	// Size of the VHD file in bytes
-	SizeBytes pulumi.IntOutput `pulumi:"sizeBytes"`
+	SizeBytes pulumi.IntPtrOutput `pulumi:"sizeBytes"`
 	// Trigger a resource replacement on changes to any of these values. The
 	// trigger values can be of any type. If a value is different in the current update compared to the
 	// previous update, the resource will be replaced, i.e., the "create" command will be re-run.
@@ -93,14 +102,8 @@ func NewVhdFile(ctx *pulumi.Context,
 		return nil, errors.New("missing one or more required arguments")
 	}
 
-	if args.DiskType == nil {
-		return nil, errors.New("invalid value for required argument 'DiskType'")
-	}
 	if args.Path == nil {
 		return nil, errors.New("invalid value for required argument 'Path'")
-	}
-	if args.SizeBytes == nil {
-		return nil, errors.New("invalid value for required argument 'SizeBytes'")
 	}
 	replaceOnChanges := pulumi.ReplaceOnChanges([]string{
 		"triggers[*]",
@@ -139,7 +142,7 @@ func (VhdFileState) ElementType() reflect.Type {
 }
 
 type vhdFileArgs struct {
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize *int `pulumi:"blockSize"`
 	// The command to run on create.
 	Create *string `pulumi:"create"`
@@ -147,12 +150,14 @@ type vhdFileArgs struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete *string `pulumi:"delete"`
-	// Type of the VHD file (fixed or dynamic)
-	DiskType string `pulumi:"diskType"`
+	// Type of the VHD file (Fixed, Dynamic, or Differencing)
+	DiskType *string `pulumi:"diskType"`
+	// Path to the parent VHD file when creating a differencing disk
+	ParentPath *string `pulumi:"parentPath"`
 	// Path to the VHD file
 	Path string `pulumi:"path"`
 	// Size of the VHD file in bytes
-	SizeBytes int `pulumi:"sizeBytes"`
+	SizeBytes *int `pulumi:"sizeBytes"`
 	// Trigger a resource replacement on changes to any of these values. The
 	// trigger values can be of any type. If a value is different in the current update compared to the
 	// previous update, the resource will be replaced, i.e., the "create" command will be re-run.
@@ -167,7 +172,7 @@ type vhdFileArgs struct {
 
 // The set of arguments for constructing a VhdFile resource.
 type VhdFileArgs struct {
-	// Block size of the VHD file in bytes
+	// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 	BlockSize pulumi.IntPtrInput
 	// The command to run on create.
 	Create pulumi.StringPtrInput
@@ -175,12 +180,14 @@ type VhdFileArgs struct {
 	// and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
 	// Command resource from previous create or update steps.
 	Delete pulumi.StringPtrInput
-	// Type of the VHD file (fixed or dynamic)
-	DiskType pulumi.StringInput
+	// Type of the VHD file (Fixed, Dynamic, or Differencing)
+	DiskType pulumi.StringPtrInput
+	// Path to the parent VHD file when creating a differencing disk
+	ParentPath pulumi.StringPtrInput
 	// Path to the VHD file
 	Path pulumi.StringInput
 	// Size of the VHD file in bytes
-	SizeBytes pulumi.IntInput
+	SizeBytes pulumi.IntPtrInput
 	// Trigger a resource replacement on changes to any of these values. The
 	// trigger values can be of any type. If a value is different in the current update compared to the
 	// previous update, the resource will be replaced, i.e., the "create" command will be re-run.
@@ -280,7 +287,7 @@ func (o VhdFileOutput) ToVhdFileOutputWithContext(ctx context.Context) VhdFileOu
 	return o
 }
 
-// Block size of the VHD file in bytes
+// Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
 func (o VhdFileOutput) BlockSize() pulumi.IntPtrOutput {
 	return o.ApplyT(func(v *VhdFile) pulumi.IntPtrOutput { return v.BlockSize }).(pulumi.IntPtrOutput)
 }
@@ -297,9 +304,14 @@ func (o VhdFileOutput) Delete() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *VhdFile) pulumi.StringPtrOutput { return v.Delete }).(pulumi.StringPtrOutput)
 }
 
-// Type of the VHD file (fixed or dynamic)
-func (o VhdFileOutput) DiskType() pulumi.StringOutput {
-	return o.ApplyT(func(v *VhdFile) pulumi.StringOutput { return v.DiskType }).(pulumi.StringOutput)
+// Type of the VHD file (Fixed, Dynamic, or Differencing)
+func (o VhdFileOutput) DiskType() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *VhdFile) pulumi.StringPtrOutput { return v.DiskType }).(pulumi.StringPtrOutput)
+}
+
+// Path to the parent VHD file when creating a differencing disk
+func (o VhdFileOutput) ParentPath() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *VhdFile) pulumi.StringPtrOutput { return v.ParentPath }).(pulumi.StringPtrOutput)
 }
 
 // Path to the VHD file
@@ -308,8 +320,8 @@ func (o VhdFileOutput) Path() pulumi.StringOutput {
 }
 
 // Size of the VHD file in bytes
-func (o VhdFileOutput) SizeBytes() pulumi.IntOutput {
-	return o.ApplyT(func(v *VhdFile) pulumi.IntOutput { return v.SizeBytes }).(pulumi.IntOutput)
+func (o VhdFileOutput) SizeBytes() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v *VhdFile) pulumi.IntPtrOutput { return v.SizeBytes }).(pulumi.IntPtrOutput)
 }
 
 // Trigger a resource replacement on changes to any of these values. The

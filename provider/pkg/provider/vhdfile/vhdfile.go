@@ -18,7 +18,7 @@ import (
 	_ "embed"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
 )
 
 //go:embed vhdfile.md
@@ -43,22 +43,25 @@ func (c *VhdFile) Annotate(a infer.Annotator) {
 // These are the inputs (or arguments) to a Vm resource.
 type VhdFileInputs struct {
 	common.ResourceInputs
-	Path      *string `pulumi:"path"`
-	SizeBytes *int64  `pulumi:"sizeBytes"`
-	BlockSize *int64  `pulumi:"blockSize,optional"`
-	// DiskType is a string that can be either "fixed" or "dynamic".
+	Path       *string `pulumi:"path"`
+	SizeBytes  *int64  `pulumi:"sizeBytes,optional"`
+	BlockSize  *int64  `pulumi:"blockSize,optional"`
+	ParentPath *string `pulumi:"parentPath,optional"`
+	// DiskType is a string that can be either "fixed", "dynamic", or "differencing".
 	// It is used to specify the type of VHD file to create.
 	// "fixed" means that the VHD file will be created with a fixed size.
 	// "dynamic" means that the VHD file will be created with a dynamic size.
+	// "differencing" means that the VHD file will be created as a differencing disk.
 	// The default value is "fixed".
-	DiskType *string `pulumi:"diskType, optional"`
+	DiskType *string `pulumi:"diskType,optional"`
 }
 
 func (c *VhdFileInputs) Annotate(a infer.Annotator) {
 	a.Describe(&c.Path, "Path to the VHD file")
 	a.Describe(&c.SizeBytes, "Size of the VHD file in bytes")
-	a.Describe(&c.BlockSize, "Block size of the VHD file in bytes")
-	a.Describe(&c.DiskType, "Type of the VHD file (fixed or dynamic)")
+	a.Describe(&c.BlockSize, "Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.")
+	a.Describe(&c.ParentPath, "Path to the parent VHD file when creating a differencing disk")
+	a.Describe(&c.DiskType, "Type of the VHD file (Fixed, Dynamic, or Differencing)")
 }
 
 // These are the outputs (or properties) of a Vm resource.

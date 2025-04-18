@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
  * | `parentPath` | string | Path to parent VHD when creating differencing disks |
  * | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
  * | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+ * | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
  * 
  * ## Implementation Details
  * 
@@ -61,20 +62,26 @@ import javax.annotation.Nullable;
  * 
  * VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
  * 
+ * ### Creating a Base VHD
+ * 
  * ### Creating a Differencing Disk
+ * 
+ * ### Using with Machine Resource
+ * 
+ * The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
  * 
  */
 @ResourceType(type="hyperv:vhdfile:VhdFile")
 public class VhdFile extends com.pulumi.resources.CustomResource {
     /**
-     * Block size of the VHD file in bytes
+     * Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     @Export(name="blockSize", refs={Integer.class}, tree="[0]")
     private Output</* @Nullable */ Integer> blockSize;
 
     /**
-     * @return Block size of the VHD file in bytes
+     * @return Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
      * 
      */
     public Output<Optional<Integer>> blockSize() {
@@ -113,18 +120,32 @@ public class VhdFile extends com.pulumi.resources.CustomResource {
         return Codegen.optional(this.delete);
     }
     /**
-     * Type of the VHD file (fixed or dynamic)
+     * Type of the VHD file (Fixed, Dynamic, or Differencing)
      * 
      */
     @Export(name="diskType", refs={String.class}, tree="[0]")
-    private Output<String> diskType;
+    private Output</* @Nullable */ String> diskType;
 
     /**
-     * @return Type of the VHD file (fixed or dynamic)
+     * @return Type of the VHD file (Fixed, Dynamic, or Differencing)
      * 
      */
-    public Output<String> diskType() {
-        return this.diskType;
+    public Output<Optional<String>> diskType() {
+        return Codegen.optional(this.diskType);
+    }
+    /**
+     * Path to the parent VHD file when creating a differencing disk
+     * 
+     */
+    @Export(name="parentPath", refs={String.class}, tree="[0]")
+    private Output</* @Nullable */ String> parentPath;
+
+    /**
+     * @return Path to the parent VHD file when creating a differencing disk
+     * 
+     */
+    public Output<Optional<String>> parentPath() {
+        return Codegen.optional(this.parentPath);
     }
     /**
      * Path to the VHD file
@@ -145,14 +166,14 @@ public class VhdFile extends com.pulumi.resources.CustomResource {
      * 
      */
     @Export(name="sizeBytes", refs={Integer.class}, tree="[0]")
-    private Output<Integer> sizeBytes;
+    private Output</* @Nullable */ Integer> sizeBytes;
 
     /**
      * @return Size of the VHD file in bytes
      * 
      */
-    public Output<Integer> sizeBytes() {
-        return this.sizeBytes;
+    public Output<Optional<Integer>> sizeBytes() {
+        return Codegen.optional(this.sizeBytes);
     }
     /**
      * Trigger a resource replacement on changes to any of these values. The

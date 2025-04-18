@@ -24,6 +24,12 @@ import javax.annotation.Nullable;
  * 
  * ## Example Usage
  * 
+ * ### Standalone Network Adapter
+ * 
+ * ### Using the NetworkAdapters Property in Machine Resource
+ * 
+ * You can also define network adapters directly in the Machine resource using the `networkAdapters` property:
+ * 
  * ## Input Properties
  * 
  * | Property         | Type     | Required | Description |
@@ -280,14 +286,14 @@ public class NetworkAdapter extends com.pulumi.resources.CustomResource {
      * 
      */
     @Export(name="vmName", refs={String.class}, tree="[0]")
-    private Output<String> vmName;
+    private Output</* @Nullable */ String> vmName;
 
     /**
      * @return Name of the virtual machine to attach the network adapter to
      * 
      */
-    public Output<String> vmName() {
-        return this.vmName;
+    public Output<Optional<String>> vmName() {
+        return Codegen.optional(this.vmName);
     }
     /**
      * VMQ weight for the network adapter. A value of 0 disables VMQ.

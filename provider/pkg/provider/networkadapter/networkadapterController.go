@@ -25,8 +25,8 @@ import (
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	provider "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/vmms"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/vmms"
 )
 
 // Type assertions to indicate that NetworkAdapter implements the required interfaces.
@@ -35,6 +35,8 @@ var _ = (infer.CustomUpdate[NetworkAdapterInputs, NetworkAdapterOutputs])((*Netw
 var _ = (infer.CustomDelete[NetworkAdapterOutputs])((*NetworkAdapter)(nil))
 
 func (c *NetworkAdapter) Connect(ctx context.Context) (*vmms.VMMS, *service.VirtualSystemManagementService, error) {
+	logger := provider.GetLogger(ctx)
+
 	// Create the VMMS client.
 	config := infer.GetConfig[common.Config](ctx)
 	var whost *host.WmiHost
@@ -44,11 +46,45 @@ func (c *NetworkAdapter) Connect(ctx context.Context) (*vmms.VMMS, *service.Virt
 		whost = host.NewWmiLocalHost()
 	}
 
-	vmmsClient, err := vmms.NewVMMS(whost)
-	if err != nil {
-		return nil, nil, err
+	// Wrap vmms creation in panic recovery
+	var vmmsClient *vmms.VMMS
+	var vmmsErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				vmmsErr = fmt.Errorf("recovered from panic in NewVMMS: %v", r)
+				logger.Debug(fmt.Sprintf("Recovered from panic in NewVMMS: %v", r))
+			}
+		}()
+
+		vmmsClient, vmmsErr = vmms.NewVMMS(whost)
+	}()
+
+	if vmmsErr != nil {
+		// Log the error but continue with simulated functionality
+		logger.Debug(fmt.Sprintf("Failed to create VMMS client: %v", vmmsErr))
+		logger.Debug("Will attempt to use fallback methods for NetworkAdapter operations")
+
+		// For now, we'll return the error since network adapters need more complex simulation
+		// In a future version, we could implement a PowerShell fallback like for VHD operations
+		return nil, nil, fmt.Errorf("failed to create VMMS client: %w", vmmsErr)
 	}
+
+	// Check for nil client before proceeding
+	if vmmsClient == nil {
+		logger.Debug("VMMS client is nil after creation")
+		return nil, nil, fmt.Errorf("VMMS client is nil after creation")
+	}
+
+	// Get the management service with nil check
 	vsms := vmmsClient.GetVirtualSystemManagementService()
+	if vsms == nil {
+		logger.Debug("Virtual System Management Service is nil - required for network adapter operations")
+		logger.Debug("Make sure Hyper-V is properly installed and you have administrator privileges")
+		return nil, nil, fmt.Errorf("failed to get Virtual System Management Service, service is nil")
+	}
+
 	return vmmsClient, vsms, nil
 }
 
@@ -76,9 +112,13 @@ func (c *NetworkAdapter) Read(ctx context.Context, id string, inputs NetworkAdap
 		adapterName = *inputs.Name
 	}
 
-	// If VM name is not provided, we can't find the adapter
+	// If VM name is not provided, this might be a reference adapter used by a Machine resource
 	if vmName == "" {
-		return outputs, fmt.Errorf("vmName is required to read network adapter")
+		logger.Debug("vmName not provided for read - this may be a reference adapter for use in a Machine resource")
+		// Return the current state for reference adapters
+		adapterId := id
+		outputs.AdapterId = &adapterId
+		return outputs, nil
 	}
 
 	// Connect to Hyper-V
@@ -256,9 +296,14 @@ func (c *NetworkAdapter) Create(ctx context.Context, name string, input NetworkA
 		return id, state, nil
 	}
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if input.VMName == nil {
-		return id, state, fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided - this may be a reference adapter for use in a Machine resource")
+		// In this case, we'll create a "virtual" adapter state that can be referenced
+		// but the actual adapter will be created by the Machine resource
+		adapterIdStr := fmt.Sprintf("ref-%s", id)
+		state.AdapterId = &adapterIdStr
+		return id, state, nil
 	}
 	if input.SwitchName == nil {
 		return id, state, fmt.Errorf("switchName is required")
@@ -582,9 +627,11 @@ func (c *NetworkAdapter) Update(ctx context.Context, id string, olds NetworkAdap
 		return state, nil
 	}
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if news.VMName == nil {
-		return state, fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided for update - this may be a reference adapter for use in a Machine resource")
+		// Return the state as-is since this may be a reference adapter
+		return state, nil
 	}
 
 	// Preserve adapter ID from old state
@@ -822,9 +869,11 @@ func (c *NetworkAdapter) Update(ctx context.Context, id string, olds NetworkAdap
 func (c *NetworkAdapter) Delete(ctx context.Context, id string, props NetworkAdapterOutputs) error {
 	logger := provider.GetLogger(ctx)
 
-	// Validate required inputs
+	// Check if vmName is provided
 	if props.VMName == nil {
-		return fmt.Errorf("vmName is required")
+		logger.Debug("vmName not provided for delete - this may be a reference adapter for use in a Machine resource")
+		// No real adapter to delete, this was just a reference
+		return nil
 	}
 
 	// Connect to Hyper-V
@@ -922,13 +971,40 @@ func (c *NetworkAdapter) Delete(ctx context.Context, id string, props NetworkAda
 
 // ExistsNetworkAdapter checks if a network adapter with the given name exists on a VM.
 func ExistsNetworkAdapter(v *vmms.VMMS, vm *virtualsystem.VirtualMachine, name string) (bool, error) {
+	// Add defensive checks to prevent nil pointer dereference
+	if v == nil {
+		return false, fmt.Errorf("vmms object is nil")
+	}
+
+	vConn := v.GetVirtualizationConn()
+	if vConn == nil {
+		return false, fmt.Errorf("virtualization connection is nil")
+	}
+
+	if vm == nil || vm.Msvm_ComputerSystem == nil {
+		return false, fmt.Errorf("virtual machine or computer system is nil")
+	}
+
 	// Query the VM's network adapters
 	query := fmt.Sprintf("SELECT * FROM Msvm_SyntheticEthernetPortSettingData WHERE ElementName = '%s' AND InstanceID LIKE '%%\\\\%s\\\\%%'",
 		name, vm.Msvm_ComputerSystem.InstancePath())
 
-	adapters, err := v.GetVirtualizationConn().QueryInstances(query)
-	if err != nil {
-		return false, fmt.Errorf("failed to query network adapters: %w", err)
+	// Wrap query in panic recovery to prevent crash
+	var adapters []*wmi.WmiInstance
+	var queryErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				queryErr = fmt.Errorf("recovered from panic in QueryInstances: %v", r)
+			}
+		}()
+
+		adapters, queryErr = vConn.QueryInstances(query)
+	}()
+
+	if queryErr != nil {
+		return false, fmt.Errorf("failed to query network adapters: %w", queryErr)
 	}
 
 	exists := len(adapters) > 0
@@ -943,13 +1019,40 @@ func ExistsNetworkAdapter(v *vmms.VMMS, vm *virtualsystem.VirtualMachine, name s
 
 // GetNetworkAdapter gets a network adapter by name from a VM.
 func GetNetworkAdapter(v *vmms.VMMS, vm *virtualsystem.VirtualMachine, name string) (*wmi.WmiInstance, error) {
+	// Add defensive checks to prevent nil pointer dereference
+	if v == nil {
+		return nil, fmt.Errorf("vmms object is nil")
+	}
+
+	vConn := v.GetVirtualizationConn()
+	if vConn == nil {
+		return nil, fmt.Errorf("virtualization connection is nil")
+	}
+
+	if vm == nil || vm.Msvm_ComputerSystem == nil {
+		return nil, fmt.Errorf("virtual machine or computer system is nil")
+	}
+
 	// Query the VM's network adapters
 	query := fmt.Sprintf("SELECT * FROM Msvm_SyntheticEthernetPortSettingData WHERE ElementName = '%s' AND InstanceID LIKE '%%\\\\%s\\\\%%'",
 		name, vm.Msvm_ComputerSystem.InstancePath())
 
-	adapters, err := v.GetVirtualizationConn().QueryInstances(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query network adapters: %w", err)
+	// Wrap query in panic recovery to prevent crash
+	var adapters []*wmi.WmiInstance
+	var queryErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				queryErr = fmt.Errorf("recovered from panic in QueryInstances: %v", r)
+			}
+		}()
+
+		adapters, queryErr = vConn.QueryInstances(query)
+	}()
+
+	if queryErr != nil {
+		return nil, fmt.Errorf("failed to query network adapters: %w", queryErr)
 	}
 
 	if len(adapters) == 0 {
@@ -968,10 +1071,32 @@ func GetNetworkAdapterSettings(v *vmms.VMMS, adapter *wmi.WmiInstance) (*wmi.Wmi
 
 // getConnectedSwitch returns the path to the virtual switch connected to the adapter.
 func getConnectedSwitch(v *vmms.VMMS, adapter *wmi.WmiInstance) (string, error) {
-	// Get the Connection property which contains the switch path
-	connection, err := adapter.GetProperty("Connection")
-	if err != nil {
-		return "", fmt.Errorf("failed to get connection: %w", err)
+	// Add defensive checks to prevent nil pointer dereference
+	if v == nil {
+		return "", fmt.Errorf("vmms object is nil")
+	}
+
+	if adapter == nil {
+		return "", fmt.Errorf("adapter object is nil")
+	}
+
+	// Wrap property access in panic recovery
+	var connection interface{}
+	var propErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				propErr = fmt.Errorf("recovered from panic in GetProperty: %v", r)
+			}
+		}()
+
+		// Get the Connection property which contains the switch path
+		connection, propErr = adapter.GetProperty("Connection")
+	}()
+
+	if propErr != nil {
+		return "", fmt.Errorf("failed to get connection: %w", propErr)
 	}
 
 	// The Connection property should be an array of paths, but we only care about the first one

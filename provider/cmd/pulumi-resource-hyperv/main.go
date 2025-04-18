@@ -21,8 +21,8 @@ import (
 
 	p "github.com/pulumi/pulumi-go-provider"
 
-	hyperv "github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/version"
+	hyperv "github.com/pulumi/pulumi-hyperv/provider/pkg/provider"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/version"
 )
 
 // A provider is a program that listens for requests from the Pulumi engine

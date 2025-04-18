@@ -20,24 +20,26 @@ __all__ = ['VhdFileArgs', 'VhdFile']
 @pulumi.input_type
 class VhdFileArgs:
     def __init__(__self__, *,
-                 disk_type: pulumi.Input[builtins.str],
                  path: pulumi.Input[builtins.str],
-                 size_bytes: pulumi.Input[builtins.int],
                  block_size: Optional[pulumi.Input[builtins.int]] = None,
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
+                 disk_type: Optional[pulumi.Input[builtins.str]] = None,
+                 parent_path: Optional[pulumi.Input[builtins.str]] = None,
+                 size_bytes: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  update: Optional[pulumi.Input[builtins.str]] = None):
         """
         The set of arguments for constructing a VhdFile resource.
-        :param pulumi.Input[builtins.str] disk_type: Type of the VHD file (fixed or dynamic)
         :param pulumi.Input[builtins.str] path: Path to the VHD file
-        :param pulumi.Input[builtins.int] size_bytes: Size of the VHD file in bytes
-        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes
+        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
+        :param pulumi.Input[builtins.str] disk_type: Type of the VHD file (Fixed, Dynamic, or Differencing)
+        :param pulumi.Input[builtins.str] parent_path: Path to the parent VHD file when creating a differencing disk
+        :param pulumi.Input[builtins.int] size_bytes: Size of the VHD file in bytes
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
                trigger values can be of any type. If a value is different in the current update compared to the
                previous update, the resource will be replaced, i.e., the "create" command will be re-run.
@@ -47,31 +49,23 @@ class VhdFileArgs:
                are set to the stdout and stderr properties of the Command resource from previous 
                create or update steps.
         """
-        pulumi.set(__self__, "disk_type", disk_type)
         pulumi.set(__self__, "path", path)
-        pulumi.set(__self__, "size_bytes", size_bytes)
         if block_size is not None:
             pulumi.set(__self__, "block_size", block_size)
         if create is not None:
             pulumi.set(__self__, "create", create)
         if delete is not None:
             pulumi.set(__self__, "delete", delete)
+        if disk_type is not None:
+            pulumi.set(__self__, "disk_type", disk_type)
+        if parent_path is not None:
+            pulumi.set(__self__, "parent_path", parent_path)
+        if size_bytes is not None:
+            pulumi.set(__self__, "size_bytes", size_bytes)
         if triggers is not None:
             pulumi.set(__self__, "triggers", triggers)
         if update is not None:
             pulumi.set(__self__, "update", update)
-
-    @property
-    @pulumi.getter(name="diskType")
-    def disk_type(self) -> pulumi.Input[builtins.str]:
-        """
-        Type of the VHD file (fixed or dynamic)
-        """
-        return pulumi.get(self, "disk_type")
-
-    @disk_type.setter
-    def disk_type(self, value: pulumi.Input[builtins.str]):
-        pulumi.set(self, "disk_type", value)
 
     @property
     @pulumi.getter
@@ -86,22 +80,10 @@ class VhdFileArgs:
         pulumi.set(self, "path", value)
 
     @property
-    @pulumi.getter(name="sizeBytes")
-    def size_bytes(self) -> pulumi.Input[builtins.int]:
-        """
-        Size of the VHD file in bytes
-        """
-        return pulumi.get(self, "size_bytes")
-
-    @size_bytes.setter
-    def size_bytes(self, value: pulumi.Input[builtins.int]):
-        pulumi.set(self, "size_bytes", value)
-
-    @property
     @pulumi.getter(name="blockSize")
     def block_size(self) -> Optional[pulumi.Input[builtins.int]]:
         """
-        Block size of the VHD file in bytes
+        Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         """
         return pulumi.get(self, "block_size")
 
@@ -134,6 +116,42 @@ class VhdFileArgs:
     @delete.setter
     def delete(self, value: Optional[pulumi.Input[builtins.str]]):
         pulumi.set(self, "delete", value)
+
+    @property
+    @pulumi.getter(name="diskType")
+    def disk_type(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        Type of the VHD file (Fixed, Dynamic, or Differencing)
+        """
+        return pulumi.get(self, "disk_type")
+
+    @disk_type.setter
+    def disk_type(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "disk_type", value)
+
+    @property
+    @pulumi.getter(name="parentPath")
+    def parent_path(self) -> Optional[pulumi.Input[builtins.str]]:
+        """
+        Path to the parent VHD file when creating a differencing disk
+        """
+        return pulumi.get(self, "parent_path")
+
+    @parent_path.setter
+    def parent_path(self, value: Optional[pulumi.Input[builtins.str]]):
+        pulumi.set(self, "parent_path", value)
+
+    @property
+    @pulumi.getter(name="sizeBytes")
+    def size_bytes(self) -> Optional[pulumi.Input[builtins.int]]:
+        """
+        Size of the VHD file in bytes
+        """
+        return pulumi.get(self, "size_bytes")
+
+    @size_bytes.setter
+    def size_bytes(self, value: Optional[pulumi.Input[builtins.int]]):
+        pulumi.set(self, "size_bytes", value)
 
     @property
     @pulumi.getter
@@ -175,6 +193,7 @@ class VhdFile(pulumi.CustomResource):
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  disk_type: Optional[pulumi.Input[builtins.str]] = None,
+                 parent_path: Optional[pulumi.Input[builtins.str]] = None,
                  path: Optional[pulumi.Input[builtins.str]] = None,
                  size_bytes: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
@@ -212,6 +231,7 @@ class VhdFile(pulumi.CustomResource):
         | `parentPath` | string | Path to parent VHD when creating differencing disks |
         | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
         | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+        | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 
         ## Implementation Details
 
@@ -225,16 +245,23 @@ class VhdFile(pulumi.CustomResource):
 
         VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
 
+        ### Creating a Base VHD
+
         ### Creating a Differencing Disk
+
+        ### Using with Machine Resource
+
+        The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
 
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
-        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes
+        :param pulumi.Input[builtins.int] block_size: Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         :param pulumi.Input[builtins.str] create: The command to run on create.
         :param pulumi.Input[builtins.str] delete: The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT
                and PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the
                Command resource from previous create or update steps.
-        :param pulumi.Input[builtins.str] disk_type: Type of the VHD file (fixed or dynamic)
+        :param pulumi.Input[builtins.str] disk_type: Type of the VHD file (Fixed, Dynamic, or Differencing)
+        :param pulumi.Input[builtins.str] parent_path: Path to the parent VHD file when creating a differencing disk
         :param pulumi.Input[builtins.str] path: Path to the VHD file
         :param pulumi.Input[builtins.int] size_bytes: Size of the VHD file in bytes
         :param pulumi.Input[Sequence[Any]] triggers: Trigger a resource replacement on changes to any of these values. The
@@ -284,6 +311,7 @@ class VhdFile(pulumi.CustomResource):
         | `parentPath` | string | Path to parent VHD when creating differencing disks |
         | `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |
         | `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |
+        | `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |
 
         ## Implementation Details
 
@@ -297,7 +325,13 @@ class VhdFile(pulumi.CustomResource):
 
         VHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.
 
+        ### Creating a Base VHD
+
         ### Creating a Differencing Disk
+
+        ### Using with Machine Resource
+
+        The VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:
 
         :param str resource_name: The name of the resource.
         :param VhdFileArgs args: The arguments to use to populate this resource's properties.
@@ -318,6 +352,7 @@ class VhdFile(pulumi.CustomResource):
                  create: Optional[pulumi.Input[builtins.str]] = None,
                  delete: Optional[pulumi.Input[builtins.str]] = None,
                  disk_type: Optional[pulumi.Input[builtins.str]] = None,
+                 parent_path: Optional[pulumi.Input[builtins.str]] = None,
                  path: Optional[pulumi.Input[builtins.str]] = None,
                  size_bytes: Optional[pulumi.Input[builtins.int]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
@@ -334,14 +369,11 @@ class VhdFile(pulumi.CustomResource):
             __props__.__dict__["block_size"] = block_size
             __props__.__dict__["create"] = create
             __props__.__dict__["delete"] = delete
-            if disk_type is None and not opts.urn:
-                raise TypeError("Missing required property 'disk_type'")
             __props__.__dict__["disk_type"] = disk_type
+            __props__.__dict__["parent_path"] = parent_path
             if path is None and not opts.urn:
                 raise TypeError("Missing required property 'path'")
             __props__.__dict__["path"] = path
-            if size_bytes is None and not opts.urn:
-                raise TypeError("Missing required property 'size_bytes'")
             __props__.__dict__["size_bytes"] = size_bytes
             __props__.__dict__["triggers"] = triggers
             __props__.__dict__["update"] = update
@@ -373,6 +405,7 @@ class VhdFile(pulumi.CustomResource):
         __props__.__dict__["create"] = None
         __props__.__dict__["delete"] = None
         __props__.__dict__["disk_type"] = None
+        __props__.__dict__["parent_path"] = None
         __props__.__dict__["path"] = None
         __props__.__dict__["size_bytes"] = None
         __props__.__dict__["triggers"] = None
@@ -383,7 +416,7 @@ class VhdFile(pulumi.CustomResource):
     @pulumi.getter(name="blockSize")
     def block_size(self) -> pulumi.Output[Optional[builtins.int]]:
         """
-        Block size of the VHD file in bytes
+        Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility.
         """
         return pulumi.get(self, "block_size")
 
@@ -407,11 +440,19 @@ class VhdFile(pulumi.CustomResource):
 
     @property
     @pulumi.getter(name="diskType")
-    def disk_type(self) -> pulumi.Output[builtins.str]:
+    def disk_type(self) -> pulumi.Output[Optional[builtins.str]]:
         """
-        Type of the VHD file (fixed or dynamic)
+        Type of the VHD file (Fixed, Dynamic, or Differencing)
         """
         return pulumi.get(self, "disk_type")
+
+    @property
+    @pulumi.getter(name="parentPath")
+    def parent_path(self) -> pulumi.Output[Optional[builtins.str]]:
+        """
+        Path to the parent VHD file when creating a differencing disk
+        """
+        return pulumi.get(self, "parent_path")
 
     @property
     @pulumi.getter
@@ -423,7 +464,7 @@ class VhdFile(pulumi.CustomResource):
 
     @property
     @pulumi.getter(name="sizeBytes")
-    def size_bytes(self) -> pulumi.Output[builtins.int]:
+    def size_bytes(self) -> pulumi.Output[Optional[builtins.int]]:
         """
         Size of the VHD file in bytes
         """

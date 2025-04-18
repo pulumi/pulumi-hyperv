@@ -18,7 +18,7 @@ import (
 	_ "embed"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/pulumi/pulumi-hyperv-provider/provider/pkg/provider/common"
+	"github.com/pulumi/pulumi-hyperv/provider/pkg/provider/common"
 )
 
 //go:embed virtualswitch.md
@@ -47,6 +47,7 @@ type VirtualSwitchInputs struct {
 	SwitchType        *string `pulumi:"switchType"`
 	AllowManagementOs *bool   `pulumi:"allowManagementOs,optional"`
 	NetAdapterName    *string `pulumi:"netAdapterName,optional"`
+	Notes             *string `pulumi:"notes,optional"`
 }
 
 func (c *VirtualSwitchInputs) Annotate(a infer.Annotator) {
@@ -54,6 +55,7 @@ func (c *VirtualSwitchInputs) Annotate(a infer.Annotator) {
 	a.Describe(&c.SwitchType, "Type of switch: 'External', 'Internal', or 'Private'")
 	a.Describe(&c.AllowManagementOs, "Allow the management OS to access the switch (External switches)")
 	a.Describe(&c.NetAdapterName, "Name of the physical network adapter to bind to (External switches)")
+	a.Describe(&c.Notes, "Notes or description for the virtual switch")
 }
 
 // These are the outputs (or properties) of a VirtualSwitch resource.

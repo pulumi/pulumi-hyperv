@@ -10,8 +10,8 @@
   ],
   "homepage": "https://pulumi.com",
   "license": "Apache-2.0",
-  "repository": "https://github.com/pulumi/pulumi-hyperv-provider",
-  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv-provider/master/assets/logo.svg",
+  "repository": "https://github.com/pulumi/pulumi-hyperv",
+  "logoUrl": "https://raw.githubusercontent.com/pulumi/pulumi-hyperv/master/assets/logo.svg",
   "publisher": "Pulumi",
   "meta": {
     "moduleFormat": "(.*)"
@@ -25,7 +25,7 @@
     },
     "go": {
       "generateResourceContainerTypes": true,
-      "importBasePath": "github.com/pulumi/pulumi-hyperv-provider/provider/go/hyperv",
+      "importBasePath": "github.com/pulumi/pulumi-hyperv/provider/go/hyperv",
       "respectSchemaVersion": true
     },
     "java": {
@@ -54,6 +54,104 @@
       }
     }
   },
+  "types": {
+    "hyperv:machine:HardDriveInput": {
+      "properties": {
+        "controllerLocation": {
+          "type": "integer"
+        },
+        "controllerNumber": {
+          "type": "integer"
+        },
+        "controllerType": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "required": [
+        "controllerLocation",
+        "controllerNumber",
+        "controllerType",
+        "path"
+      ]
+    },
+    "hyperv:networkadapter:NetworkAdapterInputs": {
+      "properties": {
+        "create": {
+          "type": "string",
+          "description": "The command to run on create."
+        },
+        "delete": {
+          "type": "string",
+          "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
+        },
+        "dhcpGuard": {
+          "type": "boolean",
+          "description": "Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages."
+        },
+        "ieeePriorityTag": {
+          "type": "boolean",
+          "description": "Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value."
+        },
+        "ipAddresses": {
+          "type": "string",
+          "description": "Comma-separated list of IP addresses to assign to the network adapter."
+        },
+        "macAddress": {
+          "type": "string",
+          "description": "MAC address for the network adapter. If not specified, a dynamic MAC address will be generated."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the network adapter"
+        },
+        "portMirroring": {
+          "type": "string",
+          "description": "Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None."
+        },
+        "routerGuard": {
+          "type": "boolean",
+          "description": "Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages."
+        },
+        "switchName": {
+          "type": "string",
+          "description": "Name of the virtual switch to connect the network adapter to"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Trigger a resource replacement on changes to any of these values. The\ntrigger values can be of any type. If a value is different in the current update compared to the\nprevious update, the resource will be replaced, i.e., the \"create\" command will be re-run.\nPlease see the resource documentation for examples.",
+          "replaceOnChanges": true
+        },
+        "update": {
+          "type": "string",
+          "description": "The command to run on update, if empty, create will \nrun again. The environment variables PULUMI_COMMAND_STDOUT and PULUMI_COMMAND_STDERR \nare set to the stdout and stderr properties of the Command resource from previous \ncreate or update steps."
+        },
+        "vlanId": {
+          "type": "integer",
+          "description": "VLAN ID for the network adapter. If not specified, no VLAN tagging is used."
+        },
+        "vmName": {
+          "type": "string",
+          "description": "Name of the virtual machine to attach the network adapter to"
+        },
+        "vmqWeight": {
+          "type": "integer",
+          "description": "VMQ weight for the network adapter. A value of 0 disables VMQ."
+        }
+      },
+      "type": "object",
+      "required": [
+        "name",
+        "switchName"
+      ]
+    }
+  },
   "provider": {
     "properties": {
       "host": {
@@ -69,8 +167,16 @@
   },
   "resources": {
     "hyperv:machine:Machine": {
-      "description": "# Hyper-V Machine Resource\n\n## Overview\n\nThe Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.\n\n## Features\n\n- Create and delete Hyper-V virtual machines\n- Configure VM hardware properties including:\n  - Memory allocation\n  - Processor count\n  - VM generation (Gen 1 or Gen 2)\n- Unique VM identification with automatic ID generation\n\n## Implementation Details\n\n### Resource Structure\n\nThe Machine resource implementation consists of multiple files:\n- `machine.go` - Core resource type definition, input/output models, and annotations\n- `machineController.go` - Implementation of CRUD operations\n- `machineOutputs.go` - Output-specific methods\n\n### Virtual Machine Creation\n\nThe `Create` method performs the following steps:\n\n1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI\n2. **Configure VM Settings**:\n   - Sets the virtual machine generation (defaults to Generation 2)\n   - Configures memory settings (defaults to 1024 MB)\n   - Sets processor count (defaults to 1 vCPU)\n3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings\n\n### Virtual Machine Read\n\nThe `Read` method retrieves the current state of a virtual machine by:\n1. Connecting to the Hyper-V host\n2. Getting the VM by name\n3. Retrieving VM properties including:\n   - VM ID\n   - Memory settings\n   - Processor configuration  \n   - Generation\n\n### Virtual Machine Update\n\nThe `Update` method currently provides a minimal implementation that preserves the VM's state while updating its metadata.\n\n### Virtual Machine Delete\n\nThe `Delete` method:\n1. Connects to the Hyper-V host\n2. Gets the virtual machine by name\n3. Starts the VM (to ensure it's in a state that can be properly deleted)\n4. Gracefully stops the VM\n5. Deletes the virtual machine\n\n## Available Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `machineName` | string | Name of the Virtual Machine | (required) |\n| `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |\n| `processorCount` | int | Number of processors to allocate | 1 |\n| `memorySize` | int | Memory size in MB | 1024 |\n| `triggers` | array | Values that trigger resource replacement when changed | (optional) |\n\n## Future Extensions\n\nThe code includes scaffolding for future enhancements including:\n- Network adapter configuration\n- Hard drive attachments\n- Key protector for secure boot\n- Additional system settings\n\n## Related Documentation\n\n- [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)\n- [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)\n",
+      "description": "# Hyper-V Machine Resource\n\n## Overview\n\nThe Machine resource in the Pulumi Hyper-V provider allows you to create, manage, and delete virtual machines on a Hyper-V host. This resource interacts with the Virtual Machine Management Service (VMMS) to perform virtual machine operations.\n\n## Features\n\n- Create and delete Hyper-V virtual machines\n- Configure VM hardware properties including:\n  - Memory allocation (static or dynamic with min/max)\n  - Processor count\n  - VM generation (Gen 1 or Gen 2)\n  - Auto start/stop actions\n- Attach hard drives with custom controller configuration\n- Configure network adapters with virtual switch connections\n- Unique VM identification with automatic ID generation\n\n## Implementation Details\n\n### Resource Structure\n\nThe Machine resource implementation consists of multiple files:\n- `machine.go` - Core resource type definition, input/output models, and annotations\n- `machineController.go` - Implementation of CRUD operations\n- `machineOutputs.go` - Output-specific methods\n\n### Virtual Machine Creation\n\nThe `Create` method performs the following steps:\n\n1. **Initialize Connection**: Establishes a connection to the Hyper-V host using WMI\n2. **Configure VM Settings**:\n   - Sets the virtual machine generation (defaults to Generation 2)\n   - Configures memory settings (defaults to 1024 MB)\n   - Sets dynamic memory with min/max values if requested\n   - Sets processor count (defaults to 1 vCPU)\n   - Configures auto start/stop actions\n3. **Create VM**: Calls the Hyper-V API to create a new virtual machine with the specified settings\n4. **Attach Hard Drives**: Attaches any specified hard drives to the VM\n5. **Configure Network Adapters**: Adds any specified network adapters to the VM\n\n### Virtual Machine Read\n\nThe `Read` method retrieves the current state of a virtual machine by:\n1. Connecting to the Hyper-V host\n2. Getting the VM by name\n3. Retrieving VM properties including:\n   - VM ID\n   - Memory settings (including dynamic memory configuration)\n   - Processor configuration  \n   - Generation\n   - Auto start/stop actions\n\n### Virtual Machine Update\n\nThe `Update` method currently provides a minimal implementation that preserves the VM's state while updating its metadata.\n\n### Virtual Machine Delete\n\nThe `Delete` method:\n1. Connects to the Hyper-V host\n2. Gets the virtual machine by name\n3. Starts the VM (to ensure it's in a state that can be properly deleted)\n4. Gracefully stops the VM\n5. Deletes the virtual machine\n\n## Available Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `machineName` | string | Name of the Virtual Machine | (required) |\n| `generation` | int | Generation of the Virtual Machine (1 or 2) | 2 |\n| `processorCount` | int | Number of processors to allocate | 1 |\n| `memorySize` | int | Memory size in MB | 1024 |\n| `dynamicMemory` | bool | Enable dynamic memory for the VM | false |\n| `minimumMemory` | int | Minimum memory in MB when using dynamic memory | - |\n| `maximumMemory` | int | Maximum memory in MB when using dynamic memory | - |\n| `autoStartAction` | string | Action on host start (Nothing, StartIfRunning, Start) | Nothing |\n| `autoStopAction` | string | Action on host shutdown (TurnOff, Save, ShutDown) | TurnOff |\n| `networkAdapters` | array | Network adapters to attach to the VM | [] |\n| `hardDrives` | array | Hard drives to attach to the VM | [] |\n| `triggers` | array | Values that trigger resource replacement when changed | (optional) |\n\n### Network Adapter Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `name` | string | Name of the network adapter | \"Network Adapter\" |\n| `switchName` | string | Name of the virtual switch to connect to | (required) |\n\n### Hard Drive Properties\n\n| Property | Type | Description | Default |\n|----------|------|-------------|---------|\n| `path` | string | Path to the VHD/VHDX file | (required) |\n| `controllerType` | string | Type of controller (IDE or SCSI) | SCSI |\n| `controllerNumber` | int | Controller number | 0 |\n| `controllerLocation` | int | Controller location | 0 |\n\n## Usage Examples\n\n```typescript\n// Create a new VM with a network adapter and hard drive\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 4,\n    memorySize: 4096,\n    dynamicMemory: true,\n    minimumMemory: 2048,\n    maximumMemory: 8192,\n    autoStartAction: \"StartIfRunning\",\n    autoStopAction: \"Save\",\n    hardDrives: [{\n        path: \"C:\\\\VMs\\\\example-vm\\\\disk.vhdx\",\n        controllerType: \"SCSI\",\n        controllerNumber: 0,\n        controllerLocation: 0\n    }],\n    networkAdapters: [{\n        name: \"Primary Network\",\n        switchName: \"External Switch\"\n    }]\n});\n```\n\n## Related Documentation\n\n- [Microsoft Hyper-V Documentation](https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-on-windows-server)\n- [Pulumi Hyper-V Provider Documentation](https://www.pulumi.com/registry/packages/hyperv/)\n",
       "properties": {
+        "autoStartAction": {
+          "type": "string",
+          "description": "The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing."
+        },
+        "autoStopAction": {
+          "type": "string",
+          "description": "The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff."
+        },
         "create": {
           "type": "string",
           "description": "The command to run on create."
@@ -79,17 +185,43 @@
           "type": "string",
           "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
         },
+        "dynamicMemory": {
+          "type": "boolean",
+          "description": "Whether to enable dynamic memory for the Virtual Machine. Defaults to false."
+        },
         "generation": {
           "type": "integer",
           "description": "Generation of the Virtual Machine. Defaults to 2."
+        },
+        "hardDrives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/hyperv:machine:HardDriveInput"
+          },
+          "description": "Hard drives to attach to the Virtual Machine."
         },
         "machineName": {
           "type": "string",
           "description": "Name of the Virtual Machine"
         },
+        "maximumMemory": {
+          "type": "integer",
+          "description": "Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory."
+        },
         "memorySize": {
           "type": "integer",
           "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "minimumMemory": {
+          "type": "integer",
+          "description": "Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory."
+        },
+        "networkAdapters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/hyperv:networkadapter:NetworkAdapterInputs"
+          },
+          "description": "Network adapters to attach to the Virtual Machine."
         },
         "processorCount": {
           "type": "integer",
@@ -112,10 +244,15 @@
         }
       },
       "type": "object",
-      "required": [
-        "vmId"
-      ],
       "inputProperties": {
+        "autoStartAction": {
+          "type": "string",
+          "description": "The action to take when the host starts. Valid values are Nothing, StartIfRunning, and Start. Defaults to Nothing."
+        },
+        "autoStopAction": {
+          "type": "string",
+          "description": "The action to take when the host shuts down. Valid values are TurnOff, Save, and ShutDown. Defaults to TurnOff."
+        },
         "create": {
           "type": "string",
           "description": "The command to run on create."
@@ -124,17 +261,43 @@
           "type": "string",
           "description": "The command to run on delete. The environment variables PULUMI_COMMAND_STDOUT\nand PULUMI_COMMAND_STDERR are set to the stdout and stderr properties of the\nCommand resource from previous create or update steps."
         },
+        "dynamicMemory": {
+          "type": "boolean",
+          "description": "Whether to enable dynamic memory for the Virtual Machine. Defaults to false."
+        },
         "generation": {
           "type": "integer",
           "description": "Generation of the Virtual Machine. Defaults to 2."
+        },
+        "hardDrives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/hyperv:machine:HardDriveInput"
+          },
+          "description": "Hard drives to attach to the Virtual Machine."
         },
         "machineName": {
           "type": "string",
           "description": "Name of the Virtual Machine"
         },
+        "maximumMemory": {
+          "type": "integer",
+          "description": "Maximum amount of memory that can be allocated to the Virtual Machine in MB when using dynamic memory."
+        },
         "memorySize": {
           "type": "integer",
           "description": "Amount of memory to allocate to the Virtual Machine in MB. Defaults to 1024."
+        },
+        "minimumMemory": {
+          "type": "integer",
+          "description": "Minimum amount of memory to allocate to the Virtual Machine in MB when using dynamic memory."
+        },
+        "networkAdapters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/hyperv:networkadapter:NetworkAdapterInputs"
+          },
+          "description": "Network adapters to attach to the Virtual Machine."
         },
         "processorCount": {
           "type": "integer",
@@ -155,7 +318,7 @@
       }
     },
     "hyperv:networkadapter:NetworkAdapter": {
-      "description": "# Network Adapter Resource\n\nThe Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.\n\n## Example Usage\n\n```typescript\nimport * as hyperv from \"@pulumi/hyperv\";\n\n// Create a virtual switch\nconst vSwitch = new hyperv.VirtualSwitch(\"example-switch\", {\n    name: \"example-switch\",\n    switchType: \"Internal\",\n});\n\n// Create a virtual machine\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 2,\n    memorySize: 2048,\n});\n\n// Create a network adapter for the VM\nconst nic = new hyperv.NetworkAdapter(\"example-nic\", {\n    name: \"example-nic\",\n    vmName: vm.machineName,\n    switchName: vSwitch.name,\n    // Optional properties\n    dhcpGuard: false,\n    routerGuard: false,\n    vlanId: 100,\n});\n```\n\n## Input Properties\n\n| Property         | Type     | Required | Description |\n|------------------|----------|----------|-------------|\n| name             | string   | Yes      | Name of the network adapter |\n| vmName           | string   | Yes      | Name of the virtual machine to attach the network adapter to |\n| switchName       | string   | Yes      | Name of the virtual switch to connect the network adapter to |\n| macAddress       | string   | No       | MAC address for the network adapter. If not specified, a dynamic MAC address will be generated |\n| vlanId           | number   | No       | VLAN ID for the network adapter. If not specified, no VLAN tagging is used |\n| dhcpGuard        | boolean  | No       | Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages |\n| routerGuard      | boolean  | No       | Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages |\n| portMirroring    | string   | No       | Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None |\n| ieeePriorityTag  | boolean  | No       | Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value |\n| vmqWeight        | number   | No       | VMQ weight for the network adapter. A value of 0 disables VMQ |\n| ipAddresses      | string   | No       | Comma-separated list of IP addresses to assign to the network adapter |\n\n## Output Properties\n\n| Property         | Type     | Description |\n|------------------|----------|-------------|\n| adapterId        | string   | The ID of the network adapter |\n\n## Lifecycle Management\n\n- **Create**: Creates a new network adapter and attaches it to the specified virtual machine.\n- **Read**: Reads the properties of an existing network adapter.\n- **Update**: Updates the properties of an existing network adapter.\n- **Delete**: Removes a network adapter from a virtual machine.\n\n## Notes\n\n- The network adapter creation will fail if the virtual machine or virtual switch does not exist.\n- Dynamic MAC addresses are automatically generated if not specified.\n- IP addresses are specified as a comma-separated string (e.g., \"192.168.1.10,192.168.1.11\").\n- When updating a network adapter, the virtual machine may need to be powered off depending on the properties being changed.",
+      "description": "# Network Adapter Resource\n\nThe Network Adapter resource allows you to create and manage network adapters for virtual machines in Hyper-V.\n\n## Example Usage\n\n### Standalone Network Adapter\n\n```typescript\nimport * as hyperv from \"@pulumi/hyperv\";\n\n// Create a virtual switch\nconst vSwitch = new hyperv.VirtualSwitch(\"example-switch\", {\n    name: \"example-switch\",\n    switchType: \"Internal\",\n});\n\n// Create a virtual machine\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 2,\n    memorySize: 2048,\n});\n\n// Create a network adapter for the VM\nconst nic = new hyperv.NetworkAdapter(\"example-nic\", {\n    name: \"example-nic\",\n    vmName: vm.machineName,\n    switchName: vSwitch.name,\n    // Optional properties\n    dhcpGuard: false,\n    routerGuard: false,\n    vlanId: 100,\n});\n```\n\n### Using the NetworkAdapters Property in Machine Resource\n\nYou can also define network adapters directly in the Machine resource using the `networkAdapters` property:\n\n```typescript\nimport * as hyperv from \"@pulumi/hyperv\";\n\n// Create a virtual switch\nconst vSwitch = new hyperv.VirtualSwitch(\"example-switch\", {\n    name: \"example-switch\",\n    switchType: \"Internal\",\n});\n\n// Create a virtual machine with a network adapter\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 2,\n    memorySize: 2048,\n    networkAdapters: [{\n        name: \"Primary Network\",\n        switchName: vSwitch.name,\n    }],\n});\n```\n\n## Input Properties\n\n| Property         | Type     | Required | Description |\n|------------------|----------|----------|-------------|\n| name             | string   | Yes      | Name of the network adapter |\n| vmName           | string   | Yes      | Name of the virtual machine to attach the network adapter to |\n| switchName       | string   | Yes      | Name of the virtual switch to connect the network adapter to |\n| macAddress       | string   | No       | MAC address for the network adapter. If not specified, a dynamic MAC address will be generated |\n| vlanId           | number   | No       | VLAN ID for the network adapter. If not specified, no VLAN tagging is used |\n| dhcpGuard        | boolean  | No       | Enable DHCP Guard. Prevents the virtual machine from broadcasting DHCP server messages |\n| routerGuard      | boolean  | No       | Enable Router Guard. Prevents the virtual machine from broadcasting router advertisement and discovery messages |\n| portMirroring    | string   | No       | Port mirroring mode. Valid values are None, Source, Destination, and Both. Defaults to None |\n| ieeePriorityTag  | boolean  | No       | Enable IEEE Priority Tagging. Allows the virtual machine to tag outgoing network traffic with an IEEE 802.1p priority value |\n| vmqWeight        | number   | No       | VMQ weight for the network adapter. A value of 0 disables VMQ |\n| ipAddresses      | string   | No       | Comma-separated list of IP addresses to assign to the network adapter |\n\n## Output Properties\n\n| Property         | Type     | Description |\n|------------------|----------|-------------|\n| adapterId        | string   | The ID of the network adapter |\n\n## Lifecycle Management\n\n- **Create**: Creates a new network adapter and attaches it to the specified virtual machine.\n- **Read**: Reads the properties of an existing network adapter.\n- **Update**: Updates the properties of an existing network adapter.\n- **Delete**: Removes a network adapter from a virtual machine.\n\n## Notes\n\n- The network adapter creation will fail if the virtual machine or virtual switch does not exist.\n- Dynamic MAC addresses are automatically generated if not specified.\n- IP addresses are specified as a comma-separated string (e.g., \"192.168.1.10,192.168.1.11\").\n- When updating a network adapter, the virtual machine may need to be powered off depending on the properties being changed.",
       "properties": {
         "adapterId": {
           "type": "string",
@@ -230,8 +393,7 @@
       "required": [
         "adapterId",
         "name",
-        "switchName",
-        "vmName"
+        "switchName"
       ],
       "inputProperties": {
         "create": {
@@ -301,16 +463,15 @@
       },
       "requiredInputs": [
         "name",
-        "switchName",
-        "vmName"
+        "switchName"
       ]
     },
     "hyperv:vhdfile:VhdFile": {
-      "description": "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V's VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    diskType: \"Dynamic\"\n});\n```\n",
+      "description": "# VHD File Resource Management\n\nThe `vhdfile` package provides utilities for managing VHD (Virtual Hard Disk) files for Hyper-V virtual machines.\n\n## Overview\n\nThis package enables creating, modifying, and deleting VHD and VHDX files through the Pulumi Hyper-V provider. It provides a clean abstraction for working with virtual disk files independent of virtual machines.\n\n## Key Components\n\n### Types\n\n- **VhdFile**: Represents a VHD or VHDX file for use with Hyper-V virtual machines.\n\n### Resource Lifecycle Methods\n\n- **Create**: Creates a new VHD/VHDX file with specified properties.\n- **Read**: Retrieves information about an existing VHD/VHDX file.\n- **Update**: Modifies properties of an existing VHD/VHDX file (currently a no-op in the implementation).\n- **Delete**: Removes a VHD/VHDX file.\n\n## Available Properties\n\nThe VhdFile resource supports the following properties:\n\n| Property | Type | Description |\n|----------|------|-------------|\n| `path` | string | Path where the VHD file should be created |\n| `parentPath` | string | Path to parent VHD when creating differencing disks |\n| `diskType` | string | Type of disk (Fixed, Dynamic, Differencing) |\n| `sizeBytes` | number | Size of the disk in bytes (for Fixed and Dynamic disks) |\n| `blockSize` | number | Block size of the disk in bytes (recommended: 1048576 for 1MB) |\n\n## Implementation Details\n\nThe package uses PowerShell commands under the hood to interact with Hyper-V's VHD management functionality, providing a Go-based interface that integrates with the Pulumi resource model.\n\n### Update Behavior\n\nThe current implementation of the `Update` method is a no-op. Any changes to VHD properties that require modification of the underlying file structure will typically require replacing the resource rather than updating it in place.\n\n## Usage Examples\n\nVHD files can be defined and managed through the Pulumi Hyper-V provider using the standard resource model. These virtual disks can then be attached to virtual machines or managed independently.\n\n### Creating a Base VHD\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    blockSize: 1048576, // 1MB block size (recommended)\n    diskType: \"Dynamic\"\n});\n```\n\n### Creating a Differencing Disk\n\n```typescript\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    blockSize: 1048576, // 1MB block size (recommended)\n    diskType: \"Dynamic\"\n});\n\nconst diffVhd = new hyperv.VhdFile(\"diff-vhd\", {\n    path: \"c:\\\\vms\\\\vm1\\\\disk.vhdx\",\n    parentPath: baseVhd.path,\n    diskType: \"Differencing\"\n});\n```\n\n### Using with Machine Resource\n\nThe VhdFile resource can be used in conjunction with the Machine resource by attaching the VHD files to a virtual machine using the `hardDrives` array:\n\n```typescript\n// Create a base VHD\nconst baseVhd = new hyperv.VhdFile(\"base-vhd\", {\n    path: \"c:\\\\vms\\\\base\\\\disk.vhdx\",\n    sizeBytes: 40 * 1024 * 1024 * 1024, // 40GB\n    blockSize: 1048576, // 1MB block size (recommended)\n    diskType: \"Dynamic\"\n});\n\n// Create a differencing disk based on the base VHD\nconst vmDisk = new hyperv.VhdFile(\"vm-disk\", {\n    path: \"c:\\\\vms\\\\vm1\\\\disk.vhdx\",\n    parentPath: baseVhd.path,\n    diskType: \"Differencing\"\n});\n\n// Create a VM and attach the differencing disk\nconst vm = new hyperv.Machine(\"example-vm\", {\n    machineName: \"example-vm\",\n    generation: 2,\n    processorCount: 2,\n    memorySize: 2048,\n    hardDrives: [{\n        path: vmDisk.path,\n        controllerType: \"SCSI\",\n        controllerNumber: 0,\n        controllerLocation: 0\n    }]\n});\n```\n",
       "properties": {
         "blockSize": {
           "type": "integer",
-          "description": "Block size of the VHD file in bytes"
+          "description": "Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility."
         },
         "create": {
           "type": "string",
@@ -322,7 +483,11 @@
         },
         "diskType": {
           "type": "string",
-          "description": "Type of the VHD file (fixed or dynamic)"
+          "description": "Type of the VHD file (Fixed, Dynamic, or Differencing)"
+        },
+        "parentPath": {
+          "type": "string",
+          "description": "Path to the parent VHD file when creating a differencing disk"
         },
         "path": {
           "type": "string",
@@ -347,14 +512,12 @@
       },
       "type": "object",
       "required": [
-        "diskType",
-        "path",
-        "sizeBytes"
+        "path"
       ],
       "inputProperties": {
         "blockSize": {
           "type": "integer",
-          "description": "Block size of the VHD file in bytes"
+          "description": "Block size of the VHD file in bytes. Recommended value is 1MB (1048576 bytes) for better compatibility."
         },
         "create": {
           "type": "string",
@@ -366,7 +529,11 @@
         },
         "diskType": {
           "type": "string",
-          "description": "Type of the VHD file (fixed or dynamic)"
+          "description": "Type of the VHD file (Fixed, Dynamic, or Differencing)"
+        },
+        "parentPath": {
+          "type": "string",
+          "description": "Path to the parent VHD file when creating a differencing disk"
         },
         "path": {
           "type": "string",
@@ -390,9 +557,7 @@
         }
       },
       "requiredInputs": [
-        "diskType",
-        "path",
-        "sizeBytes"
+        "path"
       ]
     },
     "hyperv:virtualswitch:VirtualSwitch": {
@@ -417,6 +582,10 @@
         "netAdapterName": {
           "type": "string",
           "description": "Name of the physical network adapter to bind to (External switches)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes or description for the virtual switch"
         },
         "switchType": {
           "type": "string",
@@ -460,6 +629,10 @@
         "netAdapterName": {
           "type": "string",
           "description": "Name of the physical network adapter to bind to (External switches)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes or description for the virtual switch"
         },
         "switchType": {
           "type": "string",

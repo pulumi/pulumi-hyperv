@@ -96,12 +96,12 @@ publishing {
                 packaging = "jar"
                 description = "The Pulumi hyperv Provider enables you to use Hyper-V resources in your Pulumi programs."
 
-                url = "https://github.com/pulumi/pulumi-hyperv-provider"
+                url = "https://github.com/pulumi/pulumi-hyperv"
 
                 scm {
-                    connection = "git@github.com/pulumi/pulumi-hyperv-provider.git"
-                    developerConnection = "git@github.com/pulumi/pulumi-hyperv-provider.git"
-                    url = "https://github.com/pulumi/pulumi-hyperv-provider"
+                    connection = "git@github.com/pulumi/pulumi-hyperv.git"
+                    developerConnection = "git@github.com/pulumi/pulumi-hyperv.git"
+                    url = "https://github.com/pulumi/pulumi-hyperv"
                 }
 
                 licenses {
