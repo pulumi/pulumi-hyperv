@@ -2,10 +2,11 @@
     "name": "simple-all-four",
     "main": "index.ts",
     "devDependencies": {
-        "@types/node": "^18",
+        "@types/node": "^22",
+        "ts-node": "^10.9.1",
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "@pulumi/pulumi": "^3.113.0"
+        "@pulumi/pulumi": "^3.163.0"
     }
 }
