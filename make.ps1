@@ -701,10 +701,10 @@ function Target-Pulumi {
     }
 }
 
-# Signing targets (conditional)
-function Target-bin_jsign_6_0_jar {
-    Write-Host "Downloading jsign-6.0.jar"
-    Invoke-WebRequest -Uri https://github.com/ebourg/jsign/releases/download/6.0/jsign-6.0.jar -OutFile bin/jsign-6.0.jar
+# Signing targets (conditional) — Azure Trusted Signing via jsign 7.4
+function Target-bin_jsign_7_4_jar {
+    Write-Host "Downloading jsign-7.4.jar"
+    Invoke-WebRequest -Uri https://github.com/ebourg/jsign/releases/download/7.4/jsign-7.4.jar -OutFile bin/jsign-7.4.jar
 }
 
 function Target-sign_goreleaser_exe {
@@ -712,14 +712,14 @@ function Target-sign_goreleaser_exe {
         [string]$GORELEASER_ARCH
     )
     Write-Host "Signing goreleaser exe for architecture: $GORELEASER_ARCH"
-    Target-bin_jsign_6_0_jar
+    Target-bin_jsign_7_4_jar
 
     # Only sign windows binary if fully configured.
     # Test variables set by joining with | between and looking for || showing at least one variable is empty.
     # Move the binary to a temporary location and sign it there to avoid the target being up-to-date if signing fails.
     if ($env:SKIP_SIGNING -ne "true") {
-        if ("|$($env:AZURE_SIGNING_CLIENT_ID)|$($env:AZURE_SIGNING_CLIENT_SECRET)|$($env:AZURE_SIGNING_TENANT_ID)|$($env:AZURE_SIGNING_KEY_VAULT_URI)|" -like "*||*") {
-            Write-Host "Can't sign windows binaries as required configuration not set: AZURE_SIGNING_CLIENT_ID, AZURE_SIGNING_CLIENT_SECRET, AZURE_SIGNING_TENANT_ID, AZURE_SIGNING_KEY_VAULT_URI"
+        if ("|$($env:AZURE_SIGNING_CLIENT_ID)|$($env:AZURE_SIGNING_CLIENT_SECRET)|$($env:AZURE_SIGNING_TENANT_ID)|$($env:AZURE_SIGNING_ACCOUNT_ENDPOINT)|$($env:AZURE_SIGNING_ACCOUNT_NAME)|$($env:AZURE_SIGNING_CERT_PROFILE_NAME)|" -like "*||*") {
+            Write-Host "Can't sign windows binaries as required configuration not set: AZURE_SIGNING_CLIENT_ID, AZURE_SIGNING_CLIENT_SECRET, AZURE_SIGNING_TENANT_ID, AZURE_SIGNING_ACCOUNT_ENDPOINT, AZURE_SIGNING_ACCOUNT_NAME, AZURE_SIGNING_CERT_PROFILE_NAME"
             Write-Host "To rebuild with signing delete the unsigned windows exe file and rebuild with the fixed configuration"
             if ($env:CI -eq "true") {
                 exit 1
@@ -729,8 +729,11 @@ function Target-sign_goreleaser_exe {
             $file = "dist/build-provider-sign-windows_windows_$GORELEASER_ARCH/pulumi-resource-hyperv.exe"
             Move-Item $file "$file.unsigned" -Force
             az login --service-principal --username $env:AZURE_SIGNING_CLIENT_ID --password $env:AZURE_SIGNING_CLIENT_SECRET --tenant $env:AZURE_SIGNING_TENANT_ID --output none
-            $ACCESS_TOKEN = az account get-access-token --resource "https://vault.azure.net" | ConvertFrom-Json | Select-Object -ExpandProperty accessToken
-            java -jar bin/jsign-6.0.jar --storetype AZUREKEYVAULT --keystore "PulumiCodeSigning" --url $env:AZURE_SIGNING_KEY_VAULT_URI --storepass $ACCESS_TOKEN "$file.unsigned"
+            $ACCESS_TOKEN = az account get-access-token --resource "https://codesigning.azure.net" | ConvertFrom-Json | Select-Object -ExpandProperty accessToken
+            # jsign expects the keystore as a bare endpoint hostname (no scheme, no trailing slash).
+            $ENDPOINT_HOST = $env:AZURE_SIGNING_ACCOUNT_ENDPOINT -replace '^https?://', '' -replace '/$', ''
+            $ALIAS = "$($env:AZURE_SIGNING_ACCOUNT_NAME)/$($env:AZURE_SIGNING_CERT_PROFILE_NAME)"
+            java -jar bin/jsign-7.4.jar --storetype TRUSTEDSIGNING --keystore $ENDPOINT_HOST --storepass $ACCESS_TOKEN --alias $ALIAS "$file.unsigned"
             Move-Item "$file.unsigned" $file -Force
             az logout
         }
@@ -790,7 +793,7 @@ switch ($target) {
     "install_nodejs_sdk" { Target-install_nodejs_sdk }
     "test" { Target-test }
     "Pulumi" { Target-Pulumi }
-    "bin/jsign-6.0.jar" { Target-bin_jsign_6_0_jar }
+    "bin/jsign-7.4.jar" { Target-bin_jsign_7_4_jar }
     "sign-goreleaser-exe-amd64" { Target-sign_goreleaser_exe_amd64 }
     "sign-goreleaser-exe-arm64" { Target-sign_goreleaser_exe_arm64 }
     default {
