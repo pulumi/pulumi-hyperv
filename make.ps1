@@ -728,14 +728,25 @@ function Target-sign_goreleaser_exe {
         else {
             $file = "dist/build-provider-sign-windows_windows_$GORELEASER_ARCH/pulumi-resource-hyperv.exe"
             Move-Item $file "$file.unsigned" -Force
-            az login --service-principal --username $env:AZURE_SIGNING_CLIENT_ID --password $env:AZURE_SIGNING_CLIENT_SECRET --tenant $env:AZURE_SIGNING_TENANT_ID --output none
-            $ACCESS_TOKEN = az account get-access-token --resource "https://codesigning.azure.net" | ConvertFrom-Json | Select-Object -ExpandProperty accessToken
-            # jsign expects the keystore as a bare endpoint hostname (no scheme, no trailing slash).
-            $ENDPOINT_HOST = $env:AZURE_SIGNING_ACCOUNT_ENDPOINT -replace '^https?://', '' -replace '/$', ''
-            $ALIAS = "$($env:AZURE_SIGNING_ACCOUNT_NAME)/$($env:AZURE_SIGNING_CERT_PROFILE_NAME)"
-            java -jar bin/jsign-7.4.jar --storetype TRUSTEDSIGNING --keystore $ENDPOINT_HOST --storepass $ACCESS_TOKEN --alias $ALIAS "$file.unsigned"
-            Move-Item "$file.unsigned" $file -Force
-            az logout
+            # Use an isolated Azure CLI config dir for this signing invocation so that concurrent
+            # amd64/arm64 signing runs do not share ~/.azure and race on accounts.json. Removing the
+            # temp dir in the finally block replaces the explicit "az logout" and avoids the
+            # "There are no active accounts" error when one arch logs out the other's session.
+            $AZURE_CONFIG_DIR = New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString()))
+            $env:AZURE_CONFIG_DIR = $AZURE_CONFIG_DIR.FullName
+            try {
+                az login --service-principal --username $env:AZURE_SIGNING_CLIENT_ID --password $env:AZURE_SIGNING_CLIENT_SECRET --tenant $env:AZURE_SIGNING_TENANT_ID --output none
+                $ACCESS_TOKEN = az account get-access-token --resource "https://codesigning.azure.net" | ConvertFrom-Json | Select-Object -ExpandProperty accessToken
+                # jsign expects the keystore as a bare endpoint hostname (no scheme, no trailing slash).
+                $ENDPOINT_HOST = $env:AZURE_SIGNING_ACCOUNT_ENDPOINT -replace '^https?://', '' -replace '/$', ''
+                $ALIAS = "$($env:AZURE_SIGNING_ACCOUNT_NAME)/$($env:AZURE_SIGNING_CERT_PROFILE_NAME)"
+                java -jar bin/jsign-7.4.jar --storetype TRUSTEDSIGNING --keystore $ENDPOINT_HOST --storepass $ACCESS_TOKEN --alias $ALIAS "$file.unsigned"
+                Move-Item "$file.unsigned" $file -Force
+            }
+            finally {
+                Remove-Item -Recurse -Force $env:AZURE_CONFIG_DIR
+                $env:AZURE_CONFIG_DIR = $null
+            }
         }
     }
 }
